@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-08T08:37:41.472Z",
+  "tabHits": {
+    "changelog": 5
+  },
+  "eventCounts": {
+    "tab_visit": 5,
+    "session_start": 10
+  },
+  "daily": {
+    "2026-07-06": {
+      "events": 14,
+      "uniqueUsers": [],
+      "logins": 0,
+      "tabVisits": 5
+    },
+    "2026-07-08": {
+      "events": 1,
+      "uniqueUsers": [],
+      "logins": 0,
+      "tabVisits": 0
+    }
+  },
+  "visitorStats": {
+    "returnVisits": 1,
+    "newVisits": 1,
+    "referrerDomains": {
+      "localhost": 1
+    },
+    "referrerTypes": {
+      "internal": 1
+    },
+    "devices": {
+      "desktop": 2
+    },
+    "languages": {
+      "de": 1,
+      "de-DE": 1
+    },
+    "timezones": {
+      "Europe/Berlin": 2
+    },
+    "connections": {
+      "4g": 2
+    },
+    "colorSchemes": {
+      "dark": 2
+    },
+    "landingPaths": {
+      "/": 2
+    },
+    "utmSources": {},
+    "utmMediums": {},
+    "utmCampaigns": {},
+    "platforms": {
+      "Windows": 2
+    }
+  }
+}

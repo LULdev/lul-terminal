@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-06T03:24:12.477Z",
+  "count": 2,
+  "entries": [
+    {
+      "id": "72b4f195a3fbe200",
+      "U": "https",
+      "P": "//example.com/path",
+      "Website": "example.com",
+      "sourceValue": "https://example.com/path",
+      "sourceUrl": "https://example.com",
+      "createdAt": "2026-07-06T03:24:12.476Z",
+      "updatedAt": "2026-07-06T03:24:12.476Z",
+      "seenCount": 1
+    },
+    {
+      "id": "1862993a3df6fcd4",
+      "U": "mailto",
+      "P": "admin@example.com",
+      "Website": "example.com",
+      "sourceValue": "mailto:admin@example.com",
+      "sourceUrl": "https://example.com/contact",
+      "createdAt": "2026-07-06T03:24:12.477Z",
+      "updatedAt": "2026-07-06T03:24:12.477Z",
+      "seenCount": 1
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { attachAuth, requireAuth } from './auth/authApi.mjs';
+import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
+import { ensureActivity } from './auth/achievements.mjs';
+import { loadUsersDb, saveUsersDb } from './auth/authStore.mjs';
+import { runCoinTransaction } from './gamesCoinLock.mjs';
+import { getAllPostViews, recordPostView } from './postViewsStore.mjs';
+
+function sendJson(res, status, body) {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify(body));
+}
+
+async function readJsonBody(req, limit = 4096) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > limit) throw new Error('Payload too large');
+    chunks.push(chunk);
+  }
+  if (!chunks.length) return {};
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+}
+
+export async function handlePostViewsRequest(req, res) {
+  const url = new URL(req.url, 'http://localhost');
+  const pathname = url.pathname;
+
+  try {
+    if (req.method === 'GET' && pathname === '/api/post-views') {
+      checkRateLimit(`post-views-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      return sendJson(res, 200, await getAllPostViews());
+    }
+
+    if (req.method === 'POST' && pathname === '/api/post-views/view') {
+      checkRateLimit(`post-view:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      const body = await readJsonBody(req);
+      const type = String(body.type ?? '').trim();
+      const id = String(body.id ?? '').trim();
+      if (!id || (type !== 'changelog' && type !== 'news')) {
+        return sendJson(res, 400, { error: 'type (changelog|news) and id required' });
+      }
+      await attachAuth(req);
+      const viewer = requireAuth(req);
+      const bucket = type === 'news' ? 'news' : 'changelog';
+      const flagKey = `post_view_${bucket}_${id.slice(0, 32)}`;
+
+      const result = await runCoinTransaction(async () => {
+        const db = await loadUsersDb();
+        const viewerUser = db.users.find((u) => u.id === viewer.id);
+        if (!viewerUser) throw new Error('User not found');
+        const act = ensureActivity(viewerUser);
+        if (act.flags[flagKey]) {
+          const all = await getAllPostViews();
+          return {
+            type: bucket,
+            id,
+            views: Math.max(0, Number(all[bucket]?.[id]) || 0),
+            deduped: true,
+          };
+        }
+        act.flags[flagKey] = true;
+        viewerUser.updatedAt = Date.now();
+        await saveUsersDb(db);
+        const recorded = await recordPostView(type, id);
+        if (!recorded) throw new Error('Invalid id');
+        return recorded;
+      });
+
+      return sendJson(res, 200, result);
+    }
+
+    return sendJson(res, 404, { error: 'Not found' });
+  } catch (err) {
+    const status = isRateLimitError(err)
+      ? 429
+      : err instanceof SyntaxError || err?.message === 'Payload too large'
+        ? 400
+        : err?.message === 'Not logged in'
+          ? 401
+          : 500;
+    return sendJson(res, status, { error: err.message || 'Server error' });
+  }
+}
+
+export function createPostViewsMiddleware() {
+  return (req, res, next) => {
+    const pathname = req.url?.split('?')[0] ?? '';
+    if (pathname.startsWith('/api/post-views')) {
+      handlePostViewsRequest(req, res);
+      return;
+    }
+    next();
+  };
+}

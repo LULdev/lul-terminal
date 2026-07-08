@@ -1,0 +1,188 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import type {
+  PremiumAccount,
+  PremiumAccountCategory,
+  PremiumAccountStatus,
+} from '../data/premiumAccounts';
+import { sessionFetch } from './sessionFetch';
+
+const API = '/api/premium-accounts';
+
+export type PremiumAccountStats = {
+  total: number;
+  working: number;
+  offline: number;
+  pending?: number;
+  activeCategories: number;
+  byCategory: Record<PremiumAccountCategory, number>;
+  byStatus: Record<PremiumAccountStatus, number>;
+  updatedAt: string | null;
+};
+
+export type { PremiumAccount, PremiumAccountCategory, PremiumAccountStatus };
+
+async function authedJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await sessionFetch(`${API}${path}`, init);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+export async function fetchPremiumAccountStats(): Promise<PremiumAccountStats> {
+  return authedJson('/stats');
+}
+
+export async function fetchPremiumAccounts(opts: {
+  category?: PremiumAccountCategory | 'all';
+  status?: PremiumAccountStatus | 'all';
+  search?: string;
+} = {}): Promise<{ accounts: PremiumAccount[]; stats: PremiumAccountStats }> {
+  const params = new URLSearchParams();
+  if (opts.category && opts.category !== 'all') params.set('category', opts.category);
+  if (opts.status && opts.status !== 'all') params.set('status', opts.status);
+  if (opts.search?.trim()) params.set('search', opts.search.trim());
+  const q = params.toString();
+  return authedJson(`/accounts${q ? `?${q}` : ''}`);
+}
+
+export function exportAccountsTxt(accounts: PremiumAccount[], workingOnly = true) {
+  const list = workingOnly
+    ? accounts.filter((a) => a.status === 'working' || a.status === 'working_free')
+    : accounts;
+  return list.map((a) => `${a.service}\t${a.email}\t${a.password}`).join('\n');
+}
+
+export type CreatePremiumAccountInput = {
+  siteName: string;
+  siteUrl: string;
+  email: string;
+  password: string;
+  category: PremiumAccountCategory;
+  plan: 'Free' | 'Premium' | 'WorkingButFree';
+  vip?: boolean;
+};
+
+export async function createPremiumAccount(input: CreatePremiumAccountInput): Promise<PremiumAccount> {
+  const data = await authedJson<{ account: PremiumAccount }>('/accounts', {
+    method: 'POST',
+    body: JSON.stringify({
+      service: input.siteName.trim(),
+      website: input.siteUrl.trim(),
+      email: input.email,
+      password: input.password,
+      category: input.category,
+      plan: input.plan,
+      vip: input.vip ?? false,
+      status: 'unchecked',
+    }),
+  });
+  return data.account;
+}
+
+const ACCOUNT_VIEW_PREFIX = 'lul_acct_view_';
+
+export type AccountReport = {
+  id: string;
+  accountId: string;
+  reportedByUserId: string;
+  reportedByUsername: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  note: string;
+  createdAt: number;
+  reviewedAt: number | null;
+  reviewedByUserId: string | null;
+  account: {
+    id: string;
+    service: string;
+    website?: string;
+    category: PremiumAccountCategory;
+    email: string;
+    status: PremiumAccountStatus;
+    createdByUserId: string | null;
+    createdByUsername: string | null;
+  } | null;
+};
+
+export class RegistrationRequiredError extends Error {
+  constructor() {
+    super('REGISTRATION_REQUIRED');
+    this.name = 'RegistrationRequiredError';
+  }
+}
+
+export function isRegistrationRequiredError(err: unknown): boolean {
+  return err instanceof RegistrationRequiredError
+    || (err instanceof Error && (
+      err.message === 'REGISTRATION_REQUIRED'
+      || err.message === 'Not logged in'
+      || /logged in|registered account/i.test(err.message)
+    ));
+}
+
+export async function reportAccountNotWorking(accountId: string, note?: string): Promise<void> {
+  try {
+    await authedJson(`/accounts/${accountId}/report`, {
+      method: 'POST',
+      body: JSON.stringify({ note: note ?? '' }),
+    });
+  } catch (e) {
+    if (e instanceof Error && e.name === 'SessionExpiredError') {
+      throw new RegistrationRequiredError();
+    }
+    throw e;
+  }
+}
+
+export async function fetchPendingAccountReports(): Promise<AccountReport[]> {
+  const data = await authedJson<{ reports: AccountReport[] }>('/reports/pending');
+  return data.reports;
+}
+
+export async function acceptAccountReport(reportId: string): Promise<void> {
+  await authedJson(`/reports/${reportId}/accept`, { method: 'POST' });
+}
+
+export async function approvePremiumAccount(
+  accountId: string,
+  status: 'working' | 'working_free' = 'working',
+): Promise<PremiumAccount> {
+  const data = await authedJson<{ account: PremiumAccount }>(`/accounts/${accountId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
+  });
+  return data.account;
+}
+
+export async function rejectPremiumAccount(accountId: string): Promise<void> {
+  await authedJson(`/accounts/${accountId}/reject`, { method: 'POST' });
+}
+
+export async function fetchPendingPremiumAccounts(): Promise<PremiumAccount[]> {
+  const data = await fetchPremiumAccounts({ status: 'unchecked' });
+  return data.accounts.filter((a) => a.status === 'unchecked');
+}
+
+export async function rejectAccountReport(reportId: string): Promise<void> {
+  await authedJson(`/reports/${reportId}/reject`, { method: 'POST' });
+}
+
+export async function recordAccountView(id: string): Promise<number> {
+  const sessionKey = `${ACCOUNT_VIEW_PREFIX}${id}`;
+  if (!sessionStorage.getItem(sessionKey)) {
+    try {
+      const res = await sessionFetch(`${API}/accounts/${id}/view`, { method: 'POST' });
+      if (res.ok) {
+        sessionStorage.setItem(sessionKey, '1');
+        const data = await res.json() as { views: number };
+        return data.views;
+      }
+    } catch { /* fall through */ }
+  }
+  return 0;
+}

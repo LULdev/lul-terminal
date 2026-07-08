@@ -6,3 +6,9 @@ coverage/
 *.log
 .env*
 !.env.example
+.cookies.txt
+
+.vercel
+data/image-host/
+data/proxy-scraper/state.json
+data/proxy-scraper/last-results.json

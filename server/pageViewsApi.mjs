@@ -1,0 +1,87 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { attachAuth, requireAuth } from './auth/authApi.mjs';
+import { ensureActivity } from './auth/achievements.mjs';
+import { loadUsersDb, saveUsersDb } from './auth/authStore.mjs';
+import { runCoinTransaction } from './gamesCoinLock.mjs';
+import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
+import { getAllPageViews, getPageViews, recordPageView, sanitizePageId } from './pageViewsStore.mjs';
+
+function sendJson(res, status, body) {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify(body));
+}
+
+export async function handlePageViewsRequest(req, res) {
+  const url = new URL(req.url, 'http://localhost');
+  const pathname = url.pathname;
+
+  try {
+    if (req.method === 'GET' && pathname === '/api/page-views') {
+      checkRateLimit(`page-views-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      return sendJson(res, 200, await getAllPageViews());
+    }
+
+    const viewMatch = pathname.match(/^\/api\/page-views\/([a-zA-Z0-9_-]{1,24})\/view$/);
+    if (viewMatch && req.method === 'POST') {
+      checkRateLimit(`page-view:${clientIp(req)}`, { max: 40, windowMs: 60_000 });
+      await attachAuth(req);
+      const viewer = requireAuth(req);
+      const pageId = sanitizePageId(viewMatch[1]);
+      if (!pageId) return sendJson(res, 400, { error: 'Invalid page id' });
+      const flagKey = `page_view_${pageId}`;
+
+      const result = await runCoinTransaction(async () => {
+        const db = await loadUsersDb();
+        const viewerUser = db.users.find((u) => u.id === viewer.id);
+        if (!viewerUser) throw new Error('User not found');
+        const act = ensureActivity(viewerUser);
+        if (act.flags[flagKey]) {
+          return { pageId, views: await getPageViews(pageId), deduped: true };
+        }
+        act.flags[flagKey] = true;
+        viewerUser.updatedAt = Date.now();
+        await saveUsersDb(db);
+        const recorded = await recordPageView(pageId);
+        if (!recorded) throw new Error('Invalid page id');
+        return recorded;
+      });
+
+      return sendJson(res, 200, result);
+    }
+
+    const idMatch = pathname.match(/^\/api\/page-views\/([a-zA-Z0-9_-]{1,24})$/);
+    if (idMatch && req.method === 'GET') {
+      checkRateLimit(`page-views-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      const id = sanitizePageId(idMatch[1]);
+      if (!id) return sendJson(res, 400, { error: 'Invalid page id' });
+      return sendJson(res, 200, { pageId: id, views: await getPageViews(id) });
+    }
+
+    return sendJson(res, 404, { error: 'Not found' });
+  } catch (err) {
+    const status = isRateLimitError(err)
+      ? 429
+      : err instanceof SyntaxError
+        ? 400
+        : err?.message === 'Not logged in'
+          ? 401
+          : 500;
+    return sendJson(res, status, { error: err.message || 'Server error' });
+  }
+}
+
+export function createPageViewsMiddleware() {
+  return (req, res, next) => {
+    const pathname = req.url?.split('?')[0] ?? '';
+    if (pathname.startsWith('/api/page-views')) {
+      handlePageViewsRequest(req, res);
+      return;
+    }
+    next();
+  };
+}

@@ -1,0 +1,168 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-08T05:26:54.301Z",
+  "messages": [
+    {
+      "id": "27ffcaae8b9d",
+      "lobby": "main",
+      "userId": "218ed9f2d4642de0",
+      "username": "bot",
+      "displayName": "BOT",
+      "role": "bot",
+      "kind": "bot",
+      "text": "Congratulations @admin on earning the achievement Cover Curator!",
+      "segments": [
+        {
+          "type": "text",
+          "text": "Congratulations "
+        },
+        {
+          "type": "user",
+          "username": "admin",
+          "href": "/profile/admin",
+          "label": "@admin"
+        },
+        {
+          "type": "text",
+          "text": " on earning the achievement 🖌️ "
+        },
+        {
+          "type": "text",
+          "text": "Cover Curator",
+          "style": "achievement"
+        },
+        {
+          "type": "text",
+          "text": "!"
+        }
+      ],
+      "createdAt": 1783314829195
+    },
+    {
+      "id": "ea94d81b1b56",
+      "lobby": "main",
+      "userId": "218ed9f2d4642de0",
+      "username": "bot",
+      "displayName": "BOT",
+      "role": "bot",
+      "kind": "bot",
+      "text": "Congratulations @admin on earning the achievement VIP Crown!",
+      "segments": [
+        {
+          "type": "text",
+          "text": "Congratulations "
+        },
+        {
+          "type": "user",
+          "username": "admin",
+          "href": "/profile/admin",
+          "label": "@admin"
+        },
+        {
+          "type": "text",
+          "text": " on earning the achievement 👑 "
+        },
+        {
+          "type": "text",
+          "text": "VIP Crown",
+          "style": "achievement"
+        },
+        {
+          "type": "text",
+          "text": "!"
+        }
+      ],
+      "createdAt": 1783314832199
+    },
+    {
+      "id": "3b9748715ae2",
+      "lobby": "main",
+      "userId": "218ed9f2d4642de0",
+      "username": "bot",
+      "displayName": "BOT",
+      "role": "bot",
+      "kind": "bot",
+      "text": "🏆 Leaderboard alert! @vipdemo hit #2 on LULcoin Tycoon and earned LULcoin Tycoon!",
+      "segments": [
+        {
+          "type": "text",
+          "text": "🏆 Leaderboard alert! "
+        },
+        {
+          "type": "user",
+          "username": "vipdemo",
+          "href": "/profile/vipdemo",
+          "label": "@vipdemo"
+        },
+        {
+          "type": "text",
+          "text": " hit #2 on "
+        },
+        {
+          "type": "link",
+          "href": "/?tab=leaderboard",
+          "label": "LULcoin Tycoon"
+        },
+        {
+          "type": "text",
+          "text": " and earned "
+        },
+        {
+          "type": "text",
+          "text": "🪙 LULcoin Tycoon",
+          "style": "achievement"
+        },
+        {
+          "type": "text",
+          "text": "!"
+        }
+      ],
+      "createdAt": 1783316136466
+    },
+    {
+      "id": "cf0b7f3ff7e8",
+      "lobby": "main",
+      "userId": "218ed9f2d4642de0",
+      "username": "bot",
+      "displayName": "BOT",
+      "role": "bot",
+      "kind": "bot",
+      "text": "🏆 Leaderboard alert! @admin hit #1 on Achievement Hunter and earned Trophy Hunter!",
+      "segments": [
+        {
+          "type": "text",
+          "text": "🏆 Leaderboard alert! "
+        },
+        {
+          "type": "user",
+          "username": "admin",
+          "href": "/profile/admin",
+          "label": "@admin"
+        },
+        {
+          "type": "text",
+          "text": " hit #1 on "
+        },
+        {
+          "type": "link",
+          "href": "/?tab=leaderboard",
+          "label": "Achievement Hunter"
+        },
+        {
+          "type": "text",
+          "text": " and earned "
+        },
+        {
+          "type": "text",
+          "text": "🏆 Trophy Hunter",
+          "style": "achievement"
+        },
+        {
+          "type": "text",
+          "text": "!"
+        }
+      ],
+      "createdAt": 1783488414301
+    }
+  ]
+}

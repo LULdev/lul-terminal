@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "updatedAt": "2026-07-08T08:37:41.452Z",
+  "ips": {},
+  "ipSubnets": {},
+  "installIds": {},
+  "storageIds": {},
+  "fingerprints": {},
+  "compositeHashes": {},
+  "canvasHashes": {},
+  "webglHashes": {},
+  "guestIds": {},
+  "envHashes": {},
+  "uaHashes": {},
+  "clientHintsHashes": {},
+  "regLockTokens": {},
+  "regHintTokens": {},
+  "canonicalEmails": {}
+}

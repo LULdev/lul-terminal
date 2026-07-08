@@ -1,0 +1,67 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { ensureActivity } from './auth/achievements.mjs';
+import { loadUsersDb, saveUsersDb } from './auth/authStore.mjs';
+import { runCoinTransaction } from './gamesCoinLock.mjs';
+import { MIN_SEND_INTERVAL_MS } from './chatStore.mjs';
+
+export function assertCanChat(user) {
+  if (user.role === 'bot') throw new Error('BOT cannot send manual commands');
+  if (user.chatBanned) throw new Error('You are banned from the shoutbox');
+  if (user.chatMutedUntil && user.chatMutedUntil > Date.now()) {
+    const mins = Math.ceil((user.chatMutedUntil - Date.now()) / 60000);
+    throw new Error(`You are muted for ${mins} more minute(s)`);
+  }
+}
+
+/** Ban/mute targets: admin, bot, and VIP accounts are protected. */
+export function assertCanModerateShoutboxTarget(user) {
+  if (!user) throw new Error('User not found');
+  if (user.role === 'admin' || user.role === 'bot' || user.role === 'vip') {
+    throw new Error('Cannot moderate this user');
+  }
+}
+
+export function getActivityFlag(act, key) {
+  return Number(act?.flags?.[key]) || 0;
+}
+
+export function setActivityFlag(act, key, value) {
+  act.flags = { ...(act.flags ?? {}), [key]: value };
+}
+
+/** Check per-user shoutbox cooldown without committing (call recordChatRateLimit after successful send). */
+export async function checkChatRateLimit(userId) {
+  await runCoinTransaction(async () => {
+    const db = await loadUsersDb();
+    const user = db.users.find((u) => u.id === userId);
+    if (!user) throw new Error('User not found');
+    const act = ensureActivity(user);
+    const last = getActivityFlag(act, 'lastChatActionAt');
+    if (Date.now() - last < MIN_SEND_INTERVAL_MS) {
+      throw new Error('Please wait a few seconds before sending another message');
+    }
+  });
+}
+
+/** Record shoutbox action timestamp after message successfully persisted. */
+export async function recordChatRateLimit(userId) {
+  await runCoinTransaction(async () => {
+    const db = await loadUsersDb();
+    const user = db.users.find((u) => u.id === userId);
+    if (!user) return;
+    const act = ensureActivity(user);
+    setActivityFlag(act, 'lastChatActionAt', Date.now());
+    user.updatedAt = Date.now();
+    await saveUsersDb(db);
+  });
+}
+
+/** @deprecated Use checkChatRateLimit + recordChatRateLimit */
+export async function assertChatRateLimit(userId) {
+  await checkChatRateLimit(userId);
+  await recordChatRateLimit(userId);
+}

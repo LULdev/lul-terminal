@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-06T04:39:44.849Z",
+  "profiles": {
+    "g:g-mr8hn74m-mjdqvej7": {
+      "key": "g:g-mr8hn74m-mjdqvej7",
+      "userId": null,
+      "guestId": "g-mr8hn74m-mjdqvej7",
+      "username": null,
+      "firstSeenAt": 1783312784841,
+      "visitCount": 2,
+      "sessionCount": 1,
+      "referrers": {
+        "http://localhost:3000/": 1
+      },
+      "referrerDomains": {
+        "localhost": 1
+      },
+      "devices": {
+        "desktop": 1
+      },
+      "languages": {
+        "de": 1
+      },
+      "timezones": {
+        "Europe/Berlin": 1
+      },
+      "landingPaths": {
+        "/": 1
+      },
+      "utmSources": {},
+      "lastMeta": {
+        "referrer": "http://localhost:3000/",
+        "referrerDomain": "localhost",
+        "referrerType": "internal",
+        "landingUrl": "http://localhost:3000/",
+        "landingPath": "/",
+        "visitCount": 2,
+        "returnVisitor": true,
+        "daysSinceLastVisit": 0,
+        "firstVisitAt": 1783312604574,
+        "language": "de",
+        "languages": "de",
+        "timezone": "Europe/Berlin",
+        "screen": "1920x1080",
+        "viewport": "2126x1101",
+        "deviceType": "desktop",
+        "platform": "Windows",
+        "connection": "4g",
+        "colorScheme": "dark",
+        "reducedMotion": false,
+        "touchSupport": false,
+        "cookieEnabled": true,
+        "online": true,
+        "hardwareConcurrency": 14,
+        "deviceMemory": 32,
+        "utmSource": "",
+        "utmMedium": "",
+        "utmCampaign": "",
+        "utmTerm": "",
+        "refCode": "",
+        "pageLoadMs": 0,
+        "isLoggedIn": false
+      },
+      "lastSeenAt": 1783312784841,
+      "lastReferrer": "http://localhost:3000/",
+      "lastReferrerDomain": "localhost",
+      "lastLandingUrl": "http://localhost:3000/",
+      "lastLandingPath": "/",
+      "returnVisitor": true
+    }
+  }
+}

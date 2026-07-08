@@ -1,0 +1,365 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Terminal } from 'lucide-react';
+import { MatrixOverlay } from '../MatrixOverlay';
+import { ChatUserChip } from './ChatUserChip';
+import { ChatRoleBadges } from './ChatRoleBadges';
+import { ChatMessageBody, isBotSpeaker } from './ChatMessageBody';
+import {
+  ChatAuthRequiredError,
+  ChatFetchError,
+  ChatRateLimitError,
+  fetchLobbyMessages,
+  playChatNotification,
+  sendLobbyMessage,
+  type ChatMessage,
+  type PinnedMessage,
+  type SendChatResult,
+} from '../../lib/chat';
+import type { LogLine } from '../../types';
+
+const DISPLAY_LIMIT = 30;
+const BOT_MSG_PREFIX = '[BOT 🤖]';
+
+function formatTime(ts: number) {
+  return new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function ChatLine({ msg, onOpenProfile }: { msg: ChatMessage; onOpenProfile?: (username: string) => void }) {
+  const botLine = isBotSpeaker(msg);
+  const textClass = botLine
+    ? 'text-sky-100/90'
+    : msg.kind === 'action' || msg.kind === 'ping'
+      ? 'text-fuchsia-300/90 italic'
+      : 'text-indigo-200/90';
+
+  return (
+    <div className={`flex gap-1.5 items-start leading-tight group ${botLine ? 'bot-message-row' : ''}`}>
+      <span className="text-slate-600 font-semibold shrink-0 select-none pt-px">[{formatTime(msg.createdAt)}]</span>
+      {botLine ? (
+        <>
+          <ChatRoleBadges role="bot" compact />
+          <span className="shrink-0 font-semibold bot-username-style select-none">{BOT_MSG_PREFIX}</span>
+        </>
+      ) : onOpenProfile ? (
+        <>
+          <ChatUserChip
+            user={{
+              userId: msg.userId,
+              username: msg.username,
+              displayName: msg.displayName,
+              role: msg.role,
+              avatarUrl: msg.avatarUrl ?? undefined,
+              verified: msg.verified,
+            }}
+            onOpenProfile={onOpenProfile}
+          />
+          <span className="text-slate-600 shrink-0 select-none">:</span>
+        </>
+      ) : (
+        <span className="text-slate-400 shrink-0">@{msg.username}:</span>
+      )}
+      <span className={`whitespace-pre-wrap leading-tight break-all ${textClass}`}>
+        <ChatMessageBody msg={msg} onOpenProfile={onOpenProfile} />
+      </span>
+    </div>
+  );
+}
+
+function PinnedWelcome({ pinned }: { pinned: PinnedMessage }) {
+  return (
+    <div className="shoutbox-pinned shrink-0">
+      <div className="flex items-center gap-1 mb-0.5">
+        <Terminal className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
+        <span className="text-[6px] font-mono uppercase tracking-widest text-indigo-300/80">Pinned · Welcome</span>
+      </div>
+      <p className="text-[8px] font-mono text-indigo-100/90 leading-relaxed">
+        <ChatMessageBody msg={pinned} />
+      </p>
+    </div>
+  );
+}
+
+type StreamEntry =
+  | { kind: 'log'; ts: number; log: LogLine }
+  | { kind: 'chat'; ts: number; msg: ChatMessage };
+
+export type { SendChatResult };
+
+type UnifiedTerminalPanelProps = {
+  commandLogs: LogLine[];
+  processCommand: (cmd: string) => void;
+  themeText: string;
+  isMatrixOverlayActive: boolean;
+  onCloseMatrix: () => void;
+  isMuted?: boolean;
+  pollEnabled?: boolean;
+  onSendChatReady?: (send: (text: string) => Promise<SendChatResult>) => void;
+  onOpenProfile?: (username: string) => void;
+  onChatUnlocks?: (ids: string[], rewards?: Record<string, number>, coinsTotal?: number) => void;
+};
+
+export function UnifiedTerminalPanel({
+  commandLogs,
+  processCommand,
+  themeText,
+  isMatrixOverlayActive,
+  onCloseMatrix,
+  isMuted = false,
+  pollEnabled = true,
+  onSendChatReady,
+  onOpenProfile,
+  onChatUnlocks,
+}: UnifiedTerminalPanelProps) {
+  const [pinned, setPinned] = useState<PinnedMessage | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [chatStatus, setChatStatus] = useState<'ok' | 'offline' | 'rate_limited'>('ok');
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const lastTsRef = useRef(0);
+  const lobbyUpdatedAtRef = useRef<string | null>(null);
+  const knownIdsRef = useRef(new Set<string>());
+  const initialDoneRef = useRef(false);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+  const isMutedRef = useRef(isMuted);
+  const hadMessagesRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  const scrollToBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, []);
+
+  const applyDisplayWindow = useCallback((incoming: ChatMessage[], playNotify: boolean) => {
+    if (!incoming.length) return;
+    let played = false;
+    setMessages((prev) => {
+      const byId = new Map<string, ChatMessage>();
+      for (const m of prev) byId.set(m.id, m);
+      for (const m of incoming) {
+        if (!knownIdsRef.current.has(m.id)) played = true;
+        byId.set(m.id, m);
+        knownIdsRef.current.add(m.id);
+      }
+      const merged = [...byId.values()].sort((a, b) => a.createdAt - b.createdAt);
+      const slice = merged.slice(-DISPLAY_LIMIT);
+      knownIdsRef.current = new Set(slice.map((m) => m.id));
+      return slice;
+    });
+    if (playNotify && played) playChatNotification(isMutedRef.current);
+  }, []);
+
+  const replaceDisplayWindow = useCallback((incoming: ChatMessage[]) => {
+    const slice = incoming.slice(-DISPLAY_LIMIT);
+    knownIdsRef.current = new Set(slice.map((m) => m.id));
+    hadMessagesRef.current = slice.length > 0;
+    if (mountedRef.current) setMessages(slice);
+  }, []);
+
+  const loadMessages = useCallback(async (initial = false) => {
+    const gen = ++loadGenRef.current;
+    try {
+      const data = await fetchLobbyMessages({
+        since: initial ? 0 : lastTsRef.current,
+        limit: initial ? DISPLAY_LIMIT : 40,
+      });
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+
+      setChatStatus('ok');
+
+      const lobbyChanged = Boolean(
+        data.updatedAt
+        && lobbyUpdatedAtRef.current
+        && data.updatedAt !== lobbyUpdatedAtRef.current,
+      );
+
+      if (!initial && lobbyChanged) {
+        const full = await fetchLobbyMessages({ since: 0, limit: DISPLAY_LIMIT });
+        if (gen !== loadGenRef.current || !mountedRef.current) return;
+        setPinned(full.pinned);
+        replaceDisplayWindow(full.messages);
+        lobbyUpdatedAtRef.current = full.updatedAt;
+        const maxTs = full.messages.reduce((n, m) => Math.max(n, m.createdAt), 0);
+        if (maxTs > lastTsRef.current) lastTsRef.current = maxTs;
+        return;
+      }
+
+      if (!initial && data.messages.length === 0 && hadMessagesRef.current && lobbyChanged) {
+        replaceDisplayWindow([]);
+        lobbyUpdatedAtRef.current = data.updatedAt;
+        return;
+      }
+
+      lobbyUpdatedAtRef.current = data.updatedAt;
+      setPinned(data.pinned);
+
+      if (initial) {
+        replaceDisplayWindow(data.messages);
+        initialDoneRef.current = true;
+      } else if (data.messages.length) {
+        applyDisplayWindow(data.messages, true);
+      }
+
+      const maxTs = data.messages.reduce((n, m) => Math.max(n, m.createdAt), lastTsRef.current);
+      if (maxTs > lastTsRef.current) lastTsRef.current = maxTs;
+    } catch (e) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      if (e instanceof ChatFetchError && e.status === 429) {
+        setChatStatus('rate_limited');
+      } else {
+        setChatStatus('offline');
+      }
+    } finally {
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
+    }
+  }, [applyDisplayWindow, replaceDisplayWindow]);
+
+  useEffect(() => {
+    if (!pollEnabled) return;
+    initialDoneRef.current = false;
+    lobbyUpdatedAtRef.current = null;
+    void loadMessages(true);
+    const poll = setInterval(() => {
+      if (document.hidden) return;
+      void loadMessages(!initialDoneRef.current);
+    }, 4000);
+    const onVisible = () => {
+      if (!document.hidden) void loadMessages(!initialDoneRef.current);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(poll);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [loadMessages, pollEnabled]);
+
+  const sendChat = useCallback(async (text: string): Promise<SendChatResult> => {
+    try {
+      const { message, newUnlocks, unlockRewards, unlockCoinsTotal } = await sendLobbyMessage(text);
+      if (!mountedRef.current) return { ok: true };
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === message.id)) return prev;
+        knownIdsRef.current.add(message.id);
+        const merged = [...prev, message].sort((a, b) => a.createdAt - b.createdAt);
+        return merged.slice(-DISPLAY_LIMIT);
+      });
+      hadMessagesRef.current = true;
+      lastTsRef.current = Math.max(lastTsRef.current, message.createdAt);
+      setChatStatus('ok');
+      const hasUnlocks = Boolean(newUnlocks?.length);
+      const hasRewards = Boolean(unlockRewards && Object.keys(unlockRewards).length);
+      const hasCoins = Boolean(unlockCoinsTotal && unlockCoinsTotal > 0);
+      if (hasUnlocks || hasRewards || hasCoins) {
+        onChatUnlocks?.(newUnlocks ?? [], unlockRewards, unlockCoinsTotal);
+      }
+      return { ok: true };
+    } catch (err) {
+      if (err instanceof ChatAuthRequiredError) {
+        return { ok: false, error: 'CHAT_AUTH_REQUIRED' };
+      }
+      if (err instanceof ChatRateLimitError) {
+        return { ok: false, error: err.message, retryAfterMs: err.retryAfterMs };
+      }
+      return { ok: false, error: err instanceof Error ? err.message : 'Send failed' };
+    }
+  }, [onChatUnlocks]);
+
+  useEffect(() => {
+    onSendChatReady?.(sendChat);
+  }, [sendChat, onSendChatReady]);
+
+  const streamEntries = useMemo((): StreamEntry[] => {
+    const logs: StreamEntry[] = commandLogs.map((log, i) => ({
+      kind: 'log',
+      ts: log.ts ?? i,
+      log,
+    }));
+    const chats: StreamEntry[] = messages.map((msg) => ({
+      kind: 'chat',
+      ts: msg.createdAt,
+      msg,
+    }));
+    return [...logs, ...chats].sort((a, b) => a.ts - b.ts);
+  }, [commandLogs, messages]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [streamEntries.length, pinned, scrollToBottom]);
+
+  return (
+    <div
+      ref={scrollRef}
+      className="flex-1 min-h-[180px] mt-1 bg-black/50 rounded p-3 font-mono text-[8px] leading-relaxed overflow-y-auto border border-slate-800/60 shadow-inner flex flex-col gap-2 relative animate-fade-in"
+      id="unified-terminal-stream"
+    >
+      {isMatrixOverlayActive && <MatrixOverlay onClose={onCloseMatrix} />}
+
+      {chatStatus !== 'ok' && (
+        <p className={`text-[7px] font-mono text-center py-1 shrink-0 ${
+          chatStatus === 'rate_limited' ? 'text-amber-400' : 'text-rose-400/80'
+        }`}>
+          {chatStatus === 'rate_limited'
+            ? 'Shoutbox poll rate-limited — retrying…'
+            : 'Shoutbox offline — logs still work, retrying…'}
+        </p>
+      )}
+
+      {loading && !pinned && streamEntries.length === 0 && (
+        <p className="text-slate-600 text-center py-4">Initializing terminal stream…</p>
+      )}
+
+      {pinned && <PinnedWelcome pinned={pinned} />}
+      {pinned && <div className="shoutbox-history-divider shrink-0" aria-hidden />}
+
+      {streamEntries.map((entry) => {
+        if (entry.kind === 'chat') {
+          return (
+            <React.Fragment key={`chat-${entry.msg.id}`}>
+              <ChatLine msg={entry.msg} onOpenProfile={onOpenProfile} />
+            </React.Fragment>
+          );
+        }
+        const log = entry.log;
+        const isClickable = !!log.commandToRun;
+        return (
+          <div
+            key={`log-${log.id}`}
+            className={`flex gap-2 items-start ${isClickable ? 'group cursor-pointer' : ''}`}
+            id={`log-item-${log.id}`}
+            onClick={isClickable ? () => processCommand(log.commandToRun!) : undefined}
+          >
+            <span className="text-slate-600 font-semibold shrink-0 select-none">[{log.time}]</span>
+            <span
+              className={`whitespace-pre-wrap leading-tight break-all ${
+                isClickable
+                  ? `${themeText} hover:brightness-125 hover:underline decoration-dashed font-semibold transition-all duration-150`
+                  : log.type === 'success'
+                    ? 'text-green-400 font-semibold'
+                    : log.type === 'warn'
+                      ? 'text-amber-400'
+                      : log.type === 'alert'
+                        ? 'text-red-500 font-extrabold animate-pulse'
+                        : 'text-indigo-300'
+              }`}
+            >
+              {log.message}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

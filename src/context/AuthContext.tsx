@@ -1,0 +1,290 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import * as authApi from '../lib/auth';
+import type { SyncAchievementsOpts } from '../lib/auth';
+import type { AuthPermissions, AuthUser } from '../types/auth';
+import { AchievementNotification } from '../components/auth/AchievementNotification';
+import { clearStoredReferralCode } from '../lib/referral';
+import { trackEvent } from '../lib/analytics';
+import { onSessionInvalidated } from '../lib/sessionEvents';
+import type { TabId } from '../config/menuItems';
+
+type AuthMode = 'login' | 'register' | null;
+
+export type PendingTabTarget = {
+  tab: TabId;
+  profileUsername?: string;
+};
+
+export type LoginGateState = PendingTabTarget | null;
+
+type AuthContextValue = {
+  user: AuthUser | null;
+  permissions: AuthPermissions;
+  accountsSubmitted: number;
+  loading: boolean;
+  authModal: AuthMode;
+  loginGate: LoginGateState;
+  pendingTabAfterLogin: PendingTabTarget | null;
+  openAuth: (mode: 'login' | 'register') => void;
+  openLoginGate: (tab: TabId, opts?: { profileUsername?: string }) => void;
+  openAuthFromGate: (mode: 'login' | 'register') => void;
+  closeLoginGate: () => void;
+  clearPendingTabAfterLogin: () => void;
+  closeAuth: () => void;
+  login: (email: string, password: string, remember: boolean) => Promise<void>;
+  register: (input: { email: string; password: string; username?: string; displayName?: string; referralCode?: string }) => Promise<void>;
+  logout: () => Promise<boolean>;
+  refresh: () => Promise<void>;
+  patchUser: (user: AuthUser | ((prev: AuthUser | null) => AuthUser | null)) => void;
+  handleUnlocks: (ids: string[], rewards?: Record<string, number>) => void;
+  syncAchievements: (opts?: SyncAchievementsOpts) => Promise<void>;
+  authSuccessTick: number;
+  isLoggedIn: boolean;
+  isVip: boolean;
+  isAdmin: boolean;
+  isVerified: boolean;
+};
+
+const defaultPermissions: AuthPermissions = {
+  premiumView: false,
+  premiumSubmit: false,
+  premiumDelete: false,
+  admin: false,
+  isVip: false,
+  isVerified: false,
+};
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [permissions, setPermissions] = useState<AuthPermissions>(defaultPermissions);
+  const [accountsSubmitted, setAccountsSubmitted] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [authModal, setAuthModal] = useState<AuthMode>(null);
+  const [loginGate, setLoginGate] = useState<LoginGateState>(null);
+  const [pendingTabAfterLogin, setPendingTabAfterLogin] = useState<PendingTabTarget | null>(null);
+  const [pendingUnlocks, setPendingUnlocks] = useState<string[]>([]);
+  const [pendingUnlockRewards, setPendingUnlockRewards] = useState<Record<string, number>>({});
+  const [authSuccessTick, setAuthSuccessTick] = useState(0);
+
+  const openLoginGate = useCallback((tab: TabId, opts?: { profileUsername?: string }) => {
+    const target: PendingTabTarget = { tab, profileUsername: opts?.profileUsername };
+    setLoginGate(target);
+    setPendingTabAfterLogin(target);
+  }, []);
+
+  const closeLoginGate = useCallback(() => {
+    setLoginGate(null);
+  }, []);
+
+  const openAuth = useCallback((mode: 'login' | 'register') => {
+    setLoginGate(null);
+    setAuthModal(mode);
+  }, []);
+
+  const openAuthFromGate = useCallback((mode: 'login' | 'register') => {
+    setLoginGate(null);
+    setAuthModal(mode);
+  }, []);
+
+  const clearPendingTabAfterLogin = useCallback(() => {
+    setPendingTabAfterLogin(null);
+  }, []);
+
+  const handleUnlocks = useCallback((
+    ids: string[],
+    rewards?: Record<string, number>,
+  ) => {
+    if (!ids?.length) return;
+    setPendingUnlocks((prev) => {
+      const merged = [...prev];
+      for (const id of ids) {
+        if (!merged.includes(id)) merged.push(id);
+      }
+      return merged;
+    });
+    if (rewards && Object.keys(rewards).length) {
+      setPendingUnlockRewards((prev) => ({ ...prev, ...rewards }));
+    }
+  }, []);
+
+  const patchUser = useCallback((next: AuthUser | ((prev: AuthUser | null) => AuthUser | null)) => {
+    if (typeof next === 'function') {
+      setUser((prev) => next(prev));
+    } else {
+      setUser(next);
+    }
+  }, []);
+
+  const refresh = useCallback(async () => {
+    try {
+      const data = await authApi.fetchMe();
+      setUser(data.user);
+      setPermissions(data.permissions ?? defaultPermissions);
+      setAccountsSubmitted(data.stats?.accountsSubmitted ?? 0);
+    } catch (e) {
+      const status = (e as { status?: number })?.status;
+      if (status === 401) {
+        setUser(null);
+        setPermissions(defaultPermissions);
+        setAccountsSubmitted(0);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh().finally(() => setLoading(false));
+  }, [refresh]);
+
+  useEffect(() => {
+    return onSessionInvalidated(() => {
+      setUser(null);
+      setPermissions(defaultPermissions);
+      setAccountsSubmitted(0);
+      setPendingUnlocks([]);
+      setPendingUnlockRewards({});
+      setLoginGate(null);
+      setAuthModal(null);
+      setPendingTabAfterLogin(null);
+    });
+  }, []);
+
+  const login = useCallback(async (email: string, password: string, remember: boolean) => {
+    const data = await authApi.login(email, password, remember);
+    setUser(data.user);
+    if (data.permissions) setPermissions(data.permissions);
+    if (data.stats?.accountsSubmitted != null) {
+      setAccountsSubmitted(data.stats.accountsSubmitted);
+    }
+    handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
+    try {
+      await refresh();
+    } catch {
+      /* login response already hydrated user + permissions */
+    }
+    setAuthModal(null);
+    setAuthSuccessTick((t) => t + 1);
+    trackEvent('login').catch(() => {});
+  }, [refresh, handleUnlocks]);
+
+  const register = useCallback(async (input: {
+    email: string;
+    password: string;
+    username?: string;
+    displayName?: string;
+    referralCode?: string;
+    website?: string;
+  }) => {
+    const {
+      collectRegistrationContext,
+      fetchRegistrationChallenge,
+      markRegistrationHint,
+    } = await import('../lib/registrationContext');
+    const [registrationContext, challenge] = await Promise.all([
+      collectRegistrationContext(),
+      fetchRegistrationChallenge(),
+    ]);
+    await authApi.register({
+      ...input,
+      website: input.website ?? '',
+      registrationChallenge: challenge.challenge,
+      registrationContext,
+    });
+    markRegistrationHint(registrationContext.installId);
+    clearStoredReferralCode();
+    try {
+      await login(input.email, input.password, true);
+    } catch (e) {
+      throw new Error(
+        e instanceof Error
+          ? `Account created but sign-in failed: ${e.message}`
+          : 'Account created but sign-in failed — please sign in manually.',
+      );
+    }
+  }, [login]);
+
+  const logout = useCallback(async () => {
+    await trackEvent('logout').catch(() => {});
+    try {
+      await authApi.logout();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (msg.includes('Cannot sign out') || msg.includes('arcade cleanup')) {
+        return false;
+      }
+      /* clear local session even when server logout fails for other reasons */
+    }
+    setUser(null);
+    setPermissions(defaultPermissions);
+    setAccountsSubmitted(0);
+    setPendingUnlocks([]);
+    setPendingUnlockRewards({});
+    return true;
+  }, []);
+
+  const syncAchievements = useCallback(async (opts?: SyncAchievementsOpts) => {
+    try {
+      const data = await authApi.syncAchievements(opts);
+      if (data.user) setUser(data.user);
+      handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
+    } catch {
+      /* non-fatal — achievements may sync on next action */
+    }
+  }, [handleUnlocks]);
+
+  const value = useMemo<AuthContextValue>(() => ({
+    user,
+    permissions,
+    accountsSubmitted,
+    loading,
+    authModal,
+    loginGate,
+    pendingTabAfterLogin,
+    openAuth,
+    openLoginGate,
+    openAuthFromGate,
+    closeLoginGate,
+    clearPendingTabAfterLogin,
+    closeAuth: () => setAuthModal(null),
+    login,
+    register,
+    logout,
+    refresh,
+    patchUser,
+    handleUnlocks,
+    syncAchievements,
+    authSuccessTick,
+    isLoggedIn: Boolean(user),
+    isVip: permissions.isVip,
+    isAdmin: permissions.admin,
+    isVerified: permissions.isVerified,
+  }), [user, permissions, accountsSubmitted, loading, authModal, loginGate, pendingTabAfterLogin, authSuccessTick, login, register, logout, refresh, patchUser, handleUnlocks, syncAchievements, openAuth, openLoginGate, openAuthFromGate, closeLoginGate, clearPendingTabAfterLogin]);
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {pendingUnlocks.length > 0 && (
+        <AchievementNotification
+          unlockIds={pendingUnlocks}
+          unlockRewards={pendingUnlockRewards}
+          onDismiss={() => {
+            setPendingUnlocks([]);
+            setPendingUnlockRewards({});
+          }}
+        />
+      )}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth requires AuthProvider');
+  return ctx;
+}

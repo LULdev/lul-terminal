@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "sessions": [
+    {
+      "token": "6229118c27e6d68534d4486c5b996d5c571215f8c8d6a6737b192e0f94c3a61d",
+      "userId": "7199fad0dcc47a9a",
+      "remember": true,
+      "expiresAt": 1785680611153,
+      "createdAt": 1783088611153
+    },
+    {
+      "token": "65ddd1e9c8839a1edb9193be17011c0914cf7e8da54f592d1792d9066f565503",
+      "userId": "b69dcfdb516f75cc",
+      "remember": true,
+      "expiresAt": 1785906829183,
+      "createdAt": 1783314829184
+    },
+    {
+      "token": "4a94dcdf767a7e97652615b246ca540caea31591e02e75e35723b2e0a1622503",
+      "userId": "b69dcfdb516f75cc",
+      "remember": true,
+      "expiresAt": 1785906833765,
+      "createdAt": 1783314833765
+    },
+    {
+      "token": "55f21b811b8f7a34817bb9211157cfc17c301c55109b0eebbae8bc0ff605cc54",
+      "userId": "b69dcfdb516f75cc",
+      "remember": true,
+      "expiresAt": 1785906844816,
+      "createdAt": 1783314844816
+    }
+  ]
+}

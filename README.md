@@ -1,21 +1,48 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# LUL Terminal
 
-# Run and deploy your AI Studio app
+Community arcade, profiles, tools, and terminal hub — built with React, Vite, and Express.
 
-This contains everything you need to run your app locally.
+## Prerequisites
 
-View your app in AI Studio: https://ai.studio/apps/5de89d87-2ac7-471f-844e-5289c3c5176c
+- Node.js 18+
 
-## Run Locally
+## Run locally
 
-**Prerequisites:**  Node.js
+```bash
+npm install
+npm run dev
+```
 
+The dev server starts on [http://localhost:3000](http://localhost:3000) with API middleware via the Vite image-host plugin.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
-# lul-terminal
+## Build
+
+```bash
+npm run build
+```
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start Vite dev server (port 3000) |
+| `npm run build` | Production build |
+| `npm run lint` | TypeScript check (`tsc --noEmit`) |
+| `npm start` | Run production server (`node server/start.mjs`) |
+| `npm run preview` | Preview production build |
+| `npm run seed:proxy-sources` | Seed proxy source data |
+| `npm run seed:persona-db` | Seed persona database |
+
+## Stack
+
+- **Frontend:** React 19, Vite, Tailwind CSS
+- **Backend:** Express (`server/start.mjs`)
+- **Auth & games:** Session-based auth with arcade escrow (14 multiplayer games)
+
+## Environment
+
+| Variable | Description |
+|----------|-------------|
+| `SEED_ADMIN_PASSWORD` | Initial admin password on empty DB (optional) |
+| `SEED_VIP_PASSWORD` | Initial VIP password on empty DB (optional) |
+| `NODE_ENV=production` | Enables `Secure` session cookies |

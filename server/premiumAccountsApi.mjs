@@ -1,0 +1,228 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { attachAuth } from './auth/authApi.mjs';
+import { requireMemberTab } from './tabAccessGuard.mjs';
+import {
+  canDeletePremiumAccounts,
+  canSubmitPremiumAccounts,
+  canViewPremiumAccounts,
+} from './auth/permissions.mjs';
+import { canAccessAdmin } from './auth/permissions.mjs';
+import { ensureActivity } from './auth/achievements.mjs';
+import { loadUsersDb, saveUsersDb } from './auth/authStore.mjs';
+import { runCoinTransaction } from './gamesCoinLock.mjs';
+import {
+  addAccount,
+  approveAccount,
+  getPublicAccountStats,
+  getStats,
+  incrementAccountView,
+  listAccounts,
+  rejectAccount,
+  removeAccount,
+} from './premiumAccountsService.mjs';
+import {
+  acceptReport,
+  listPendingReports,
+  rejectReport,
+  reportAccountNotWorking,
+} from './premiumAccountsReports.mjs';
+import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
+
+function sendJson(res, status, body) {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify(body));
+}
+
+async function readJsonBody(req, limit = 512 * 1024) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > limit) throw new Error('Payload too large');
+    chunks.push(chunk);
+  }
+  if (!chunks.length) return {};
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+}
+
+function requireAuth(req) {
+  if (!req.auth?.user) throw new Error('Not logged in');
+  return req.auth.user;
+}
+
+function requirePremiumView(req) {
+  requireAuth(req);
+  if (!canViewPremiumAccounts(req.auth.user)) throw new Error('VIP permission required');
+}
+
+function requirePremiumSubmit(req) {
+  if (!req.auth?.user) throw new Error('Not logged in');
+  if (!canSubmitPremiumAccounts(req.auth.user)) throw new Error('Verification required — accounts can only be submitted by verified users');
+}
+
+function requirePremiumDelete(req) {
+  if (!req.auth?.user) throw new Error('Not logged in');
+  if (!canDeletePremiumAccounts(req.auth.user)) throw new Error('Admin permission required');
+}
+
+export async function handlePremiumAccountsRequest(req, res) {
+  const url = new URL(req.url, 'http://localhost');
+  const pathname = url.pathname;
+
+  try {
+    await attachAuth(req);
+
+    const isAdmin = Boolean(req.auth?.user && canAccessAdmin(req.auth.user));
+
+    if (req.method === 'GET' && pathname === '/api/premium-accounts/public-stats') {
+      checkRateLimit(`premium-public-stats:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await requireMemberTab(req, 'premiumaccounts');
+      return sendJson(res, 200, await getPublicAccountStats());
+    }
+
+    if (req.method === 'GET' && pathname === '/api/premium-accounts/stats') {
+      requirePremiumView(req);
+      const stats = await getStats({ isAdmin });
+      return sendJson(res, 200, stats);
+    }
+
+    if (req.method === 'GET' && pathname === '/api/premium-accounts/accounts') {
+      requirePremiumView(req);
+      const data = await listAccounts({
+        category: url.searchParams.get('category') ?? undefined,
+        status: url.searchParams.get('status') ?? undefined,
+        search: url.searchParams.get('search') ?? undefined,
+        isAdmin,
+      });
+      return sendJson(res, 200, data);
+    }
+
+    if (req.method === 'POST' && pathname === '/api/premium-accounts/accounts') {
+      requirePremiumSubmit(req);
+      checkRateLimit(`premium-submit:${req.auth.user.id}`, { max: 20, windowMs: 60_000 });
+      const body = await readJsonBody(req);
+      const result = await addAccount(body, req.auth.user);
+      return sendJson(res, 201, result);
+    }
+
+    const approveMatch = pathname.match(/^\/api\/premium-accounts\/accounts\/([a-f0-9]+)\/approve$/);
+    if (approveMatch && req.method === 'POST') {
+      if (!req.auth?.user || !canAccessAdmin(req.auth.user)) {
+        throw new Error('Admin permission required');
+      }
+      const body = await readJsonBody(req);
+      const approveStatus = body.status === 'working_free' ? 'working_free' : 'working';
+      const result = await approveAccount(approveMatch[1], approveStatus);
+      return sendJson(res, 200, result);
+    }
+
+    const rejectUncheckedMatch = pathname.match(/^\/api\/premium-accounts\/accounts\/([a-f0-9]+)\/reject$/);
+    if (rejectUncheckedMatch && req.method === 'POST') {
+      if (!req.auth?.user || !canAccessAdmin(req.auth.user)) {
+        throw new Error('Admin permission required');
+      }
+      const result = await rejectAccount(rejectUncheckedMatch[1]);
+      return sendJson(res, 200, result);
+    }
+
+    const viewMatch = pathname.match(/^\/api\/premium-accounts\/accounts\/([a-f0-9]+)\/view$/);
+    if (viewMatch && req.method === 'POST') {
+      requirePremiumView(req);
+      checkRateLimit(`premium-view:${req.auth.user.id}`, { max: 60, windowMs: 60_000 });
+      const accountId = viewMatch[1];
+      const viewerId = req.auth.user.id;
+      const result = await runCoinTransaction(async () => {
+        const db = await loadUsersDb();
+        const viewer = db.users.find((u) => u.id === viewerId);
+        if (!viewer) throw new Error('User not found');
+        const flagKey = `vault_view_${accountId.slice(0, 24)}`;
+        const act = ensureActivity(viewer);
+        if (act.flags[flagKey]) {
+          const { loadAccountsDb } = await import('./premiumAccountsStore.mjs');
+          const accountsDb = await loadAccountsDb();
+          const account = accountsDb.accounts.find((a) => a.id === accountId);
+          if (!account) throw new Error('Account not found');
+          return { views: account.views ?? 0, deduped: true };
+        }
+        act.flags[flagKey] = true;
+        viewer.updatedAt = Date.now();
+        await saveUsersDb(db);
+        return incrementAccountView(accountId);
+      });
+      return sendJson(res, 200, result);
+    }
+
+    const deleteMatch = pathname.match(/^\/api\/premium-accounts\/accounts\/([a-f0-9]+)$/);
+    if (deleteMatch && req.method === 'DELETE') {
+      requirePremiumDelete(req);
+      const result = await removeAccount(deleteMatch[1]);
+      return sendJson(res, 200, result);
+    }
+
+    const reportMatch = pathname.match(/^\/api\/premium-accounts\/accounts\/([a-f0-9]+)\/report$/);
+    if (reportMatch && req.method === 'POST') {
+      if (!req.auth?.user) {
+        throw new Error('You must be logged in with a registered account to report an entry');
+      }
+      checkRateLimit(`premium-report:${req.auth.user.id}`, { max: 10, windowMs: 60_000 });
+      const reporter = req.auth.user;
+      const body = await readJsonBody(req);
+      const result = await reportAccountNotWorking(reportMatch[1], reporter, body.note);
+      return sendJson(res, 201, result);
+    }
+
+    if (req.method === 'GET' && pathname === '/api/premium-accounts/reports/pending') {
+      if (!req.auth?.user || !canAccessAdmin(req.auth.user)) {
+        throw new Error('Admin permission required');
+      }
+      const reports = await listPendingReports();
+      return sendJson(res, 200, { reports });
+    }
+
+    const acceptMatch = pathname.match(/^\/api\/premium-accounts\/reports\/([a-f0-9]+)\/accept$/);
+    if (acceptMatch && req.method === 'POST') {
+      if (!req.auth?.user || !canAccessAdmin(req.auth.user)) {
+        throw new Error('Admin permission required');
+      }
+      const result = await acceptReport(acceptMatch[1], req.auth.user);
+      return sendJson(res, 200, result);
+    }
+
+    const rejectMatch = pathname.match(/^\/api\/premium-accounts\/reports\/([a-f0-9]+)\/reject$/);
+    if (rejectMatch && req.method === 'POST') {
+      if (!req.auth?.user || !canAccessAdmin(req.auth.user)) {
+        throw new Error('Admin permission required');
+      }
+      const result = await rejectReport(rejectMatch[1], req.auth.user);
+      return sendJson(res, 200, result);
+    }
+
+    res.statusCode = 404;
+    res.end('Not found');
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Server error';
+    const status = isRateLimitError(e) ? 429
+      : msg === 'Not logged in'
+        ? 401
+        : msg.includes('VIP') || msg.includes('permission') || msg.includes('Verification') || msg.includes('Admin')
+          ? 403
+          : 400;
+    sendJson(res, status, { error: msg });
+  }
+}
+
+export function createPremiumAccountsMiddleware() {
+  return (req, res, next) => {
+    const pathname = req.url?.split('?')[0] ?? '';
+    if (pathname.startsWith('/api/premium-accounts')) {
+      handlePremiumAccountsRequest(req, res);
+      return;
+    }
+    next();
+  };
+}
