@@ -1,7 +1,20 @@
 {
   "name": "lul-terminal",
   "private": true,
-  "version": "3.36.68",
+  "version": "3.36.69",
+  "description": "Community arcade, profiles, tools & terminal hub",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LULdev/lul-terminal.git"
+  },
+  "homepage": "https://github.com/LULdev/lul-terminal#readme",
+  "bugs": {
+    "url": "https://github.com/LULdev/lul-terminal/issues"
+  },
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",

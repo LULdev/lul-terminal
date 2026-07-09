@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import './loadEnv.mjs';
 import { createServerMiddleware } from './serverMiddleware.mjs';
 
 export function viteImageHostPlugin() {

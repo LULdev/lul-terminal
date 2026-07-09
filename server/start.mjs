@@ -6,6 +6,7 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { isTrustProxyEnabled } from './loadEnv.mjs';
 import { createServerMiddleware } from './serverMiddleware.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -13,6 +14,9 @@ const dist = path.join(__dirname, '..', 'dist');
 const port = Number(process.env.PORT) || 3000;
 
 const app = express();
+if (isTrustProxyEnabled()) {
+  app.set('trust proxy', 1);
+}
 app.use(createServerMiddleware());
 app.use(express.static(dist));
 

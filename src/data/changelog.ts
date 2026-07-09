@@ -23,6 +23,19 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.69',
+    title: 'Installationsanleitung + Setup Notes + GitHub docs',
+    date: 'Jul 8, 2026 - 50:00',
+    highlight: true,
+    items: [
+      { priority: 'P4', text: 'P4 — README: vollständige Schritt-für-Schritt Installationsanleitung (DE), nginx-Beispiel, Env-Tabelle, GitHub-Checkliste.' },
+      { priority: 'P4', text: 'P4 — .env.example + LICENSE (Apache-2.0) für GitHub-Self-Hosting.' },
+      { priority: 'P1', text: 'P1 — TRUST_PROXY implementiert: loadEnv.mjs, Express trust proxy in start.mjs, dotenv in dev + prod.' },
+      { priority: 'P4', text: 'P4 — Admin Setup Notes: Installations-Checkliste + alle Operator-Hinweise (Secrets, data/, PORT).' },
+      { priority: 'P6', text: 'P6 — Admin Dashboard Setup Notes Panel zeigt Kurz-Installationsanleitung inline.' },
+    ],
+  },
+  {
     version: '3.36.68',
     title: 'Extreme deep audit — P0–P9 round 12 (admin paste + avatars)',
     date: 'Jul 8, 2026 - 49:00',

@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { BookOpen, Shield } from 'lucide-react';
-import { ADMIN_SETUP_NOTES, type AdminSetupNote } from '../../data/adminSetupNotes';
+import { ADMIN_SETUP_NOTES, INSTALLATION_STEPS, type AdminSetupNote } from '../../data/adminSetupNotes';
 
 const CATEGORY_STYLES: Record<AdminSetupNote['category'], string> = {
   deployment: 'border-cyan-500/25 bg-cyan-500/5 text-cyan-300',
@@ -53,7 +53,30 @@ export function AdminSetupNotesPanel() {
     <div className="space-y-4">
       <p className="text-[9px] font-mono text-slate-500 max-w-2xl leading-relaxed">
         Operator notes for self-hosted and production deployments. Keep these settings aligned with your reverse proxy and hosting stack.
+        Full guide: <span className="text-cyan-400/90">README.md</span> → Installationsanleitung.
       </p>
+
+      <section className="rounded-2xl border border-slate-800/80 bg-black/25 p-4">
+        <h3 className="text-[10px] font-mono font-bold text-slate-200 mb-3 uppercase tracking-wider">
+          Installationsanleitung (Kurz)
+        </h3>
+        <ol className="space-y-3">
+          {INSTALLATION_STEPS.map((s) => (
+            <li key={s.step} className="flex gap-3">
+              <span className="shrink-0 h-6 w-6 rounded-full border border-violet-500/30 bg-violet-500/10 text-[10px] font-mono font-bold text-violet-300 flex items-center justify-center">
+                {s.step}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-mono font-bold text-slate-300 mb-1">{s.title}</div>
+                <pre className="text-[9px] font-mono text-emerald-300/90 bg-emerald-500/5 border border-emerald-500/15 rounded-lg px-3 py-2 overflow-x-auto whitespace-pre-wrap">
+                  {s.command}
+                </pre>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+
       <div className="space-y-3">
         {ADMIN_SETUP_NOTES.map((note) => (
           <React.Fragment key={note.id}>
