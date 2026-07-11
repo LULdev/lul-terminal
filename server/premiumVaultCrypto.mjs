@@ -33,12 +33,16 @@ export function decryptPassword(stored) {
   const s = String(stored ?? '');
   if (!s.startsWith(PREFIX)) return s;
   const parts = s.slice(PREFIX.length).split(':');
-  if (parts.length !== 3) return s;
+  if (parts.length !== 3) throw new Error('Invalid encrypted password payload');
   const [ivB64, tagB64, dataB64] = parts;
-  const decipher = crypto.createDecipheriv(ALGO, vaultKey(), Buffer.from(ivB64, 'base64url'));
-  decipher.setAuthTag(Buffer.from(tagB64, 'base64url'));
-  return Buffer.concat([
-    decipher.update(Buffer.from(dataB64, 'base64url')),
-    decipher.final(),
-  ]).toString('utf8');
+  try {
+    const decipher = crypto.createDecipheriv(ALGO, vaultKey(), Buffer.from(ivB64, 'base64url'));
+    decipher.setAuthTag(Buffer.from(tagB64, 'base64url'));
+    return Buffer.concat([
+      decipher.update(Buffer.from(dataB64, 'base64url')),
+      decipher.final(),
+    ]).toString('utf8');
+  } catch {
+    throw new Error('Failed to decrypt password');
+  }
 }

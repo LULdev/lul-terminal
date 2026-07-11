@@ -49,9 +49,11 @@ function StatPill({ label, value }: { label: string; value: string }) {
 
 type NewsPanelProps = {
   isActive?: boolean;
+  /** Global feed version from useFeedUnread — triggers soft refresh while tab is open. */
+  liveFeedVersion?: string;
 };
 
-export const NewsPanel = memo(function NewsPanel({ isActive = true }: NewsPanelProps) {
+export const NewsPanel = memo(function NewsPanel({ isActive = true, liveFeedVersion }: NewsPanelProps) {
   const { isLoggedIn, loading: authLoading } = useAuth();
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [feedVersion, setFeedVersion] = useState('');
@@ -122,10 +124,25 @@ export const NewsPanel = memo(function NewsPanel({ isActive = true }: NewsPanelP
       visitMarkedOnEntryRef.current = false;
       return;
     }
-    if (authLoading || !feedVersion || visitMarkedOnEntryRef.current) return;
+    if (authLoading || !feedVersion) return;
+    if (!isLoggedIn) {
+      markNewsVisited(false, feedVersion);
+      return;
+    }
+    if (visitMarkedOnEntryRef.current) return;
     visitMarkedOnEntryRef.current = true;
     markNewsVisited(isLoggedIn, feedVersion);
   }, [isActive, isLoggedIn, authLoading, feedVersion]);
+
+  const lastLiveVersionRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isActive || !liveFeedVersion || liveFeedVersion === '0.0.0') return;
+    if (lastLiveVersionRef.current && lastLiveVersionRef.current !== liveFeedVersion) {
+      load({ soft: true });
+      if (!isLoggedIn) markNewsVisited(false, liveFeedVersion);
+    }
+    lastLiveVersionRef.current = liveFeedVersion;
+  }, [isActive, isLoggedIn, liveFeedVersion, load]);
 
   const categories = useMemo(() => {
     const set = new Set(articles.map((a) => a.category));

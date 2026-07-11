@@ -4,6 +4,7 @@
  */
 
 import crypto from 'crypto';
+import { resolvePublicOrigin } from '../resolvePublicOrigin.mjs';
 
 export function generateReferralCode() {
   return `LUL-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
@@ -32,7 +33,5 @@ export function findReferrer(db, code) {
 }
 
 export function buildInviteUrl(req, code) {
-  const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3000';
-  const proto = req.headers['x-forwarded-proto'] || 'http';
-  return `${proto}://${host}/?ref=${encodeURIComponent(code)}`;
+  return `${resolvePublicOrigin(req)}/?ref=${encodeURIComponent(code)}`;
 }

@@ -5,6 +5,8 @@
 
 import fs from 'fs/promises';
 import { attachAuth, requireAuth } from './auth/authApi.mjs';
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
+import { resolvePublicOrigin } from './resolvePublicOrigin.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { claimGuestView } from './viewDedup.mjs';
 import { requireMemberTab } from './tabAccessGuard.mjs';
@@ -131,16 +133,45 @@ export async function handleImageHostRequest(req, res) {
               if (!meta) return null;
               return { views: meta.views ?? 0, deduped: true };
             }
-            act.flags[flagKey] = true;
-            viewer.updatedAt = Date.now();
-            await saveUsersDb(db);
           }
-        } else if (!claimGuestView('image', clientIp(req), imageId)) {
+        } else if (!(await claimGuestView('image', clientIp(req), imageId))) {
           const meta = await getMeta(imageId);
           if (!meta) return null;
           return { views: meta.views ?? 0, deduped: true };
         }
-        return recordView(imageId);
+        let reservedDb = null;
+        let reservedViewer = null;
+        let reservedFlagKey = null;
+        if (viewerId) {
+          reservedDb = await loadUsersDb();
+          reservedViewer = reservedDb.users.find((u) => u.id === viewerId);
+          if (reservedViewer) {
+            reservedFlagKey = `image_meta_view_${imageId}`;
+            const act = ensureActivity(reservedViewer);
+            act.flags[reservedFlagKey] = true;
+            reservedViewer.updatedAt = Date.now();
+            await saveUsersDb(reservedDb);
+          }
+        }
+        let recorded;
+        try {
+          recorded = await recordView(imageId);
+        } catch (e) {
+          if (reservedViewer && reservedFlagKey && reservedDb) {
+            const act = ensureActivity(reservedViewer);
+            delete act.flags[reservedFlagKey];
+            reservedViewer.updatedAt = Date.now();
+            await saveUsersDb(reservedDb);
+          }
+          throw e;
+        }
+        if (!recorded && reservedViewer && reservedFlagKey && reservedDb) {
+          const act = ensureActivity(reservedViewer);
+          delete act.flags[reservedFlagKey];
+          reservedViewer.updatedAt = Date.now();
+          await saveUsersDb(reservedDb);
+        }
+        return recorded;
       });
       if (!result) return sendJson(res, 404, { error: 'Not found' });
       return sendJson(res, 200, result);
@@ -216,9 +247,7 @@ function sortGallery(images, sort) {
 }
 
 function toClientMeta(meta, req) {
-  const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3000';
-  const proto = req.headers['x-forwarded-proto'] || 'http';
-  const origin = `${proto}://${host}`;
+  const origin = resolvePublicOrigin(req);
   return {
     id: meta.id,
     url: `${origin}/hosting/${meta.id}`,
@@ -237,15 +266,14 @@ function toClientMeta(meta, req) {
 }
 
 export function createImageHostMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (
       pathname.startsWith('/api/images') ||
       pathname.startsWith('/hosting/')
     ) {
-      handleImageHostRequest(req, res);
-      return;
+      return handleImageHostRequest(req, res);
     }
     next();
-  };
+  });
 }

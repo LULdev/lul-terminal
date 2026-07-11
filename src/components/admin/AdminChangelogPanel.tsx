@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshCw, Sparkles } from 'lucide-react';
 import { fetchAdminChangelog, type ChangelogConsoleData } from '../../lib/adminModules';
 import { ToolCard } from '../pages/PageShell';
@@ -11,10 +11,26 @@ import { ToolCard } from '../pages/PageShell';
 export function AdminChangelogPanel() {
   const [data, setData] = useState<ChangelogConsoleData | null>(null);
   const [loading, setLoading] = useState(true);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
-    try { setData(await fetchAdminChangelog()); } catch { setData(null); }
-    finally { setLoading(false); }
+    const gen = ++loadGenRef.current;
+    try {
+      const next = await fetchAdminChangelog();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(next);
+    } catch {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(null);
+    } finally {
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
+    }
   }, []);
 
   useEffect(() => { void load(); }, [load]);

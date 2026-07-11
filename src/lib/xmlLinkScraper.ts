@@ -150,7 +150,7 @@ export async function fetchXmlScraperPresets(): Promise<{
   scraperSkills: ScraperSkill[];
   crawlPresets: CrawlPreset[];
 }> {
-  const res = await fetch('/api/xml-scraper/presets');
+  const res = await sessionFetch('/api/xml-scraper/presets');
   if (!res.ok) return { presets: [], websiteFeatures: [], scraperSkills: [], crawlPresets: [] };
   const data = await res.json();
   return {
@@ -212,19 +212,27 @@ export async function cancelCrawlJob(jobId: string): Promise<void> {
   if (!res.ok) throw new Error(data.error || 'Cancel failed');
 }
 
+export type PollCrawlOptions = { signal?: AbortSignal };
+
 export async function pollCrawlJob(
   jobId: string,
   onUpdate: (job: CrawlJob) => void,
   intervalMs = 700,
+  options?: PollCrawlOptions,
 ): Promise<CrawlJob> {
   return new Promise((resolve, reject) => {
     let delay = Math.max(400, intervalMs);
     let lastPages = -1;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
+    const onAbort = () => {
+      finish(() => reject(new DOMException('Aborted', 'AbortError')));
+    };
+
     const cleanup = () => {
       if (timer) clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVis);
+      options?.signal?.removeEventListener('abort', onAbort);
     };
 
     const finish = (fn: () => void) => {
@@ -232,12 +240,18 @@ export async function pollCrawlJob(
       fn();
     };
 
+    if (options?.signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    options?.signal?.addEventListener('abort', onAbort, { once: true });
+
     const schedule = () => {
       timer = setTimeout(() => { void tick(); }, delay);
     };
 
     const tick = async () => {
-      if (document.hidden) return;
+      if (document.hidden || options?.signal?.aborted) return;
       try {
         const res = await sessionFetch(`/api/xml-scraper/jobs/${jobId}`);
         if (!res.ok) throw new Error('Job not found');
@@ -261,6 +275,7 @@ export async function pollCrawlJob(
         }
         schedule();
       } catch (e) {
+        if (options?.signal?.aborted) return;
         finish(() => reject(e));
       }
     };

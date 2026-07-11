@@ -25,7 +25,8 @@ import { clampBirthdayDay } from '../../lib/profileCustomization';
 import type { EarnedAchievement, SocialLink } from '../../data/achievements';
 import { SOCIAL_PLATFORMS } from '../../data/achievements';
 import { GAME_CATALOG } from '../../lib/gameCatalog';
-import { coverUrlToStyle } from '../../utils/coverStyle';
+import { safeAvatarUrl } from '../../lib/safeAvatarUrl';
+import { safeCoverStyle } from '../../lib/safeCoverStyle';
 import {
   ACCENT_THEMES,
   MOOD_OPTIONS,
@@ -37,6 +38,7 @@ import { ActionButton } from '../pages/PageShell';
 import './profile.css';
 
 type Props = {
+  username: string;
   displayName: string;
   bio: string;
   website: string;
@@ -71,8 +73,8 @@ export function ProfileSettingsTab(props: Props) {
   const setC = (patch: Partial<ProfileCustomization>) => props.onCustomization({ ...c, ...patch });
   const setPrivacy = (patch: Partial<ProfileCustomization['privacy']>) =>
     props.onCustomization({ ...c, privacy: { ...c.privacy, ...patch } });
-  const avatarSrc = props.avatarUrl;
-  const coverStyle = coverUrlToStyle(props.coverUrl);
+  const avatarSrc = safeAvatarUrl(props.avatarUrl, props.username);
+  const coverStyle = safeCoverStyle(props.coverUrl);
 
   const sections = [
     { id: 'identity', label: 'Identity', icon: <User size={12} /> },

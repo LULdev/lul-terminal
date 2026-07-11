@@ -69,7 +69,7 @@ export const ADMIN_TABS: AdminTabDef[] = [
   { id: 'images', label: 'Image Gallery', shortLabel: 'Images', icon: '🖼️', group: 'Content', desc: 'Hosted images · views · storage' },
   { id: 'content', label: 'Content Analytics', shortLabel: 'Content', icon: '📈', group: 'Monitor', desc: 'Changelog · News · Page Views' },
   { id: 'persona', label: 'Persona Database', shortLabel: 'Persona', icon: '🎭', group: 'Data', desc: 'Fake identities · addresses · countries' },
-  { id: 'vault', label: 'Premium Vault', shortLabel: 'Vault', icon: '👑', group: 'Data', desc: 'Account inventory · filter · credentials' },
+  { id: 'vault', label: 'Account Vault', shortLabel: 'Vault', icon: '👑', group: 'Data', desc: 'CRUD · bulk import · credentials manager' },
   { id: 'proxy-db', label: 'Proxy DB Inspector', shortLabel: 'Proxy DB', icon: '🌐', group: 'Ops', desc: 'Persisted proxies · check · export' },
   { id: 'visitors', label: 'Visitor Directory', shortLabel: 'Visitors', icon: '🛰️', group: 'Monitor', desc: 'Session profiles · referrer · return visits' },
   { id: 'referrals', label: 'Referral Network', shortLabel: 'Referrals', icon: '🚀', group: 'Community', desc: 'Top referrers · codes · new members' },

@@ -117,6 +117,7 @@ export async function handleAdminRequest(req, res) {
 
     const shoutboxDelete = pathname.match(/^\/api\/admin\/shoutbox\/messages\/([a-f0-9]{12})$/);
     if (req.method === 'DELETE' && shoutboxDelete) {
+      checkRateLimit(`admin-act:${adminKey}`, { max: 20, windowMs: 60_000 });
       return sendJson(res, 200, await adminDeleteMessage(shoutboxDelete[1]));
     }
 
@@ -132,6 +133,7 @@ export async function handleAdminRequest(req, res) {
 
     const imageDelete = pathname.match(/^\/api\/admin\/images\/([a-f0-9]{16})$/);
     if (req.method === 'DELETE' && imageDelete) {
+      checkRateLimit(`admin-act:${adminKey}`, { max: 20, windowMs: 60_000 });
       return sendJson(res, 200, await adminDeleteImage(imageDelete[1]));
     }
 
@@ -164,6 +166,7 @@ export async function handleAdminRequest(req, res) {
 
     const colonDelete = pathname.match(/^\/api\/admin\/colon-db\/([a-f0-9]{16})$/);
     if (req.method === 'DELETE' && colonDelete) {
+      checkRateLimit(`admin-act:${adminKey}`, { max: 20, windowMs: 60_000 });
       return sendJson(res, 200, await deleteColonEntry(colonDelete[1]));
     }
 
@@ -192,6 +195,7 @@ export async function handleAdminRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/admin/events/purge') {
+      checkRateLimit(`admin-act:${adminKey}`, { max: 5, windowMs: 60_000 });
       const body = await readJsonBody(req);
       return sendJson(res, 200, await purgeOldEvents(Number(body.keep) || 2000));
     }
@@ -299,6 +303,7 @@ export async function handleAdminRequest(req, res) {
         return sendJson(res, 200, await listAdminEmotes());
       }
       if (req.method === 'POST') {
+        checkRateLimit(`admin-emotes-act:${adminKey}`, { max: 20, windowMs: 60_000 });
         const body = await readJsonBody(req, 4 * 1024 * 1024);
         const buffer = Buffer.from(String(body.data ?? ''), 'base64');
         const emote = await createEmote({
@@ -316,17 +321,20 @@ export async function handleAdminRequest(req, res) {
     if (emoteMatch) {
       const { deleteEmote, updateEmote } = await import('./chatEmotesStore.mjs');
       if (req.method === 'PATCH') {
+        checkRateLimit(`admin-emotes-act:${adminKey}`, { max: 30, windowMs: 60_000 });
         const body = await readJsonBody(req);
         const emote = await updateEmote(emoteMatch[1], body);
         return sendJson(res, 200, { emote });
       }
       if (req.method === 'DELETE') {
+        checkRateLimit(`admin-emotes-act:${adminKey}`, { max: 20, windowMs: 60_000 });
         return sendJson(res, 200, await deleteEmote(emoteMatch[1]));
       }
     }
 
     const emoteUploadMatch = pathname.match(/^\/api\/admin\/chat\/emotes\/([a-f0-9]{12})\/upload$/);
     if (emoteUploadMatch && req.method === 'POST') {
+      checkRateLimit(`admin-emotes-act:${adminKey}`, { max: 20, windowMs: 60_000 });
       const { replaceEmoteImage } = await import('./chatEmotesStore.mjs');
       const body = await readJsonBody(req, 4 * 1024 * 1024);
       const buffer = Buffer.from(String(body.data ?? ''), 'base64');

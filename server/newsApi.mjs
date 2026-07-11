@@ -13,6 +13,7 @@ import {
   listPublishedArticles,
   updateArticle,
 } from './newsStore.mjs';
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 
 function sendJson(res, status, body) {
@@ -51,15 +52,18 @@ export async function handleNewsRequest(req, res) {
     }
 
     await attachAuth(req);
+    const adminKey = req.auth?.user?.id ?? clientIp(req);
 
     if (req.method === 'GET' && pathname === '/api/news/admin') {
       requireRole(req, canAccessAdmin);
+      checkRateLimit(`news-admin:${adminKey}`, { max: 120, windowMs: 60_000 });
       const data = await listAllArticles();
       return sendJson(res, 200, data);
     }
 
     if (req.method === 'POST' && pathname === '/api/news') {
       const user = requireRole(req, canAccessAdmin);
+      checkRateLimit(`news-admin-act:${adminKey}`, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const article = await createArticle(body, user);
       const feedVersion = await getNewsFeedVersion();
@@ -69,6 +73,7 @@ export async function handleNewsRequest(req, res) {
     const patchMatch = pathname.match(/^\/api\/news\/([a-zA-Z0-9._-]+)$/);
     if (patchMatch && req.method === 'PATCH') {
       requireRole(req, canAccessAdmin);
+      checkRateLimit(`news-admin-act:${adminKey}`, { max: 30, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const article = await updateArticle(patchMatch[1], body);
       const feedVersion = await getNewsFeedVersion();
@@ -77,6 +82,7 @@ export async function handleNewsRequest(req, res) {
 
     if (patchMatch && req.method === 'DELETE') {
       requireRole(req, canAccessAdmin);
+      checkRateLimit(`news-admin-act:${adminKey}`, { max: 20, windowMs: 60_000 });
       await deleteArticle(patchMatch[1]);
       const feedVersion = await getNewsFeedVersion();
       return sendJson(res, 200, { ok: true, feedVersion });
@@ -99,12 +105,11 @@ export async function handleNewsRequest(req, res) {
 }
 
 export function createNewsMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname.startsWith('/api/news')) {
-      handleNewsRequest(req, res);
-      return;
+      return handleNewsRequest(req, res);
     }
     next();
-  };
+  });
 }

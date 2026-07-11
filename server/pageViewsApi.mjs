@@ -46,9 +46,16 @@ export async function handlePageViewsRequest(req, res) {
         act.flags[flagKey] = true;
         viewerUser.updatedAt = Date.now();
         await saveUsersDb(db);
-        const recorded = await recordPageView(pageId);
-        if (!recorded) throw new Error('Invalid page id');
-        return recorded;
+        try {
+          const recorded = await recordPageView(pageId);
+          if (!recorded) throw new Error('Invalid page id');
+          return recorded;
+        } catch (e) {
+          delete act.flags[flagKey];
+          viewerUser.updatedAt = Date.now();
+          await saveUsersDb(db);
+          throw e;
+        }
       });
 
       return sendJson(res, 200, result);

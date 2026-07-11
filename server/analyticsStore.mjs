@@ -32,7 +32,9 @@ async function ensureStore() {
     try {
       await fs.access(file);
     } catch {
-      await fs.writeFile(file, JSON.stringify(empty, null, 2), 'utf8');
+      const tmp = `${file}.tmp`;
+      await fs.writeFile(tmp, JSON.stringify(empty, null, 2), 'utf8');
+      await fs.rename(tmp, file);
     }
   }
 }

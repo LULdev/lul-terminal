@@ -16,7 +16,8 @@ export function getLatestChangelogVersion() {
     const raw = fs.readFileSync(VERSION_FILE, 'utf8');
     const match = raw.match(/APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
     return match?.[1] ?? '0.0.0';
-  } catch {
-    return '0.0.0';
+  } catch (err) {
+    console.error('[changelog] CRITICAL: version.ts unreadable for achievement sync', err);
+    throw new Error('Changelog version unavailable');
   }
 }

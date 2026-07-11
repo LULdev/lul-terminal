@@ -185,14 +185,16 @@ async function deletePasteFiles(id) {
 
 export async function purgeIfExpired(meta) {
   if (!meta) return null;
-  if (meta.expiresAt && meta.expiresAt <= Date.now()) {
-    await deletePasteFiles(meta.id);
+  if (!meta.expiresAt || meta.expiresAt > Date.now()) return meta;
+  return withPasteWrite(async () => {
+    const fresh = await getMeta(meta.id);
+    if (!fresh?.expiresAt || fresh.expiresAt > Date.now()) return fresh;
+    await deletePasteFiles(fresh.id);
     const stats = await readStats();
     stats.activePastes = await countActivePastes();
     await writeStats(stats);
     return null;
-  }
-  return meta;
+  });
 }
 
 export async function savePaste({
@@ -444,13 +446,15 @@ export async function adminUpdatePaste(id, patch) {
 }
 
 export async function adminDeletePaste(id) {
-  const meta = await getMeta(id);
-  if (!meta) throw new Error('Paste not found');
-  await deletePasteFiles(id);
-  const stats = await readStats();
-  stats.activePastes = await countActivePastes();
-  await writeStats(stats);
-  return { ok: true, id };
+  return withPasteWrite(async () => {
+    const meta = await getMeta(id);
+    if (!meta) throw new Error('Paste not found');
+    await deletePasteFiles(id);
+    const stats = await readStats();
+    stats.activePastes = await countActivePastes();
+    await writeStats(stats);
+    return { ok: true, id };
+  });
 }
 
 export async function listAllPastes({
@@ -552,12 +556,14 @@ export function getUserPasteRating(meta, userId) {
 }
 
 export async function deletePaste(id, userId) {
-  const meta = await getMeta(id);
-  if (!meta) throw new Error('Paste not found');
-  if (meta.userId !== userId) throw new Error('Not allowed');
-  await deletePasteFiles(id);
-  const stats = await readStats();
-  stats.activePastes = await countActivePastes();
-  await writeStats(stats);
-  return { ok: true, id };
+  return withPasteWrite(async () => {
+    const meta = await getMeta(id);
+    if (!meta) throw new Error('Paste not found');
+    if (meta.userId !== userId) throw new Error('Not allowed');
+    await deletePasteFiles(id);
+    const stats = await readStats();
+    stats.activePastes = await countActivePastes();
+    await writeStats(stats);
+    return { ok: true, id };
+  });
 }

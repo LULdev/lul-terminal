@@ -18,7 +18,7 @@ export const INSTALLATION_STEPS = [
   { step: 2, title: 'Node.js 18+ prüfen', command: 'node -v' },
   { step: 3, title: 'Abhängigkeiten installieren', command: 'npm install' },
   { step: 4, title: 'Umgebung konfigurieren', command: 'copy .env.example .env   # Windows\n# cp .env.example .env   # Linux/macOS' },
-  { step: 5, title: 'Optional: Seed-Daten', command: 'npm run seed:auth && npm run seed:persona-db && npm run seed:proxy-sources' },
+  { step: 5, title: 'Optional: Seed-Daten', command: 'npm run seed:auth && npm run seed:persona-db && npm run seed:proxy-sources && npm run seed:news' },
   { step: 6, title: 'Entwicklung starten', command: 'npm run dev' },
   { step: 7, title: 'Produktion bauen & starten', command: 'npm run build && npm start' },
 ] as const;

@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
 import { Database, RefreshCw, Search, Trash2 } from 'lucide-react';
 import {
   adminDeleteColonEntry,
@@ -33,23 +34,27 @@ export function AdminColonDbPanel() {
   const [search, setSearch] = useState('');
   const [website, setWebsite] = useState('');
   const [acting, setActing] = useState<string | null>(null);
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
     try {
       const [s, e] = await Promise.all([
         fetchColonDbStats(),
         fetchColonDbEntries({ limit: 200, q: search || undefined, website: website || undefined }),
       ]);
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setStats(s);
       setEntries(e.entries);
       setFilteredTotal(e.total);
     } catch (err) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Load failed');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
-  }, [search, website]);
+  }, [search, website, loadGenRef, mountedRef]);
 
   useEffect(() => {
     setLoading(true);

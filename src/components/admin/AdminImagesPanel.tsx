@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
 import { ExternalLink, ImageIcon, RefreshCw, Search, Trash2 } from 'lucide-react';
 import {
   adminDeleteImage,
@@ -25,17 +26,22 @@ export function AdminImagesPanel() {
   const [sort, setSort] = useState<Sort>('newest');
   const [acting, setActing] = useState<string | null>(null);
   const [preview, setPreview] = useState<AdminImageMeta | null>(null);
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
     try {
-      setData(await fetchAdminImages({ limit: 120, q: search || undefined, sort }));
+      const result = await fetchAdminImages({ limit: 120, q: search || undefined, sort });
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(result);
     } catch (err) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Load failed');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
-  }, [search, sort]);
+  }, [search, sort, loadGenRef, mountedRef]);
 
   useEffect(() => {
     setLoading(true);

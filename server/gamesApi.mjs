@@ -53,14 +53,17 @@ export async function handleGamesRequest(req, res) {
     }
 
     if (req.method === 'GET' && pathname === '/api/games/catalog') {
+      checkRateLimit(`games-catalog:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       return sendJson(res, 200, { games: GAME_IDS });
     }
 
     if (req.method === 'GET' && pathname === '/api/games/leaderboard') {
+      checkRateLimit(`games-leaderboard:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       return sendJson(res, 200, await getGamesLeaderboard());
     }
 
     if (req.method === 'GET' && pathname === '/api/games/history') {
+      checkRateLimit(`games-history:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       const limit = Number(url.searchParams.get('limit')) || 20;
       return sendJson(res, 200, { matches: await getRecentHistory(limit) });
     }
@@ -77,6 +80,7 @@ export async function handleGamesRequest(req, res) {
       const handler = getGameHandler(genericMatchGet[1]);
       if (!handler) return sendJson(res, 404, { error: 'Game not found' });
       const u = requireUser(req);
+      checkRateLimit(`games-match:${u.id}`, { max: 120, windowMs: 60_000 });
       const match = await Promise.resolve(handler.getMatch(genericMatchGet[2], u.id));
       if (!match) return sendJson(res, 404, { error: 'Match not found' });
       return sendJson(res, 200, { match });

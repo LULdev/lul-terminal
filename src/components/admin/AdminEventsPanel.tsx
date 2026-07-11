@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
 import { Download, RefreshCw, Trash2 } from 'lucide-react';
 import { adminExportEvents, adminPurgeEvents, fetchAdminEvents, type EventsOpsData } from '../../lib/adminModules';
 import { formatRelativeEn } from '../../lib/terminalStats';
@@ -14,13 +15,22 @@ export function AdminEventsPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
-    try { setData(await fetchAdminEvents()); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Load failed'); }
-    finally { setLoading(false); }
-  }, []);
+    try {
+      const result = await fetchAdminEvents();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(result);
+    } catch (e) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setError(e instanceof Error ? e.message : 'Load failed');
+    } finally {
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
+    }
+  }, [loadGenRef, mountedRef]);
 
   useEffect(() => { void load(); }, [load]);
 

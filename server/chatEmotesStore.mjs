@@ -73,19 +73,35 @@ async function ensureStore() {
   try {
     await fs.access(META_FILE);
   } catch {
-    await fs.writeFile(META_FILE, JSON.stringify({ version: 1, updatedAt: null, emotes: [] }, null, 2), 'utf8');
+    const empty = { version: 1, updatedAt: null, emotes: [] };
+    const tmp = `${META_FILE}.tmp`;
+    await fs.writeFile(tmp, JSON.stringify(empty, null, 2), 'utf8');
+    await fs.rename(tmp, META_FILE);
   }
 }
 
 export async function loadEmotesDb() {
   await ensureStore();
-  const raw = await fs.readFile(META_FILE, 'utf8');
-  const data = JSON.parse(raw);
-  return {
-    version: data.version ?? 1,
-    updatedAt: data.updatedAt ?? null,
-    emotes: Array.isArray(data.emotes) ? data.emotes : [],
-  };
+  try {
+    const raw = await fs.readFile(META_FILE, 'utf8');
+    const data = JSON.parse(raw);
+    return {
+      version: data.version ?? 1,
+      updatedAt: data.updatedAt ?? null,
+      emotes: Array.isArray(data.emotes) ? data.emotes : [],
+    };
+  } catch (err) {
+    console.error('[chat-emotes] CRITICAL: emotes.json unreadable', err);
+    throw new Error('Emotes database unavailable');
+  }
+}
+
+async function writeEmoteFile(filename, payload) {
+  const safe = path.basename(filename);
+  const filePath = path.join(DATA_DIR, safe);
+  const tmp = `${filePath}.tmp`;
+  await fs.writeFile(tmp, payload);
+  await fs.rename(tmp, filePath);
 }
 
 async function saveEmotesDb(db) {
@@ -122,7 +138,7 @@ export async function seedDefaultEmotesIfEmpty() {
     const ext = 'svg';
     const filename = `${id}.${ext}`;
     const svg = placeholderSvg(seeds[i].label, PLACEHOLDER_COLORS[i % PLACEHOLDER_COLORS.length], seeds[i].code);
-    await fs.writeFile(path.join(DATA_DIR, filename), svg, 'utf8');
+    await writeEmoteFile(filename, svg);
     db.emotes.push({
       id,
       code: seeds[i].code,
@@ -176,6 +192,9 @@ export async function getEmoteMap() {
 export async function getEmoteFile(filename) {
   const safe = path.basename(filename);
   if (!/^[a-f0-9]{12}\.(png|jpg|jpeg|gif|webp|svg)$/i.test(safe)) return null;
+  const db = await loadEmotesDb();
+  const row = db.emotes.find((e) => e.filename === safe);
+  if (!row || row.enabled === false) return null;
   const filePath = path.join(DATA_DIR, safe);
   try {
     const buf = await fs.readFile(filePath);
@@ -219,7 +238,7 @@ export async function createEmote({ code, label, mime, buffer, enabled = true })
   const id = newEmoteId();
   const ext = EXT_BY_MIME[mime] ?? 'png';
   const filename = `${id}.${ext}`;
-  await fs.writeFile(path.join(DATA_DIR, filename), payload);
+  await writeEmoteFile(filename, payload);
 
   const now = Date.now();
   const row = {
@@ -278,7 +297,7 @@ export async function replaceEmoteImage(id, { mime, buffer }) {
 
   const ext = EXT_BY_MIME[mime] ?? 'png';
   const filename = `${row.id}.${ext}`;
-  await fs.writeFile(path.join(DATA_DIR, filename), payload);
+  await writeEmoteFile(filename, payload);
   if (row.filename && row.filename !== filename) await removeEmoteFile(row.filename);
 
   row.filename = filename;

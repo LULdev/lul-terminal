@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Coins, RefreshCw, Sparkles, TrendingUp } from 'lucide-react';
 import { ACHIEVEMENT_BY_ID } from '../../data/achievements';
 import {
@@ -54,16 +54,26 @@ export function CoinEarningsFeed({ compact = false, refreshKey = 0, className = 
   const [filter, setFilter] = useState<FilterKind>('all');
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     try {
       const data = await fetchCoinFeed(compact ? 20 : 40);
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setFeed(data);
       setErr('');
     } catch (e) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setErr(e instanceof Error ? e.message : 'Failed to load');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
   }, [compact]);
 

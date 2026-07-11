@@ -19,12 +19,18 @@ const EMPTY_DB = {
   accounts: [],
 };
 
+async function atomicWriteJson(file, data) {
+  const tmp = `${file}.tmp`;
+  await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
+  await fs.rename(tmp, file);
+}
+
 export async function ensureStore() {
   await fs.mkdir(ROOT, { recursive: true });
   try {
     await fs.access(DB_FILE);
   } catch {
-    await fs.writeFile(DB_FILE, JSON.stringify({ ...EMPTY_DB, updatedAt: new Date().toISOString() }, null, 2), 'utf8');
+    await atomicWriteJson(DB_FILE, { ...EMPTY_DB, updatedAt: new Date().toISOString() });
   }
 }
 
@@ -83,9 +89,7 @@ export async function saveAccountsDb(db) {
     updatedAt: new Date().toISOString(),
     accounts: Array.isArray(db.accounts) ? db.accounts.map(sealAccount) : [],
   };
-  const tmp = `${DB_FILE}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(sealed, null, 2), 'utf8');
-  await fs.rename(tmp, DB_FILE);
+  await atomicWriteJson(DB_FILE, sealed);
   db.updatedAt = sealed.updatedAt;
 }
 

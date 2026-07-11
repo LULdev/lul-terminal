@@ -68,6 +68,36 @@ export type CreatePremiumAccountInput = {
   vip?: boolean;
 };
 
+export type AdminVaultAccountInput = {
+  service: string;
+  website?: string;
+  email: string;
+  password: string;
+  category: PremiumAccountCategory;
+  status: PremiumAccountStatus;
+  plan?: 'Free' | 'Premium' | 'WorkingButFree';
+  vip?: boolean;
+  notes?: string;
+  expiresAt?: string;
+};
+
+export type BulkImportVaultOptions = {
+  text: string;
+  category?: PremiumAccountCategory;
+  status?: PremiumAccountStatus;
+  plan?: 'Free' | 'Premium' | 'WorkingButFree';
+  vip?: boolean;
+};
+
+export type BulkImportVaultResult = {
+  imported: number;
+  failed: number;
+  total: number;
+  errors: Array<{ index: number; name: string; errors: string[] }>;
+  accounts: PremiumAccount[];
+  stats: PremiumAccountStats;
+};
+
 export async function createPremiumAccount(input: CreatePremiumAccountInput): Promise<PremiumAccount> {
   const data = await authedJson<{ account: PremiumAccount }>('/accounts', {
     method: 'POST',
@@ -83,6 +113,36 @@ export async function createPremiumAccount(input: CreatePremiumAccountInput): Pr
     }),
   });
   return data.account;
+}
+
+export async function createAdminVaultAccount(input: AdminVaultAccountInput): Promise<PremiumAccount> {
+  const data = await authedJson<{ account: PremiumAccount }>('/accounts', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  return data.account;
+}
+
+export async function updateVaultAccount(
+  id: string,
+  patch: Partial<AdminVaultAccountInput>,
+): Promise<PremiumAccount> {
+  const data = await authedJson<{ account: PremiumAccount }>(`/accounts/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  return data.account;
+}
+
+export async function deleteVaultAccount(id: string): Promise<void> {
+  await authedJson(`/accounts/${id}`, { method: 'DELETE' });
+}
+
+export async function bulkImportVaultAccounts(opts: BulkImportVaultOptions): Promise<BulkImportVaultResult> {
+  return authedJson('/accounts/bulk', {
+    method: 'POST',
+    body: JSON.stringify(opts),
+  });
 }
 
 const ACCOUNT_VIEW_PREFIX = 'lul_acct_view_';

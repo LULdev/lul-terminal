@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageShell } from './PageShell';
 import {
   exportTxt,
@@ -54,13 +54,26 @@ export function ProxyScraperPage() {
   const [concurrency, setConcurrency] = useState(50);
   const [checkLimit, setCheckLimit] = useState(600);
   const [copied, setCopied] = useState(false);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+  const jobAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      jobAbortRef.current?.abort();
+    };
+  }, []);
 
   const refresh = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     const [s, src, res] = await Promise.all([
       fetchProxyStats().catch(() => null),
       fetchProxySources(),
       fetchProxyResults(),
     ]);
+    if (gen !== loadGenRef.current || !mountedRef.current) return;
     if (s) setStats(s);
     setSources(src);
     setChecked(res.checked ?? []);
@@ -71,6 +84,9 @@ export function ProxyScraperPage() {
   useVisibilityAwarePoll(() => { void refresh(); }, 12_000);
 
   const runJob = async (kind: 'scrape' | 'check' | 'scrape-and-check') => {
+    jobAbortRef.current?.abort();
+    const abort = new AbortController();
+    jobAbortRef.current = abort;
     setBusy(true);
     setJobProgress(0);
     setLogs([]);
@@ -79,10 +95,11 @@ export function ProxyScraperPage() {
       if (kind === 'scrape' || kind === 'scrape-and-check') {
         const scrapeId = await startScrapeJob();
         await pollJob(scrapeId, (job) => {
+          if (!mountedRef.current) return;
           setJobMsg(job.message);
           setJobProgress(job.total ? Math.round((job.progress / Math.max(job.total, 1)) * 100) : job.progress);
           if (job.logs?.length) setLogs(job.logs.slice(-12));
-        });
+        }, 800, { signal: abort.signal });
         await refresh();
       }
       if (kind === 'check' || kind === 'scrape-and-check') {
@@ -93,18 +110,20 @@ export function ProxyScraperPage() {
           limit: checkLimit > 0 ? checkLimit : undefined,
         });
         await pollCheckerJob(checkId, (job) => {
+          if (!mountedRef.current) return;
           setJobMsg(job.message);
           setJobProgress(job.total ? Math.round((job.progress / Math.max(job.total, 1)) * 100) : job.progress);
           if (job.logs?.length) setLogs(job.logs.slice(-12));
-        });
+        }, 800, { signal: abort.signal });
         const checkerRes = await fetchCheckerResults();
-        setChecked(checkerRes.checked ?? []);
+        if (mountedRef.current) setChecked(checkerRes.checked ?? []);
         await refresh();
       }
     } catch (e) {
-      setJobMsg(e instanceof Error ? e.message : 'Error');
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      if (mountedRef.current) setJobMsg(e instanceof Error ? e.message : 'Error');
     } finally {
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
     }
   };
 

@@ -11,6 +11,7 @@ import { getAcceptedNotWorkingForCreator } from '../premiumAccountsReports.mjs';
 import { saveUserAvatar } from './avatarStore.mjs';
 import { buildUnlockPayload } from '../achievementCoinRewards.mjs';
 import { applyActivityCtx, ensureActivity, grantFirstLogin, normalizeSocialLinks, syncAchievements } from './achievements.mjs';
+import { sanitizeAvatarUrl, sanitizeCoverUrl } from './safeMediaUrl.mjs';
 import { countActiveAdmins, enrichUserForClient, isEffectivelyActive, publicProfileView } from './permissions.mjs';
 import {
   loadUsersDb,
@@ -51,13 +52,9 @@ async function profileExtrasForUser(user) {
 
 export async function initAuth() {
   await seedDefaultUsersIfEmpty();
-  try {
-    const db = await loadUsersDb();
-    const { rebuildRegistryFromUsers } = await import('./registrationRegistry.mjs');
-    await rebuildRegistryFromUsers(db.users);
-  } catch (e) {
-    console.warn('[auth] registration registry rebuild skipped', e);
-  }
+  const db = await loadUsersDb();
+  const { rebuildRegistryFromUsers } = await import('./registrationRegistry.mjs');
+  await rebuildRegistryFromUsers(db.users);
 }
 
 export async function resolveSession(token) {
@@ -154,10 +151,16 @@ export async function registerUser(payload, req) {
   }
   if (email) registrationSignals.canonicalEmail = canonEmail(email);
 
-  db.users.push(user);
-  ensureUniqueReferralCode(db, user);
-  await saveUsersDb(db);
-  await recordRegistrationSignals(user.id, registrationSignals);
+  try {
+    await recordRegistrationSignals(user.id, registrationSignals);
+    db.users.push(user);
+    ensureUniqueReferralCode(db, user);
+    await saveUsersDb(db);
+  } catch (err) {
+    const { removeRegistrationSignals } = await import('./registrationRegistry.mjs');
+    await removeRegistrationSignals(user.id, registrationSignals).catch(() => {});
+    throw err;
+  }
   postBotWelcomeMember(user.username).catch(() => {});
   if (referredBy) {
     const referrer = db.users.find((u) => u.id === referredBy);
@@ -339,8 +342,8 @@ export async function updateProfile(userId, payload, { keepToken = null } = {}) 
     if (payload.bio != null) user.bio = String(payload.bio).trim().slice(0, 160);
     if (payload.website != null) user.website = String(payload.website).trim().slice(0, 256);
     if (payload.socialLinks != null) user.socialLinks = normalizeSocialLinks(payload.socialLinks);
-    if (payload.avatarUrl != null) user.avatarUrl = String(payload.avatarUrl).trim().slice(0, 512);
-    if (payload.coverUrl != null) user.coverUrl = String(payload.coverUrl).trim().slice(0, 512);
+    if (payload.avatarUrl != null) user.avatarUrl = sanitizeAvatarUrl(payload.avatarUrl);
+    if (payload.coverUrl != null) user.coverUrl = sanitizeCoverUrl(payload.coverUrl);
 
     if (payload.profileCustomization != null) {
       const { mergeProfileCustomizationPatch } = await import('../profileCustomization.mjs');
@@ -399,7 +402,7 @@ export async function uploadUserAvatar(userId, { mime, buffer }) {
   });
 }
 
-/** Server-only tab visit recording (analytics tab_visit pipeline). */
+/** Server-only tab visit recording (analytics tab_visit pipeline; activity tallies only). */
 export async function recordTabVisitFromAnalytics(userId, tab) {
   const safeTab = String(tab ?? '').slice(0, 24);
   if (!ALL_MANAGEABLE_TAB_IDS.includes(safeTab)) return null;
@@ -408,18 +411,14 @@ export async function recordTabVisitFromAnalytics(userId, tab) {
     const user = db.users.find((u) => u.id === userId);
     if (!user || user.role === 'bot') return null;
     const touched = applyActivityCtx(user, { visitedTab: safeTab });
-    const { accountsSubmitted, reportedNotWorkingAccounts, profileStats } = await profileExtrasForUser(user);
-    const newUnlocks = touched
-      ? syncAchievements(user, { visitedTab: safeTab, accountsSubmitted })
-      : syncAchievements(user, { accountsSubmitted });
-    if (newUnlocks.length || touched) {
+    if (touched) {
       user.updatedAt = Date.now();
       await saveUsersDb(db);
-      if (newUnlocks.length) notifyBotAchievements(user.username, newUnlocks).catch(() => {});
     }
+    const { accountsSubmitted, reportedNotWorkingAccounts, profileStats } = await profileExtrasForUser(user);
     return {
       user: enrichUserForClient(user, accountsSubmitted, reportedNotWorkingAccounts, profileStats),
-      ...buildUnlockPayload(newUnlocks),
+      newUnlocks: [],
     };
   });
 }
@@ -446,7 +445,7 @@ export async function syncUserAchievements(userId, ctx = {}) {
   });
 }
 
-const ACHIEVEMENT_EVENT_FLAGS = new Set(['matrix', 'self_destruct', 'claw_victim']);
+const ACHIEVEMENT_EVENT_FLAGS = new Set(['claw_victim']);
 
 export async function recordAchievementEvent(userId, event) {
   const flag = String(event ?? '').trim().slice(0, 32);

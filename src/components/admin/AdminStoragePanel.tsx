@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
 import { HardDrive, RefreshCw } from 'lucide-react';
 import { fetchAdminStorage, type StorageMapData } from '../../lib/adminModules';
 import { formatBytes } from '../../lib/terminalStats';
@@ -12,11 +13,21 @@ import { ToolCard } from '../pages/PageShell';
 export function AdminStoragePanel() {
   const [data, setData] = useState<StorageMapData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   const load = useCallback(async () => {
-    try { setData(await fetchAdminStorage()); } catch { setData(null); }
-    finally { setLoading(false); }
-  }, []);
+    const gen = ++loadGenRef.current;
+    try {
+      const result = await fetchAdminStorage();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(result);
+    } catch {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(null);
+    } finally {
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
+    }
+  }, [loadGenRef, mountedRef]);
 
   useEffect(() => { void load(); }, [load]);
 

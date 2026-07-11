@@ -115,7 +115,18 @@ export async function sendLobbyMessage(text: string): Promise<SendLobbyMessageRe
     throw new ChatAuthRequiredError();
   }
   if (res.status === 429) {
-    throw new ChatRateLimitError(60_000);
+    const retryAfter = res.headers.get('Retry-After');
+    let retryAfterMs = 60_000;
+    if (retryAfter) {
+      const sec = Number(retryAfter);
+      if (Number.isFinite(sec) && sec >= 0) {
+        retryAfterMs = sec * 1000;
+      } else {
+        const until = Date.parse(retryAfter);
+        if (Number.isFinite(until)) retryAfterMs = Math.max(0, until - Date.now());
+      }
+    }
+    throw new ChatRateLimitError(retryAfterMs);
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

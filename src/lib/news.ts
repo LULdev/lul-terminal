@@ -22,7 +22,9 @@ export async function fetchNewsMeta(): Promise<{ feedVersion: string }> {
 }
 
 export async function fetchNewsFeed(): Promise<NewsFeedResponse> {
-  const data = await api<Partial<NewsFeedResponse>>('');
+  const res = await fetch(API);
+  if (!res.ok) throw new Error('News feed unavailable');
+  const data = await res.json() as Partial<NewsFeedResponse>;
   return {
     feedVersion: String(data.feedVersion ?? '0.0.0'),
     articles: Array.isArray(data.articles) ? data.articles : [],

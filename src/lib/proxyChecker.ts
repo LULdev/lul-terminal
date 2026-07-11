@@ -121,14 +121,19 @@ export async function pollCheckerJob(
   jobId: string,
   onUpdate: (job: CheckerJob) => void,
   intervalMs = 800,
-  options?: { onCancel?: () => void },
+  options?: { onCancel?: () => void; signal?: AbortSignal },
 ): Promise<CheckerJob> {
   return new Promise((resolve, reject) => {
     let timer: ReturnType<typeof setInterval> | null = null;
 
+    const onAbort = () => {
+      finish(() => reject(new DOMException('Aborted', 'AbortError')));
+    };
+
     const cleanup = () => {
       if (timer) clearInterval(timer);
       document.removeEventListener('visibilitychange', onVis);
+      options?.signal?.removeEventListener('abort', onAbort);
     };
 
     const finish = (fn: () => void) => {
@@ -136,8 +141,14 @@ export async function pollCheckerJob(
       fn();
     };
 
+    if (options?.signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    options?.signal?.addEventListener('abort', onAbort, { once: true });
+
     const tick = async () => {
-      if (document.hidden) return;
+      if (document.hidden || options?.signal?.aborted) return;
       try {
         const res = await sessionFetch(`${API}/jobs/${jobId}`);
         if (!res.ok) throw new Error('Job not found');
@@ -152,6 +163,7 @@ export async function pollCheckerJob(
           finish(() => reject(new Error(job.error ?? 'Job failed')));
         }
       } catch (e) {
+        if (options?.signal?.aborted) return;
         finish(() => reject(e));
       }
     };

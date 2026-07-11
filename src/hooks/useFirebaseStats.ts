@@ -18,20 +18,24 @@ export function useFirebaseStats(): SystemStats {
   const onlineCounted = useRef(false);
 
   useEffect(() => {
+    let alive = true;
     const unsubs: Array<() => void> = [];
 
     unsubs.push(
       onValue(hitsRef, (snap) => {
+        if (!alive) return;
         setStats((prev) => ({ ...prev, hits: snap.val() ?? 0 }));
       })
     );
     unsubs.push(
       onValue(uniqueRef, (snap) => {
+        if (!alive) return;
         setStats((prev) => ({ ...prev, unique: snap.val() ?? 0 }));
       })
     );
     unsubs.push(
       onValue(onlineRef, (snap) => {
+        if (!alive) return;
         setStats((prev) => ({ ...prev, online: snap.val() ?? 0 }));
       })
     );
@@ -58,6 +62,7 @@ export function useFirebaseStats(): SystemStats {
     );
 
     return () => {
+      alive = false;
       unsubs.forEach((unsub) => unsub());
       if (onlineCounted.current) {
         runTransaction(onlineRef, (current) => Math.max(0, (current ?? 0) - 1));

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { sessionFetch } from './sessionFetch';
+
 
 export type ServiceStatus = 'operational' | 'degraded' | 'down';
 
@@ -41,7 +41,7 @@ export type SystemStatus = {
 };
 
 export async function fetchSystemStatus(): Promise<SystemStatus> {
-  const res = await sessionFetch('/api/status');
+  const res = await fetch('/api/status');
   if (!res.ok) throw new Error('Status unavailable');
   return res.json() as Promise<SystemStatus>;
 }

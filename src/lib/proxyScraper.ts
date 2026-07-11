@@ -206,13 +206,25 @@ export async function startJob(endpoint: 'scrape', body: Record<string, unknown>
   return data.jobId;
 }
 
-export async function pollJob(jobId: string, onUpdate: (job: ProxyJob) => void, intervalMs = 800): Promise<ProxyJob> {
+export type PollJobOptions = { signal?: AbortSignal };
+
+export async function pollJob(
+  jobId: string,
+  onUpdate: (job: ProxyJob) => void,
+  intervalMs = 800,
+  options?: PollJobOptions,
+): Promise<ProxyJob> {
   return new Promise((resolve, reject) => {
     let timer: ReturnType<typeof setInterval> | null = null;
+
+    const onAbort = () => {
+      finish(() => reject(new DOMException('Aborted', 'AbortError')));
+    };
 
     const cleanup = () => {
       if (timer) clearInterval(timer);
       document.removeEventListener('visibilitychange', onVis);
+      options?.signal?.removeEventListener('abort', onAbort);
     };
 
     const finish = (fn: () => void) => {
@@ -220,11 +232,20 @@ export async function pollJob(jobId: string, onUpdate: (job: ProxyJob) => void, 
       fn();
     };
 
+    if (options?.signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    options?.signal?.addEventListener('abort', onAbort, { once: true });
+
     const tick = async () => {
-      if (document.hidden) return;
+      if (document.hidden || options?.signal?.aborted) return;
       try {
-        const res = await fetch(`${API}/jobs/${jobId}`);
-        if (!res.ok) throw new Error('Job not found');
+        const res = await sessionFetch(`${API}/jobs/${jobId}`);
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) throw new Error('Admin session required');
+          throw new Error('Job not found');
+        }
         const job = await res.json() as ProxyJob;
         onUpdate(job);
         if (job.status === 'done') {
@@ -233,6 +254,7 @@ export async function pollJob(jobId: string, onUpdate: (job: ProxyJob) => void, 
           finish(() => reject(new Error(job.error ?? 'Job failed')));
         }
       } catch (e) {
+        if (options?.signal?.aborted) return;
         finish(() => reject(e));
       }
     };

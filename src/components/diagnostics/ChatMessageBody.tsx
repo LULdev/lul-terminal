@@ -5,14 +5,15 @@
 
 import React, { useState } from 'react';
 import type { ChatMessage, ChatSegment, PinnedMessage } from '../../lib/chat';
+import { safeHref } from '../../lib/safeHref';
 
-function safeHref(href: string | undefined): string | null {
-  const raw = String(href ?? '').trim();
+export function safeEmoteUrl(url: string | undefined): string | null {
+  const raw = String(url ?? '').trim();
   if (!raw) return null;
-  if (raw.startsWith('/') && !raw.startsWith('//')) return raw;
+  if (raw.startsWith('/api/chat/emotes/files/') && !raw.startsWith('//')) return raw;
   try {
-    const url = new URL(raw);
-    if (url.protocol === 'http:' || url.protocol === 'https:') return url.toString();
+    const parsed = new URL(raw, 'http://localhost');
+    if (parsed.pathname.startsWith('/api/chat/emotes/files/')) return parsed.pathname;
   } catch { /* invalid */ }
   return null;
 }
@@ -22,9 +23,13 @@ function EmoteImg({ seg }: { seg: Extract<ChatSegment, { type: 'emote' }> }) {
   if (broken) {
     return <span className="text-fuchsia-300/80 font-mono text-[9px]">:{seg.code}:</span>;
   }
+  const src = safeEmoteUrl(seg.url);
+  if (!src) {
+    return <span className="text-fuchsia-300/80 font-mono text-[9px]">:{seg.code}:</span>;
+  }
   return (
     <img
-      src={seg.url}
+      src={src}
       alt={seg.label}
       title={`:${seg.code}:`}
       className="inline-block align-middle w-6 h-6 mx-0.5 object-contain rounded"

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   BarChart3,
@@ -442,33 +442,66 @@ export function AdminAnalyticsPanel() {
   const [users, setUsers] = useState<UserActivitySummary['user'][]>([]);
   const [selected, setSelected] = useState<UserActivitySummary | null>(null);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const loadGenRef = useRef(0);
+  const detailGenRef = useRef(0);
+  const mountedRef = useRef(true);
 
-  const load = useCallback(async () => {
-    setBusy(true);
-    try {
-      const [ov, us] = await Promise.all([
-        fetchAdminOverview(),
-        fetchAdminUserActivity(search, 80),
-      ]);
-      setOverview(ov);
-      setUsers(us.users);
-    } catch (e) {
-      setMsg(e instanceof Error ? e.message : 'Failed to load');
-    } finally {
-      setBusy(false);
-    }
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), search ? 280 : 0);
+    return () => clearTimeout(t);
   }, [search]);
 
-  useVisibilityAwarePoll(load, 20_000);
+  const loadOverview = useCallback(async () => {
+    try {
+      const ov = await fetchAdminOverview();
+      if (mountedRef.current) setOverview(ov);
+    } catch (e) {
+      if (mountedRef.current) setMsg(e instanceof Error ? e.message : 'Failed to load overview');
+    }
+  }, []);
+
+  const loadUsers = useCallback(async () => {
+    const gen = ++loadGenRef.current;
+    setBusy(true);
+    try {
+      const us = await fetchAdminUserActivity(debouncedSearch, 80);
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setUsers(us.users);
+      setMsg('');
+    } catch (e) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setMsg(e instanceof Error ? e.message : 'Failed to load users');
+    } finally {
+      if (gen === loadGenRef.current && mountedRef.current) setBusy(false);
+    }
+  }, [debouncedSearch]);
+
+  const load = useCallback(async () => {
+    await Promise.all([loadOverview(), loadUsers()]);
+  }, [loadOverview, loadUsers]);
+
+  useEffect(() => { void loadUsers(); }, [loadUsers]);
+
+  useVisibilityAwarePoll(loadOverview, 20_000);
 
   const maxTab = useMemo(() => Math.max(...(overview?.tabHits.map((t) => t.count) ?? []), 1), [overview]);
 
   const openUser = async (id: string) => {
+    const gen = ++detailGenRef.current;
     try {
-      setSelected(await fetchAdminUserDetail(id));
+      const detail = await fetchAdminUserDetail(id);
+      if (gen !== detailGenRef.current || !mountedRef.current) return;
+      setSelected(detail);
     } catch (e) {
+      if (gen !== detailGenRef.current || !mountedRef.current) return;
       setMsg(e instanceof Error ? e.message : 'Detail failed');
     }
   };

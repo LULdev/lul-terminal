@@ -7,6 +7,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import { assertMimeMatchesBuffer } from './imageMime.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const DATA_ROOT = path.join(__dirname, '..', 'data', 'image-host');
@@ -88,6 +89,10 @@ function withImageWrite(task) {
 export async function saveImage({ name, mime, size, width, height, buffer, userId }) {
   if (!ALLOWED_MIME.has(mime)) throw new Error('Invalid file type');
   if (size > MAX_BYTES || buffer.length > MAX_BYTES) throw new Error('File too large (max 10 MB)');
+  if (!buffer?.length) throw new Error('Empty file');
+  if (mime !== 'image/avif' && mime !== 'image/bmp') {
+    assertMimeMatchesBuffer(mime, buffer);
+  }
 
   return withImageWrite(async () => {
     await ensureDirs();
@@ -246,18 +251,22 @@ export async function updateImageRecord(id, userId, patch = {}) {
 }
 
 export async function deleteImageRecord(id, userId) {
-  const meta = await getMeta(id);
-  if (!meta) throw new Error('Image not found');
-  if (!userId || meta.userId !== String(userId).slice(0, 32)) {
-    throw new Error('Permission denied');
-  }
-  return removeImageFiles(id, meta);
+  return withImageWrite(async () => {
+    const meta = await getMeta(id);
+    if (!meta) throw new Error('Image not found');
+    if (!userId || meta.userId !== String(userId).slice(0, 32)) {
+      throw new Error('Permission denied');
+    }
+    return removeImageFiles(id, meta);
+  });
 }
 
 export async function adminDeleteImage(id) {
-  const meta = await getMeta(id);
-  if (!meta) throw new Error('Image not found');
-  return removeImageFiles(id, meta);
+  return withImageWrite(async () => {
+    const meta = await getMeta(id);
+    if (!meta) throw new Error('Image not found');
+    return removeImageFiles(id, meta);
+  });
 }
 
 async function removeImageFiles(id, meta) {

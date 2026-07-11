@@ -16,6 +16,7 @@ import {
   saveXmlMatchesToDatabase,
 } from './colonScraperDatabaseService.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
+import { pruneJobMap } from './jobPrune.mjs';
 
 const MAX_XML_BYTES = 10 * 1024 * 1024;
 const crawlJobs = new Map();
@@ -62,6 +63,7 @@ function runCrawlJob(jobId, startUrl, options) {
         job.message = `Stopped — ${result.stats.uniqueColons} unique colon tokens on ${result.stats.pagesCrawled} pages (partial)`;
       } else {
         job.status = 'done';
+        job.finishedAt = Date.now();
         job.message = `Complete — ${result.stats.uniqueColons} unique colon tokens on ${result.stats.pagesCrawled} pages`;
         job.result = result;
       }
@@ -76,6 +78,7 @@ function runCrawlJob(jobId, startUrl, options) {
       if (job.status === 'cancelled') return;
       const msg = err instanceof Error ? err.message : 'Crawl failed';
       job.status = 'error';
+      job.finishedAt = Date.now();
       job.error = msg;
       job.message = msg;
     });
@@ -88,6 +91,7 @@ export async function handleXmlLinkScraperRequest(req, res) {
     await requireAdmin(req);
 
     if (req.method === 'GET' && pathname === '/api/xml-scraper/presets') {
+      checkRateLimit(`xml-scraper:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       return sendJson(res, 200, {
         presets: PATTERN_PRESETS,
         websiteFeatures: WEBSITE_SCRAPER_FEATURES,
@@ -113,6 +117,7 @@ export async function handleXmlLinkScraperRequest(req, res) {
     }
 
     if (req.method === 'POST' && jobMatch) {
+      checkRateLimit(`xml-scraper-act:${req.auth?.user?.id ?? clientIp(req)}`, { max: 30, windowMs: 60_000 });
       const job = crawlJobs.get(jobMatch[1]);
       if (!job) return sendJson(res, 404, { error: 'Job not found' });
       if (job.status !== 'running') return sendJson(res, 400, { error: 'Job is not running' });
@@ -122,7 +127,10 @@ export async function handleXmlLinkScraperRequest(req, res) {
       return sendJson(res, 200, { ok: true, status: 'cancelled' });
     }
 
+    const adminActKey = `xml-scraper-act:${req.auth?.user?.id ?? clientIp(req)}`;
+
     if (req.method === 'POST' && pathname === '/api/xml-scraper/scan') {
+      checkRateLimit(adminActKey, { max: 30, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const xml = String(body.xml ?? '');
       const pattern = String(body.pattern ?? '*:*');
@@ -148,6 +156,7 @@ export async function handleXmlLinkScraperRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/xml-scraper/save-to-db') {
+      checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(2 * 1024 * 1024);
       const source = body.source === 'xml' ? 'xml' : 'atlas';
 
@@ -165,6 +174,7 @@ export async function handleXmlLinkScraperRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/xml-scraper/crawl') {
+      checkRateLimit(adminActKey, { max: 5, windowMs: 60_000 });
       const body = await readJsonBody(64 * 1024);
       const startUrl = String(body.startUrl ?? '').trim();
       if (!startUrl) throw new Error('startUrl is required');
@@ -186,6 +196,7 @@ export async function handleXmlLinkScraperRequest(req, res) {
         delayMs: Number(body.delayMs) || 120,
       };
 
+      pruneJobMap(crawlJobs);
       crawlJobs.set(jobId, {
         id: jobId,
         status: 'running',

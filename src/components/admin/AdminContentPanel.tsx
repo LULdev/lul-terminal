@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BarChart3, Eye, FileText, Newspaper, RefreshCw } from 'lucide-react';
 import { fetchContentAnalytics, type ContentAnalytics } from '../../lib/adminModules';
 import { ToolCard } from '../pages/PageShell';
@@ -30,17 +30,28 @@ export function AdminContentPanel() {
   const [data, setData] = useState<ContentAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
     setLoading(true);
     try {
-      setData(await fetchContentAnalytics());
+      const next = await fetchContentAnalytics();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(next);
     } catch (err) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Load failed');
       setData(null);
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
   }, []);
 

@@ -5,6 +5,10 @@
 
 import React, { useState } from 'react';
 import { ChevronDown, Eye, Radio, User } from 'lucide-react';
+import type { TabId } from '../../config/menuItems';
+import { ALL_TAB_IDS } from '../../config/menuItems';
+import { useAuth } from '../../context/AuthContext';
+import { usePageVisibility } from '../../context/PageVisibilityContext';
 import type { NewsArticle } from '../../types/news';
 import { formatNewsDate } from '../../lib/news';
 
@@ -23,13 +27,16 @@ function stripTrailingPunct(url: string) {
   return url.replace(TRAIL_PUNCT_RE, '');
 }
 
-function navigateInternal(href: string) {
-  const path = href.startsWith('/') ? href : `/${href}`;
-  window.history.pushState(null, '', path);
-  window.dispatchEvent(new PopStateEvent('popstate'));
+function parseTabFromHref(href: string): TabId | null {
+  const m = href.match(/[?&]tab=([a-zA-Z0-9_-]+)/);
+  const tab = m?.[1] as TabId | undefined;
+  return tab && ALL_TAB_IDS.includes(tab) ? tab : null;
 }
 
-function renderBodyText(text: string) {
+function renderBodyText(
+  text: string,
+  opts: { isLoggedIn: boolean; requiresLogin: (tab: TabId) => boolean },
+) {
   const parts = text.split(LINK_SPLIT_RE);
   return parts.map((part, i) => {
     if (!part) return null;
@@ -46,7 +53,11 @@ function renderBodyText(text: string) {
             rel={isExternal ? 'noopener noreferrer' : undefined}
             onClick={isExternal ? undefined : (e) => {
               e.preventDefault();
-              navigateInternal(href);
+              const tab = parseTabFromHref(href);
+              if (tab && !opts.isLoggedIn && opts.requiresLogin(tab)) return;
+              const path = href.startsWith('/') ? href : `/${href}`;
+              window.history.pushState(null, '', path);
+              window.dispatchEvent(new PopStateEvent('popstate'));
             }}
             className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 break-all"
           >
@@ -61,6 +72,8 @@ function renderBodyText(text: string) {
 }
 
 export function NewsArticleCard({ article, variant = 'standard', views }: Props) {
+  const { isLoggedIn } = useAuth();
+  const { requiresLogin } = usePageVisibility();
   const [expanded, setExpanded] = useState(false);
   const highlight = Boolean(article.highlight);
   const isFeatured = variant === 'featured';
@@ -135,7 +148,7 @@ export function NewsArticleCard({ article, variant = 'standard', views }: Props)
             isFeatured ? 'text-[12px] sm:text-[13px]' : isCompact ? 'text-[10px] line-clamp-3' : 'text-[11px]'
           } ${showClamp ? 'line-clamp-4' : ''}`}
         >
-          {renderBodyText(article.body)}
+          {renderBodyText(article.body, { isLoggedIn, requiresLogin })}
         </p>
 
         {showClamp && (

@@ -4,6 +4,7 @@
  */
 
 import { hashPassword } from './crypto.mjs';
+import { sanitizeAvatarUrl, sanitizeCoverUrl } from './safeMediaUrl.mjs';
 import { countActiveAdmins, ROLES, publicUser } from './permissions.mjs';
 import {
   loadUsersDb,
@@ -151,12 +152,14 @@ export async function updateUserAdmin(id, payload) {
     }
     if (wasActive === false && nextActive === true) {
       user.registrationBlocked = false;
+      const { unblockRegistrationSignalsForUser } = await import('./registrationRegistry.mjs');
+      await unblockRegistrationSignalsForUser(user);
     }
   }
   if (payload.displayName != null) user.displayName = String(payload.displayName).trim().slice(0, 64);
   if (payload.bio != null) user.bio = String(payload.bio).trim().slice(0, 280);
-  if (payload.avatarUrl != null) user.avatarUrl = String(payload.avatarUrl).trim().slice(0, 512);
-  if (payload.coverUrl != null) user.coverUrl = String(payload.coverUrl).trim().slice(0, 512);
+  if (payload.avatarUrl != null) user.avatarUrl = sanitizeAvatarUrl(payload.avatarUrl);
+  if (payload.coverUrl != null) user.coverUrl = sanitizeCoverUrl(payload.coverUrl);
   if (payload.verified != null) user.verified = Boolean(payload.verified);
   let passwordChanged = false;
   if (payload.password) {

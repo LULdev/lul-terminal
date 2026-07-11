@@ -14,6 +14,8 @@ import {
   loadScrapePool,
   loadSources,
   loadState,
+  mutateCustomProxies,
+  mutateSources,
   proxyEntryKey,
   saveCustomProxies,
   saveResults,
@@ -23,6 +25,7 @@ import {
 import { dedupeProxies } from './proxyScraperEngine.mjs';
 import { parseProxiesFromText } from './proxyParseCore.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
+import { pruneJobMap } from './jobPrune.mjs';
 
 const jobs = new Map();
 
@@ -105,6 +108,10 @@ export async function handleProxyScraperRequest(req, res) {
       await requireAdmin(req);
     }
 
+    const adminActKey = isAdminRoute
+      ? `proxy-scraper-act:${req.auth?.user?.id ?? clientIp(req)}`
+      : null;
+
     if (req.method === 'GET' && pathname === '/api/proxy/sources') {
       checkRateLimit(`proxy-scraper:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       await requireMemberTab(req, 'proxydatabase');
@@ -152,6 +159,7 @@ export async function handleProxyScraperRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/proxy/custom') {
+      checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const defaultType = ['http', 'https', 'socks4', 'socks5'].includes(body.defaultType) ? body.defaultType : 'http';
 
@@ -171,15 +179,17 @@ export async function handleProxyScraperRequest(req, res) {
 
       if (!incoming.length) throw new Error('No valid proxies detected — format: ip:port or type://ip:port');
 
-      const existing = await loadCustomProxies();
       const stamped = incoming.map((p) => ({
         ...p,
         source: 'custom',
         addedAt: Date.now(),
       }));
-      const before = existing.proxies.length;
-      const merged = dedupeProxies([...existing.proxies, ...stamped], { key: 'type:host:port' });
-      await saveCustomProxies(merged.proxies);
+      let before = 0;
+      const merged = await mutateCustomProxies(async (existing) => {
+        before = existing.proxies.length;
+        const next = dedupeProxies([...existing.proxies, ...stamped], { key: 'type:host:port' });
+        return { proxies: next.proxies };
+      });
 
       return sendJson(res, 201, {
         added: merged.proxies.length - before,
@@ -191,15 +201,18 @@ export async function handleProxyScraperRequest(req, res) {
 
     const customDelete = pathname.match(/^\/api\/proxy\/custom\/([^/]+)$/);
     if (customDelete && req.method === 'DELETE') {
+      checkRateLimit(adminActKey, { max: 30, windowMs: 60_000 });
       const key = decodeURIComponent(customDelete[1]);
-      const existing = await loadCustomProxies();
-      const next = existing.proxies.filter((p) => proxyEntryKey(p) !== key);
-      if (next.length === existing.proxies.length) throw new Error('Proxy not found');
-      await saveCustomProxies(next);
-      return sendJson(res, 200, { ok: true, count: next.length });
+      const result = await mutateCustomProxies(async (existing) => {
+        const next = existing.proxies.filter((p) => proxyEntryKey(p) !== key);
+        if (next.length === existing.proxies.length) throw new Error('Proxy not found');
+        return { proxies: next };
+      });
+      return sendJson(res, 200, { ok: true, count: result.proxies.length });
     }
 
     if (req.method === 'DELETE' && pathname === '/api/proxy/custom') {
+      checkRateLimit(adminActKey, { max: 5, windowMs: 60_000 });
       await saveCustomProxies([]);
       return sendJson(res, 200, { ok: true, count: 0 });
     }
@@ -215,36 +228,47 @@ export async function handleProxyScraperRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/proxy/sources') {
+      checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
-      const sources = await loadSources();
-      const next = sanitizeSource(body, sources.length);
-      if (sources.some((s) => s.id === next.id)) throw new Error('ID already taken');
-      sources.push(next);
-      await saveSources(sources);
-      return sendJson(res, 201, { source: next, count: sources.length });
+      let created = null;
+      const sources = await mutateSources(async (list) => {
+        const next = sanitizeSource(body, list.length);
+        if (list.some((s) => s.id === next.id)) throw new Error('ID already taken');
+        created = next;
+        return [...list, next];
+      });
+      return sendJson(res, 201, { source: created, count: sources.length });
     }
 
     const patchSource = pathname.match(/^\/api\/proxy\/sources\/([^/]+)$/);
     if (patchSource && req.method === 'PATCH') {
+      checkRateLimit(adminActKey, { max: 30, windowMs: 60_000 });
       const body = await readJsonBody(req);
-      const sources = await loadSources();
-      const idx = sources.findIndex((s) => s.id === patchSource[1]);
-      if (idx < 0) throw new Error('Source not found');
-      const cur = sources[idx];
-      sources[idx] = sanitizeSource({ ...cur, ...body, id: cur.id }, idx);
-      await saveSources(sources);
-      return sendJson(res, 200, { source: sources[idx] });
+      let updated = null;
+      const sources = await mutateSources(async (list) => {
+        const idx = list.findIndex((s) => s.id === patchSource[1]);
+        if (idx < 0) throw new Error('Source not found');
+        const cur = list[idx];
+        updated = sanitizeSource({ ...cur, ...body, id: cur.id }, idx);
+        const next = [...list];
+        next[idx] = updated;
+        return next;
+      });
+      return sendJson(res, 200, { source: updated, count: sources.length });
     }
 
     if (patchSource && req.method === 'DELETE') {
-      const sources = await loadSources();
-      const next = sources.filter((s) => s.id !== patchSource[1]);
-      if (next.length === sources.length) throw new Error('Source not found');
-      await saveSources(next);
-      return sendJson(res, 200, { ok: true, count: next.length });
+      checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
+      const sources = await mutateSources(async (list) => {
+        const next = list.filter((s) => s.id !== patchSource[1]);
+        if (next.length === list.length) throw new Error('Source not found');
+        return next;
+      });
+      return sendJson(res, 200, { ok: true, count: sources.length });
     }
 
     if (req.method === 'POST' && pathname === '/api/proxy/scrape') {
+      checkRateLimit(`proxy-scraper-spawn:${req.auth.user.id}`, { max: 5, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const jobId = crypto.randomBytes(8).toString('hex');
       const job = {
@@ -258,6 +282,7 @@ export async function handleProxyScraperRequest(req, res) {
         result: null,
         error: null,
       };
+      pruneJobMap(jobs);
       jobs.set(jobId, job);
 
       (async () => {
@@ -305,10 +330,12 @@ export async function handleProxyScraperRequest(req, res) {
           await saveState(state);
 
           job.status = 'done';
+          job.finishedAt = Date.now();
           job.message = `${scraped.proxies.length.toLocaleString('en-US')} proxies from ${ok}/${sources.length} sources`;
           job.result = { ...state, proxies: scraped.proxies.length, sourceResults: scraped.sourceResults };
         } catch (e) {
           job.status = 'error';
+          job.finishedAt = Date.now();
           job.error = e instanceof Error ? e.message : 'Scrape failed';
         }
       })();
@@ -317,6 +344,7 @@ export async function handleProxyScraperRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/proxy/test-source') {
+      checkRateLimit(adminActKey, { max: 15, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const source = sanitizeSource(body);
       const result = await fetchSource(source);

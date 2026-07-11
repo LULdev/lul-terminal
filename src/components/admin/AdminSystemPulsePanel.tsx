@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useVisibilityAwarePoll } from '../../hooks/useVisibilityAwarePoll';
 import { Activity, RefreshCw, Server, Users, Wifi } from 'lucide-react';
 import { fetchTerminalStats, type TerminalStats } from '../../lib/adminModules';
@@ -38,22 +38,39 @@ function Section({ title, icon, children }: { title: string; icon: string; child
 export function AdminSystemPulsePanel() {
   const [stats, setStats] = useState<TerminalStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
 
-  const load = useCallback(async () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const load = useCallback(async (background = false) => {
+    const gen = ++loadGenRef.current;
     setError('');
-    setLoading(true);
+    if (background) setRefreshing(true);
+    else setLoading(true);
     try {
-      setStats(await fetchTerminalStats());
+      const next = await fetchTerminalStats();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setStats(next);
     } catch (e) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(e instanceof Error ? e.message : 'Failed to load');
       setStats(null);
     } finally {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
-  useVisibilityAwarePoll(load, 30_000);
+  useEffect(() => { void load(); }, [load]);
+
+  useVisibilityAwarePoll(() => { void load(true); }, 30_000);
 
   return (
     <div className="space-y-4">

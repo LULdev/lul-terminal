@@ -102,7 +102,7 @@ export function ImageHostViewer({ id }: Props) {
             <div className="flex flex-col leading-none pr-0.5">
               <span className="text-[13px] font-mono font-bold text-sky-200 tabular-nums">{formatViews(views)}</span>
               <span className="text-[8px] font-mono text-sky-400/70 uppercase tracking-wider">
-                {views === 1 ? 'Aufruf' : 'Aufrufe'}
+                {views === 1 ? 'View' : 'Views'}
               </span>
             </div>
           </div>

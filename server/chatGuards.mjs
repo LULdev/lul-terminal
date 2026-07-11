@@ -33,8 +33,8 @@ export function setActivityFlag(act, key, value) {
   act.flags = { ...(act.flags ?? {}), [key]: value };
 }
 
-/** Check per-user shoutbox cooldown without committing (call recordChatRateLimit after successful send). */
-export async function checkChatRateLimit(userId) {
+/** Atomically enforce shoutbox cooldown and reserve the next send slot. */
+export async function reserveChatRateLimit(userId) {
   await runCoinTransaction(async () => {
     const db = await loadUsersDb();
     const user = db.users.find((u) => u.id === userId);
@@ -44,24 +44,21 @@ export async function checkChatRateLimit(userId) {
     if (Date.now() - last < MIN_SEND_INTERVAL_MS) {
       throw new Error('Please wait a few seconds before sending another message');
     }
-  });
-}
-
-/** Record shoutbox action timestamp after message successfully persisted. */
-export async function recordChatRateLimit(userId) {
-  await runCoinTransaction(async () => {
-    const db = await loadUsersDb();
-    const user = db.users.find((u) => u.id === userId);
-    if (!user) return;
-    const act = ensureActivity(user);
     setActivityFlag(act, 'lastChatActionAt', Date.now());
     user.updatedAt = Date.now();
     await saveUsersDb(db);
   });
 }
 
-/** @deprecated Use checkChatRateLimit + recordChatRateLimit */
+/** @deprecated Use reserveChatRateLimit */
+export async function checkChatRateLimit(userId) {
+  await reserveChatRateLimit(userId);
+}
+
+/** @deprecated No-op — reserveChatRateLimit commits the slot */
+export async function recordChatRateLimit(_userId) {}
+
+/** @deprecated Use reserveChatRateLimit */
 export async function assertChatRateLimit(userId) {
-  await checkChatRateLimit(userId);
-  await recordChatRateLimit(userId);
+  await reserveChatRateLimit(userId);
 }

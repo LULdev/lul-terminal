@@ -112,8 +112,14 @@ export function PastePage() {
   const [liveViews, setLiveViews] = useState(0);
 
   useEffect(() => {
-    fetchPublicPastes(24).then(setArchive).catch(() => {});
-    fetchTrendingPastes(8).then(setTrending).catch(() => {});
+    let cancelled = false;
+    fetchPublicPastes(24).then((data) => {
+      if (!cancelled) setArchive(data);
+    }).catch(() => {});
+    fetchTrendingPastes(8).then((data) => {
+      if (!cancelled) setTrending(data);
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, [galleryKey]);
 
   useEffect(() => {

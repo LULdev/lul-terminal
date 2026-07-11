@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useVisibilityAwarePoll } from '../../hooks/useVisibilityAwarePoll';
 import { Check, X } from 'lucide-react';
 import {
@@ -26,16 +26,26 @@ function PendingAccountsPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [acting, setActing] = useState<string | null>(null);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
     try {
       const data = await fetchPendingPremiumAccounts();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setAccounts(data);
     } catch (e) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(e instanceof Error ? e.message : 'Failed to load pending accounts');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
   }, []);
 
@@ -128,16 +138,26 @@ function AccountReportsPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [acting, setActing] = useState<string | null>(null);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
     try {
       const data = await fetchPendingAccountReports();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setReports(data);
     } catch (e) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(e instanceof Error ? e.message : 'Failed to load reports');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
   }, []);
 

@@ -21,6 +21,7 @@ import { insertShoutboxDraft, focusShoutboxInput } from '../../lib/shoutboxDraft
 import { sendShoutboxCommand } from '../../lib/shoutboxSend';
 import { adminModerateShoutboxUser } from '../../lib/adminModules';
 import { terminalAppend } from '../../lib/terminalLogBridge';
+import { safeAvatarUrl } from '../../lib/safeAvatarUrl';
 import type { UserRole } from '../../types/auth';
 
 export type ChatUserChipTarget = {
@@ -63,10 +64,6 @@ const ROLE_RING: Record<UserRole, string> = {
   bot: 'ring-cyan-500/40',
 };
 
-function avatarFallback(username: string) {
-  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`;
-}
-
 type ContextMenuState = {
   x: number;
   y: number;
@@ -84,7 +81,7 @@ export function ChatUserChip({ user, onOpenProfile, compact = false, modViaApi =
     return () => { mountedRef.current = false; };
   }, []);
 
-  const avatarSrc = user.avatarUrl?.trim() || avatarFallback(user.username);
+  const avatarSrc = safeAvatarUrl(user.avatarUrl, user.username);
   const roleStyle = ROLE_STYLES[user.role] ?? ROLE_STYLES.user;
   const ringStyle = ROLE_RING[user.role] ?? ROLE_RING.user;
   const isAdminUser = user.role === 'admin';

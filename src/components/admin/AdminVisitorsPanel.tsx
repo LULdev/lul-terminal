@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
 import { Globe, RefreshCw, Search, User } from 'lucide-react';
 import {
   fetchAdminVisitors,
@@ -19,17 +20,22 @@ export function AdminVisitorsPanel() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<VisitorProfileRow | null>(null);
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
     try {
-      setData(await fetchAdminVisitors({ limit: 100, q: search || undefined }));
+      const result = await fetchAdminVisitors({ limit: 100, q: search || undefined });
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(result);
     } catch (err) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Load failed');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
-  }, [search]);
+  }, [search, loadGenRef, mountedRef]);
 
   useEffect(() => {
     setLoading(true);

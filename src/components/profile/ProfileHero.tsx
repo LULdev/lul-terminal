@@ -23,6 +23,7 @@ import type { EarnedAchievement, SocialLink } from '../../data/achievements';
 import { SOCIAL_PLATFORMS } from '../../data/achievements';
 import { isCoinSensitiveAchievement } from '../../lib/achievementPrivacy';
 import { buildProfileUrl } from '../../lib/profileRouting';
+import { safeAvatarUrl } from '../../lib/safeAvatarUrl';
 import {
   computeArcadeTitle,
   computePersonalityType,
@@ -42,7 +43,8 @@ import { ACCENT_THEMES, MOOD_OPTIONS, PROFILE_FRAMES } from '../../types/profile
 import type { ProfileStats, UserRole } from '../../types/auth';
 import { ROLE_LABELS } from '../../types/auth';
 import type { ProfileCustomization } from '../../types/profileCustomization';
-import { coverUrlToStyle } from '../../utils/coverStyle';
+import { safeHref } from '../../lib/safeHref';
+import { safeCoverStyle } from '../../lib/safeCoverStyle';
 import { VerifiedBadge } from '../auth/VerifiedBadge';
 import { LulCoinDisplay } from '../games/LulCoinDisplay';
 import { AdminUsername } from './AdminUsername';
@@ -87,7 +89,7 @@ export function ProfileHero({ user, isOwn = false, showCoins = true, onNavigateG
   const theme = ACCENT_THEMES.find((t) => t.id === custom.accentTheme) ?? ACCENT_THEMES[0];
   const frame = PROFILE_FRAMES.find((f) => f.id === custom.profileFrame) ?? PROFILE_FRAMES[0];
   const mood = MOOD_OPTIONS.find((m) => m.id === custom.mood) ?? MOOD_OPTIONS[0];
-  const coverStyle = coverUrlToStyle(user.coverUrl);
+  const coverStyle = safeCoverStyle(user.coverUrl);
   const earnedIds = new Set((user.achievements ?? []).map((a) => a.id));
   const feat = featuredAchievement(custom, earnedIds);
   const arcade = computeArcadeSummary(user);
@@ -167,7 +169,7 @@ export function ProfileHero({ user, isOwn = false, showCoins = true, onNavigateG
         <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
           <div className={`relative shrink-0 ring-4 ${theme.ring} rounded-2xl ${frame.className}`}>
             <img
-              src={user.avatarUrl}
+              src={safeAvatarUrl(user.avatarUrl, user.username)}
               alt={user.displayName}
               className="h-24 w-24 sm:h-28 sm:w-28 rounded-2xl border-2 border-[#0c0d12] object-cover shadow-2xl"
             />
@@ -292,20 +294,22 @@ export function ProfileHero({ user, isOwn = false, showCoins = true, onNavigateG
             </p>
 
             <div className="flex flex-wrap gap-1.5">
-              {user.website && (
-                <a href={user.website.startsWith('http') ? user.website : `https://${user.website}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-700/60 bg-black/30 text-[9px] font-mono text-indigo-400 hover:text-indigo-300 transition">
+              {user.website && safeHref(user.website.startsWith('http') ? user.website : `https://${user.website}`) && (
+                <a href={safeHref(user.website.startsWith('http') ? user.website : `https://${user.website}`)!} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-700/60 bg-black/30 text-[9px] font-mono text-indigo-400 hover:text-indigo-300 transition">
                   <Globe size={10} /> {user.website.replace(/^https?:\/\//, '')}
                 </a>
               )}
               {user.socialLinks.filter((l) => l.url?.trim()).map((l) => {
                 const plat = SOCIAL_PLATFORMS.find((p) => p.id === l.platform);
                 const pinned = l.platform === custom.pinnedSocial;
+                const linkHref = safeHref(l.url.startsWith('http') ? l.url : `https://${l.url}`);
+                if (!linkHref) return null;
                 return (
                   <a
                     key={l.platform}
-                    href={l.url.startsWith('http') ? l.url : `https://${l.url}`}
+                    href={linkHref}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[9px] font-mono transition ${
                       pinned
                         ? 'border-teal-500/40 bg-teal-500/10 text-teal-200'

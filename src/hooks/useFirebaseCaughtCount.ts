@@ -11,9 +11,15 @@ export function useFirebaseCaughtCount() {
   const [caughtCount, setCaughtCount] = useState(0);
 
   useEffect(() => {
-    return onValue(caughtCountRef, (snap) => {
+    let alive = true;
+    const unsub = onValue(caughtCountRef, (snap) => {
+      if (!alive) return;
       setCaughtCount(snap.val() ?? 0);
     });
+    return () => {
+      alive = false;
+      unsub();
+    };
   }, []);
 
   const recordCatch = useCallback(() => {

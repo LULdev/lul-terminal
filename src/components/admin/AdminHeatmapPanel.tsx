@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
 import { RefreshCw } from 'lucide-react';
 import { fetchAdminHeatmap, type HeatmapData } from '../../lib/adminModules';
 import { ToolCard } from '../pages/PageShell';
@@ -24,11 +25,21 @@ function Bar({ label, value, max }: { label: string; value: number; max: number 
 export function AdminHeatmapPanel() {
   const [data, setData] = useState<HeatmapData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   const load = useCallback(async () => {
-    try { setData(await fetchAdminHeatmap()); } catch { setData(null); }
-    finally { setLoading(false); }
-  }, []);
+    const gen = ++loadGenRef.current;
+    try {
+      const result = await fetchAdminHeatmap();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(result);
+    } catch {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(null);
+    } finally {
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
+    }
+  }, [loadGenRef, mountedRef]);
 
   useEffect(() => { void load(); }, [load]);
 

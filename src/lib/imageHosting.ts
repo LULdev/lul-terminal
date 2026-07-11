@@ -193,7 +193,7 @@ export async function recordImageView(id: string): Promise<number> {
   const sessionKey = `${VIEW_SESSION_PREFIX}${id}`;
   if (!sessionStorage.getItem(sessionKey)) {
     try {
-      const res = await fetch(`${API}/${id}/view`, { method: 'POST' });
+      const res = await sessionFetch(`${API}/${id}/view`, { method: 'POST' });
       if (res.ok) {
         sessionStorage.setItem(sessionKey, '1');
         const data = await res.json() as { views: number };

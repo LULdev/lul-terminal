@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Copy,
   Download,
@@ -69,20 +69,30 @@ export function MyPasteGallery({ refreshKey = 0, onDeleted, onFork }: Props) {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
     try {
       const [items, galleryStats] = await Promise.all([
         fetchMyPastes(sort),
         fetchMyPasteStats(),
       ]);
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setPastes(items);
       setStats(galleryStats);
     } catch (e) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(e instanceof Error ? e.message : 'Could not load pastes');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
   }, [sort]);
 

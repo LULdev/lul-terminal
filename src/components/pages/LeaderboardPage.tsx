@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Crown, Shield, Trophy, Zap } from 'lucide-react';
 import type { TabId } from '../../config/menuItems';
 import { ACHIEVEMENT_BY_ID } from '../../data/achievements';
@@ -21,6 +21,7 @@ import {
   type LeaderboardFilter,
 } from '../../lib/leaderboards';
 import { useVisibilityAwarePoll } from '../../hooks/useVisibilityAwarePoll';
+import { safeAvatarUrl } from '../../lib/safeAvatarUrl';
 import { PageShell } from './PageShell';
 
 type LeaderboardPageProps = {
@@ -34,6 +35,13 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState('');
   const [filter, setFilter] = useState<LeaderboardFilter>('all');
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const visibleBoards = useMemo(
     () => filterLeaderboardBoards(boards, filter),
@@ -41,18 +49,22 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
   );
 
   const load = useCallback((background = false) => {
+    const gen = ++loadGenRef.current;
     if (background) setRefreshing(true);
     else setLoading(true);
     fetchLeaderboards()
       .then((d) => {
+        if (gen !== loadGenRef.current || !mountedRef.current) return;
         setBoards(d.boards);
         setGeneratedAt(d.generatedAt);
         setErr('');
       })
       .catch((e) => {
+        if (gen !== loadGenRef.current || !mountedRef.current) return;
         setErr(e instanceof Error ? e.message : 'Failed to load');
       })
       .finally(() => {
+        if (gen !== loadGenRef.current || !mountedRef.current) return;
         setLoading(false);
         setRefreshing(false);
       });
@@ -203,7 +215,7 @@ function PodiumSlot({
 }) {
   const rank = entry.rank as 1 | 2 | 3;
   const style = RANK_STYLES[rank];
-  const avatar = entry.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(entry.username)}`;
+  const avatar = safeAvatarUrl(entry.avatarUrl, entry.username);
   const width = rank === 1 ? 'w-[34%]' : 'w-[30%]';
 
   return (

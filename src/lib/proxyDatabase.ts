@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { sessionFetch } from './sessionFetch';
 import type { ProxyType } from './proxyScraper';
 import { formatProxyUrl } from './proxyScraper';
 
@@ -66,9 +67,8 @@ export async function runProxyDailyCheck(force = false): Promise<{
   removed?: number;
   stats?: ProxyDatabaseStats;
 }> {
-  const res = await fetch(`${API}/daily-check`, {
+  const res = await sessionFetch(`${API}/daily-check`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ force }),
   });
   if (!res.ok) {

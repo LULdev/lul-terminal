@@ -20,6 +20,13 @@ const EMPTY_DB = {
 };
 
 let cache = null;
+let colonWriteChain = Promise.resolve();
+
+export function withColonDbWrite(task) {
+  const run = colonWriteChain.then(() => task());
+  colonWriteChain = run.then(() => undefined, () => undefined);
+  return run;
+}
 
 export function clearColonDbCache() {
   cache = null;
@@ -45,7 +52,9 @@ export async function ensureColonDb() {
   try {
     await fs.access(DB_FILE);
   } catch {
-    await fs.writeFile(DB_FILE, JSON.stringify(EMPTY_DB, null, 2), 'utf8');
+    const tmp = `${DB_FILE}.tmp`;
+    await fs.writeFile(tmp, JSON.stringify(EMPTY_DB, null, 2), 'utf8');
+    await fs.rename(tmp, DB_FILE);
   }
 }
 
@@ -96,7 +105,9 @@ export async function getColonDbStats() {
  * U = before first :, P = after first :, Website = site where found.
  */
 export async function upsertColonEntries(items) {
+  return withColonDbWrite(async () => {
   const db = await loadColonDb();
+  cache = null;
   const index = new Map(db.entries.map((e) => [entryKey(e.U, e.P, e.Website), e]));
 
   let added = 0;
@@ -154,12 +165,15 @@ export async function upsertColonEntries(items) {
     skipped,
     total: db.entries.length,
   };
+  });
 }
 
 export async function deleteColonEntry(id) {
   const needle = String(id ?? '').trim();
   if (!needle) throw new Error('Entry id required');
 
+  return withColonDbWrite(async () => {
+  cache = null;
   const db = await loadColonDb();
   const before = db.entries.length;
   db.entries = db.entries.filter((e) => e.id !== needle);
@@ -167,4 +181,5 @@ export async function deleteColonEntry(id) {
 
   await saveColonDb(db);
   return { ok: true, id: needle, total: db.entries.length };
+  });
 }

@@ -61,13 +61,25 @@ export async function loadRegistrationRegistry() {
   }
 }
 
-export async function saveRegistrationRegistry(db) {
+let registryWriteChain = Promise.resolve();
+
+export function withRegistryWrite(task) {
+  const run = registryWriteChain.then(() => task());
+  registryWriteChain = run.then(() => undefined, () => undefined);
+  return run;
+}
+
+async function persistRegistrationRegistry(db) {
   await fs.mkdir(path.dirname(REGISTRY_FILE), { recursive: true });
   db.updatedAt = new Date().toISOString();
   db.version = 2;
   const tmp = `${REGISTRY_FILE}.tmp`;
   await fs.writeFile(tmp, JSON.stringify(db, null, 2), 'utf8');
   await fs.rename(tmp, REGISTRY_FILE);
+}
+
+export async function saveRegistrationRegistry(db) {
+  return withRegistryWrite(() => persistRegistrationRegistry(db));
 }
 
 function entry(userId, blocked = false) {
@@ -81,13 +93,30 @@ export function lookupRegistryEntry(registry, bucket, key) {
 
 /** Record all registration signals for a user (optionally blocked for deactivated accounts). */
 export async function recordRegistrationSignals(userId, signals, { blocked = false } = {}) {
-  const registry = await loadRegistrationRegistry();
-  for (const [signalKey, bucket] of Object.entries(SIGNAL_TO_BUCKET)) {
-    const value = signals[signalKey];
-    if (!value) continue;
-    registry[bucket][value] = entry(userId, blocked);
-  }
-  await saveRegistrationRegistry(registry);
+  return withRegistryWrite(async () => {
+    const registry = await loadRegistrationRegistry();
+    for (const [signalKey, bucket] of Object.entries(SIGNAL_TO_BUCKET)) {
+      const value = signals[signalKey];
+      if (!value) continue;
+      registry[bucket][value] = entry(userId, blocked);
+    }
+    await persistRegistrationRegistry(registry);
+  });
+}
+
+/** Remove all registry entries for a user (registration rollback). */
+export async function removeRegistrationSignals(userId, signals) {
+  if (!userId || !signals) return;
+  return withRegistryWrite(async () => {
+    const registry = await loadRegistrationRegistry();
+    for (const [signalKey, bucket] of Object.entries(SIGNAL_TO_BUCKET)) {
+      const value = signals[signalKey];
+      if (!value || !registry[bucket]) continue;
+      const hit = registry[bucket][value];
+      if (hit?.userId === userId) delete registry[bucket][value];
+    }
+    await persistRegistrationRegistry(registry);
+  });
 }
 
 /** Mark every known signal for a user as blocked (deactivate / delete / ban). */
@@ -108,19 +137,21 @@ export async function unblockRegistrationSignalsForUser(user) {
 
 /** Rebuild registry entries from users who already have registrationSignals stored. */
 export async function rebuildRegistryFromUsers(users) {
-  const registry = await loadRegistrationRegistry();
-  for (const user of users) {
-    if (user.role === 'bot' || !user.registrationSignals) continue;
-    const blocked = user.active === false || user.chatBanned || user.registrationBlocked;
-    for (const [signalKey, bucket] of Object.entries(SIGNAL_TO_BUCKET)) {
-      const value = user.registrationSignals[signalKey];
-      if (!value) continue;
-      registry[bucket][value] = entry(user.id, blocked);
+  return withRegistryWrite(async () => {
+    const registry = await loadRegistrationRegistry();
+    for (const user of users) {
+      if (user.role === 'bot' || !user.registrationSignals) continue;
+      const blocked = user.active === false || user.chatBanned || user.registrationBlocked;
+      for (const [signalKey, bucket] of Object.entries(SIGNAL_TO_BUCKET)) {
+        const value = user.registrationSignals[signalKey];
+        if (!value) continue;
+        registry[bucket][value] = entry(user.id, blocked);
+      }
+      if (user.email) {
+        const { canonicalEmail } = await import('./emailCanonical.mjs');
+        registry.canonicalEmails[canonicalEmail(user.email)] = entry(user.id, blocked);
+      }
     }
-    if (user.email) {
-      const { canonicalEmail } = await import('./emailCanonical.mjs');
-      registry.canonicalEmails[canonicalEmail(user.email)] = entry(user.id, blocked);
-    }
-  }
-  await saveRegistrationRegistry(registry);
+    await persistRegistrationRegistry(registry);
+  });
 }

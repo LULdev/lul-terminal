@@ -154,11 +154,24 @@ export function AdminXmlLinkScraperPanel() {
   const [crawlHistory, setCrawlHistory] = useState<CrawlHistoryEntry[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const activeJobRef = useRef<string | null>(null);
+  const pollAbortRef = useRef<AbortController | null>(null);
+  const presetsGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      pollAbortRef.current?.abort();
+    };
+  }, []);
 
   const urlValid = useMemo(() => startUrl.trim().length > 0 && isValidStartUrl(startUrl), [startUrl]);
 
   useEffect(() => {
+    const gen = ++presetsGenRef.current;
     fetchXmlScraperPresets().then((d) => {
+      if (gen !== presetsGenRef.current || !mountedRef.current) return;
       setPresets(d.presets);
       setWebsiteFeatures(d.websiteFeatures);
       setScraperSkills(d.scraperSkills ?? d.websiteFeatures);
@@ -360,11 +373,15 @@ export function AdminXmlLinkScraperPanel() {
         retryFetch,
       });
       activeJobRef.current = jobId;
+      pollAbortRef.current?.abort();
+      const abort = new AbortController();
+      pollAbortRef.current = abort;
       const job = await pollCrawlJob(jobId, (j) => {
+        if (!mountedRef.current) return;
         setCrawlMsg(j.message);
         setCrawlProgress({ ...j.progress, currentUrl: j.progress.currentUrl ?? '' });
         if (j.logs?.length) setCrawlLogs(j.logs.slice(-12));
-      });
+      }, 700, { signal: abort.signal });
       if (job.result) {
         setCrawlResult(job.result);
         const msg = job.status === 'cancelled'
@@ -386,6 +403,7 @@ export function AdminXmlLinkScraperPanel() {
         setCrawlMsg('Crawl stopped');
       }
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       setCrawlMsg(e instanceof Error ? e.message : 'Crawl failed');
     } finally {
       setCrawlBusy(false);

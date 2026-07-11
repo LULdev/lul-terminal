@@ -164,9 +164,8 @@ export async function fetchTrendingPastes(limit = 12): Promise<PasteMeta[]> {
   return data.pastes ?? [];
 }
 
-export async function fetchPaste(id: string, password?: string): Promise<PasteRecord> {
-  const qs = password ? `?password=${encodeURIComponent(password)}` : '';
-  const res = await sessionFetch(`${API}/${id}${qs}`);
+export async function fetchPaste(id: string): Promise<PasteRecord> {
+  const res = await sessionFetch(`${API}/${id}`);
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }

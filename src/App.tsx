@@ -155,6 +155,9 @@ export default function App() {
 
   const lastTrackedTabRef = useRef<TabId | null>(null);
   const tabEnteredAtRef = useRef(Date.now());
+  const tabTrackGenRef = useRef(0);
+  const isLoggedInRef = useRef(isLoggedIn);
+  isLoggedInRef.current = isLoggedIn;
   useEffect(() => {
     const prevTab = lastTrackedTabRef.current;
     if (prevTab !== null && prevTab !== activeTab) {
@@ -184,12 +187,22 @@ export default function App() {
         }
       }
     }
+    const trackGen = ++tabTrackGenRef.current;
     trackEvent(type, { tab: activeTab, meta: { ...baseMeta, visitCount: visitorCtxRef.current?.visitCount } })
       .then((r) => {
+        if (trackGen !== tabTrackGenRef.current || !isLoggedInRef.current) return;
         if (r?.user) patchUser(r.user);
       })
       .catch(() => {});
   }, [activeTab, patchUser, isLoggedIn, user, newsFeedVersion]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !user || activeTab !== 'news') return;
+    if (newsFeedVersion === '0.0.0') return;
+    if (user.newsLastReadVersion === newsFeedVersion) return;
+    markLocalNewsRead(newsFeedVersion);
+    patchUser((prev) => (prev ? { ...prev, newsLastReadVersion: newsFeedVersion } : prev));
+  }, [activeTab, isLoggedIn, user, newsFeedVersion, patchUser]);
 
   const changelogVisitSynced = useRef(false);
   useEffect(() => {
@@ -711,7 +724,7 @@ export default function App() {
                 }`}
                 aria-hidden={renderTab !== 'news'}
               >
-                <NewsPanel isActive={renderTab === 'news'} />
+                <NewsPanel isActive={renderTab === 'news'} liveFeedVersion={newsFeedVersion} />
               </div>
 
               {renderTab === 'tools' && <NetToolkitPage />}
@@ -730,7 +743,7 @@ export default function App() {
                   highlightAccountId={premiumDeepLink.account}
                 />
               )}
-              {activeTab === 'profile' && (
+              {renderTab === 'profile' && (
                 <ProfilePage
                   routeUsername={profileUsername ?? undefined}
                   onNavigateTab={(tab) => handleTabClick(tab as TabId)}
@@ -772,22 +785,7 @@ export default function App() {
               onNavigateProfile={(username) => handleTabClick('profile', { profileUsername: username })}
               onChangeSynthTheme={(theme) => {
                 setSynthTheme(theme);
-                const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-                if (AudioCtx && !isMuted) {
-                  try {
-                    const ctx = new AudioCtx();
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = theme === 'clean-sine' ? 'sine' : theme === 'retro-8bit' ? 'square' : 'sawtooth';
-                    osc.frequency.setValueAtTime(600, ctx.currentTime);
-                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.start();
-                    osc.stop(ctx.currentTime + 0.1);
-                  } catch (_) {}
-                }
+                if (!isMuted) playBeep(600, 0.1, theme === 'clean-sine' ? 'sine' : theme === 'retro-8bit' ? 'square' : 'sawtooth');
                 terminalAppend(`🔊 Audio Synthesizer Theme set to ${theme.toUpperCase()}.`, 'success');
               }}
             />

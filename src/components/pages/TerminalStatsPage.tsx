@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity,
   Award,
@@ -43,12 +43,29 @@ export function TerminalStatsPage() {
   const [stats, setStats] = useState<TerminalStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(() => {
+    const gen = ++loadGenRef.current;
     fetchTerminalStats()
-      .then((d) => { setStats(d); setErr(''); })
-      .catch((e) => { setErr(e instanceof Error ? e.message : 'Failed to load'); })
-      .finally(() => { setLoading(false); });
+      .then((d) => {
+        if (gen !== loadGenRef.current || !mountedRef.current) return;
+        setStats(d);
+        setErr('');
+      })
+      .catch((e) => {
+        if (gen !== loadGenRef.current || !mountedRef.current) return;
+        setErr(e instanceof Error ? e.message : 'Failed to load');
+      })
+      .finally(() => {
+        if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
+      });
   }, []);
 
   useEffect(() => { load(); }, [load]);

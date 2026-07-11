@@ -8,6 +8,7 @@ import { recordUserShoutboxSend } from './auth/authService.mjs';
 import { handleChatActivity } from './chatActivity.mjs';
 import { listLobbyMessages, postLobbyMessage } from './chatService.mjs';
 import { getEmoteFile, listPublicEmotes } from './chatEmotesStore.mjs';
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 
 function sendJson(res, status, body) {
@@ -112,12 +113,11 @@ export async function handleChatRequest(req, res) {
 }
 
 export function createChatMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname.startsWith('/api/chat')) {
-      handleChatRequest(req, res);
-      return;
+      return handleChatRequest(req, res);
     }
     next();
-  };
+  });
 }

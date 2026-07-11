@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckSquare,
   Copy,
@@ -66,20 +66,30 @@ export function MyImageGallery({ refreshKey = 0, onSelectImage }: MyImageGallery
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detail, setDetail] = useState<HostedImageMeta | null>(null);
   const [busy, setBusy] = useState(false);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
     try {
       const [gallery, galleryStats] = await Promise.all([
         fetchMyGallery(sort),
         fetchMyGalleryStats(),
       ]);
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setImages(gallery.images);
       setStats(galleryStats);
     } catch (e) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(e instanceof Error ? e.message : 'Could not load gallery');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
   }, [sort]);
 

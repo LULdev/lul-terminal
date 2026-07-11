@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
 import { Copy, RefreshCw, Rocket, UserPlus } from 'lucide-react';
 import {
   fetchAdminReferrals,
@@ -43,19 +44,24 @@ export function AdminReferralsPanel() {
   const [data, setData] = useState<ReferralsAdminData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
     setLoading(true);
     try {
-      setData(await fetchAdminReferrals(50));
+      const result = await fetchAdminReferrals(50);
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(result);
     } catch (err) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Load failed');
       setData(null);
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
-  }, []);
+  }, [loadGenRef, mountedRef]);
 
   useEffect(() => {
     void load();

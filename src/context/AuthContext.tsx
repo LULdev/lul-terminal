@@ -139,7 +139,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    refresh().finally(() => setLoading(false));
+    let mounted = true;
+    refresh().finally(() => {
+      if (mounted) setLoading(false);
+    });
+    return () => { mounted = false; };
   }, [refresh]);
 
   useEffect(() => {

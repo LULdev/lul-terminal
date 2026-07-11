@@ -92,7 +92,9 @@ async function ensureStore() {
       updatedAt: now,
       articles,
     };
-    await fs.writeFile(NEWS_FILE, JSON.stringify(db, null, 2), 'utf8');
+    const tmp = `${NEWS_FILE}.tmp`;
+    await fs.writeFile(tmp, JSON.stringify(db, null, 2), 'utf8');
+    await fs.rename(tmp, NEWS_FILE);
   }
 }
 

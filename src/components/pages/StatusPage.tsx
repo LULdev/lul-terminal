@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw, Server, XCircle } from 'lucide-react';
 import { formatRelativeEn } from '../../lib/terminalStats';
 import {
@@ -82,20 +82,29 @@ export function StatusPage() {
   const [data, setData] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setErr('');
     try {
-      setData(await fetchSystemStatus());
+      const next = await fetchSystemStatus();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(next);
     } catch (e) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setErr(e instanceof Error ? e.message : 'Failed to load status');
       setData(null);
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
   }, []);
-
-  useEffect(() => { void load(); }, [load]);
 
   useVisibilityAwarePoll(() => { void load(); }, 30_000);
 

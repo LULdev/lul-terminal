@@ -3,17 +3,28 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchPageViews, recordPageView } from '../lib/pageViews';
+import { useAuth } from '../context/AuthContext';
 import { useVisibilityAwarePoll } from './useVisibilityAwarePoll';
 
 export function usePageViews(pageId: string | undefined, enabled = true) {
+  const { isLoggedIn } = useAuth();
   const [views, setViews] = useState(0);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!pageId) return;
+    const gen = ++loadGenRef.current;
     try {
-      setViews(await fetchPageViews(pageId));
+      const v = await fetchPageViews(pageId);
+      if (gen === loadGenRef.current && mountedRef.current) setViews(v);
     } catch { /* ignore */ }
   }, [pageId]);
 
@@ -22,12 +33,15 @@ export function usePageViews(pageId: string | undefined, enabled = true) {
       setViews(0);
       return;
     }
-    let active = true;
-    recordPageView(pageId)
-      .then((v) => { if (active) setViews(v); })
-      .catch(() => refresh());
-    return () => { active = false; };
-  }, [pageId, enabled, refresh]);
+    const gen = ++loadGenRef.current;
+    if (isLoggedIn) {
+      recordPageView(pageId)
+        .then((v) => { if (gen === loadGenRef.current && mountedRef.current) setViews(v); })
+        .catch(() => { if (gen === loadGenRef.current && mountedRef.current) refresh(); });
+    } else {
+      refresh();
+    }
+  }, [pageId, enabled, isLoggedIn, refresh]);
 
   useVisibilityAwarePoll(refresh, 10_000, Boolean(pageId && enabled));
 

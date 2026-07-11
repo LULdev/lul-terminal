@@ -162,7 +162,7 @@ export async function syncAchievements(opts: SyncAchievementsOpts = {}) {
   });
 }
 
-export async function recordAchievementEvent(event: 'claw_victim' | 'matrix' | 'self_destruct') {
+export async function recordAchievementEvent(event: 'claw_victim') {
   return api<AuthUnlockResponse>('/achievements/event', {
     method: 'POST',
     body: JSON.stringify({ event }),

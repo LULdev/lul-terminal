@@ -3,9 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import crypto from 'crypto';
 import { attachAuth, requireAuth } from './auth/authApi.mjs';
 import { requireRole } from './auth/authApi.mjs';
 import { canAccessAdmin } from './auth/permissions.mjs';
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
+import { recordTabVisitFromAnalytics } from './auth/authService.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import {
   buildAdminOverview,
@@ -46,49 +49,51 @@ export async function handleAnalyticsRequest(req, res) {
       await attachAuth(req);
 
       const eventType = String(body.type ?? '').slice(0, 48);
+      const ip = clientIp(req);
+      const derivedGuestId = req.auth?.user
+        ? null
+        : crypto.createHash('sha256').update(`guest:${ip}`).digest('hex').slice(0, 16);
       const event = await recordEvent({
         type: eventType,
         userId: req.auth?.user?.id ?? null,
         username: req.auth?.user?.username ?? null,
-        guestId: req.auth?.user ? null : (body.guestId ? String(body.guestId).slice(0, 64) : null),
-        sessionId: body.sessionId ?? null,
+        guestId: derivedGuestId,
+        sessionId: req.auth?.user ? (body.sessionId ?? null) : derivedGuestId,
         tab: body.tab ?? null,
-        meta: body.meta ?? {},
+        meta: body.meta && typeof body.meta === 'object' ? body.meta : {},
       });
 
-      let user = null;
-      if (req.auth?.user?.id && eventType === 'tab_visit' && body.tab) {
-        const { recordTabVisitFromAnalytics } = await import('./auth/authService.mjs');
-        try {
-          const result = await recordTabVisitFromAnalytics(req.auth.user.id, body.tab);
-          user = result?.user ?? null;
-        } catch (err) {
-          console.warn('[analytics] recordTabVisitFromAnalytics failed:', err);
-        }
+      if (eventType === 'tab_visit' && req.auth?.user?.id && body.tab) {
+        recordTabVisitFromAnalytics(req.auth.user.id, body.tab).catch(() => {});
       }
 
-      return sendJson(res, 201, { ok: true, eventId: event?.id ?? null, user });
+      return sendJson(res, 201, { ok: true, eventId: event?.id ?? null, user: null });
     }
 
     if (req.method === 'GET' && pathname === '/api/analytics/me') {
       await attachAuth(req);
-      requireAuth(req);
-      const summary = await buildUserActivitySummary(req.auth.user.id);
+      const user = requireAuth(req);
+      checkRateLimit(`analytics-me:${user.id}`, { max: 60, windowMs: 60_000 });
+      const summary = await buildUserActivitySummary(user.id);
       if (!summary) return sendJson(res, 404, { error: 'Not found' });
       return sendJson(res, 200, summary);
-    }
-
-    if (req.method === 'GET' && pathname === '/api/analytics/active-today') {
-      await attachAuth(req);
-      requireRole(req, canAccessAdmin);
-      const limit = Math.min(Number(url.searchParams.get('limit')) || 48, 80);
-      return sendJson(res, 200, await listActiveTodayUsers(limit));
     }
 
     const adminRoutes = pathname.startsWith('/api/analytics/admin/');
     if (adminRoutes) {
       await attachAuth(req);
       requireRole(req, canAccessAdmin);
+      const adminKey = req.auth?.user?.id ?? clientIp(req);
+      checkRateLimit(`analytics-admin:${adminKey}`, { max: 120, windowMs: 60_000 });
+    }
+
+    if (req.method === 'GET' && pathname === '/api/analytics/active-today') {
+      await attachAuth(req);
+      requireRole(req, canAccessAdmin);
+      const adminKey = req.auth?.user?.id ?? clientIp(req);
+      checkRateLimit(`analytics-admin:${adminKey}`, { max: 120, windowMs: 60_000 });
+      const limit = Math.min(Number(url.searchParams.get('limit')) || 48, 80);
+      return sendJson(res, 200, await listActiveTodayUsers(limit));
     }
 
     if (req.method === 'GET' && pathname === '/api/analytics/admin/overview') {
@@ -106,6 +111,8 @@ export async function handleAnalyticsRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/analytics/admin/purge') {
+      const adminKey = req.auth?.user?.id ?? clientIp(req);
+      checkRateLimit(`analytics-admin-act:${adminKey}`, { max: 10, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const keep = Number(body.keep) || 2000;
       return sendJson(res, 200, await purgeOldEvents(keep));
@@ -135,12 +142,11 @@ export async function handleAnalyticsRequest(req, res) {
 }
 
 export function createAnalyticsMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname.startsWith('/api/analytics')) {
-      handleAnalyticsRequest(req, res);
-      return;
+      return handleAnalyticsRequest(req, res);
     }
     next();
-  };
+  });
 }

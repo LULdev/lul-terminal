@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { usePasteStats } from '../../hooks/usePasteStats';
 import { useVisibilityAwarePoll } from '../../hooks/useVisibilityAwarePoll';
 import { useAuth } from '../../context/AuthContext';
@@ -14,11 +14,17 @@ export function PasteStatsBar() {
   const { pastesCreated, pasteViewsTotal, activePastes } = usePasteStats();
   const { user } = useAuth();
   const [mine, setMine] = useState<MyPasteStats | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const loadMine = useCallback(() => {
     if (!user) return;
     fetchMyPasteStats()
-      .then((s) => { setMine(s); })
+      .then((s) => { if (mountedRef.current) setMine(s); })
       .catch(() => {});
   }, [user]);
 

@@ -4,16 +4,19 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { fetchAllPostViews, recordPostView, type PostViewType } from '../lib/postViews';
 
 export function usePostViews(type: PostViewType, opts?: { enabled?: boolean }) {
-  const enabled = opts?.enabled ?? true;
+  const { isLoggedIn } = useAuth();
+  const enabled = (opts?.enabled ?? true) && isLoggedIn;
   const [views, setViews] = useState<Record<string, number>>({});
   const viewsRef = useRef<Record<string, number>>({});
   const inflightRef = useRef(new Set<string>());
   const pendingRef = useRef<Record<string, number>>({});
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aliveRef = useRef(true);
+  const loadGenRef = useRef(0);
   const typeRef = useRef(type);
   typeRef.current = type;
 
@@ -29,39 +32,20 @@ export function usePostViews(type: PostViewType, opts?: { enabled?: boolean }) {
       pendingRef.current = {};
       const keys = Object.keys(batch);
       if (!keys.length) return;
-      const patched = { ...viewsRef.current, ...batch };
-      viewsRef.current = patched;
-      setViews((prev) => {
-        let changed = false;
-        const next = { ...prev };
-        for (const id of keys) {
-          if (next[id] !== batch[id]) {
-            next[id] = batch[id];
-            changed = true;
-          }
-        }
-        return changed ? next : prev;
-      });
+      viewsRef.current = { ...viewsRef.current, ...batch };
     };
   }, []);
 
   useEffect(() => {
     if (!enabled) return;
+    const gen = ++loadGenRef.current;
     fetchAllPostViews().then((data) => {
-      if (!aliveRef.current) return;
+      if (!aliveRef.current || gen !== loadGenRef.current) return;
       const initial = data[type] ?? {};
       viewsRef.current = { ...viewsRef.current, ...initial };
       setViews((prev) => ({ ...initial, ...prev }));
     });
   }, [type, enabled]);
-
-  useEffect(() => {
-    return () => {
-      if (flushTimerRef.current !== null) {
-        clearTimeout(flushTimerRef.current);
-      }
-    };
-  }, []);
 
   const flushPending = useCallback(() => {
     flushTimerRef.current = null;

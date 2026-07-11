@@ -12,6 +12,14 @@ const SYNC_FILE = path.join(__dirname, '..', 'data', 'leaderboard-sync.json');
 
 export const SYNC_INTERVAL_MS = 5 * 60 * 1000;
 
+let syncWriteChain = Promise.resolve();
+
+export function withLeaderboardWrite(task) {
+  const run = syncWriteChain.then(() => task());
+  syncWriteChain = run.then(() => undefined, () => undefined);
+  return run;
+}
+
 async function fileExists(file) {
   try {
     await fs.access(file);
@@ -34,8 +42,10 @@ export async function readLastSync() {
 }
 
 export async function writeLastSync(ts = Date.now()) {
-  await fs.mkdir(path.dirname(SYNC_FILE), { recursive: true });
-  const tmp = `${SYNC_FILE}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify({ lastSyncAt: ts }, null, 2), 'utf8');
-  await fs.rename(tmp, SYNC_FILE);
+  return withLeaderboardWrite(async () => {
+    await fs.mkdir(path.dirname(SYNC_FILE), { recursive: true });
+    const tmp = `${SYNC_FILE}.tmp`;
+    await fs.writeFile(tmp, JSON.stringify({ lastSyncAt: ts }, null, 2), 'utf8');
+    await fs.rename(tmp, SYNC_FILE);
+  });
 }

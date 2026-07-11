@@ -24,7 +24,7 @@ export async function resolvePasteAccess(req, meta, passwordFromQuery = '') {
     await attachAuth(req);
     const user = req.auth?.user;
     if (!user) {
-      return { allowed: false, requiresLogin: true };
+      return { allowed: false, notFound: true };
     }
     if (!meta.userId || String(meta.userId) !== String(user.id)) {
       return { allowed: false, notFound: true };

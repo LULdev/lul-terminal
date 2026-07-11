@@ -26,8 +26,10 @@ import {
   uploadAdminEmoteImage,
   type AdminChatEmote,
 } from '../../lib/adminEmotes';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
 import { emoteToken } from '../../lib/chatEmotes';
 import { ActionButton, ToolCard } from '../pages/PageShell';
+import { safeEmoteUrl } from '../diagnostics/ChatMessageBody';
 
 const ACCEPT = 'image/png,image/jpeg,image/gif,image/webp,image/svg+xml';
 const MAX_MB = 3;
@@ -77,22 +79,26 @@ export function AdminEmotesPanel() {
   const [dragOver, setDragOver] = useState(false);
   const createFileRef = useRef<HTMLInputElement>(null);
   const replaceFileRef = useRef<HTMLInputElement>(null);
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
     try {
       const data = await fetchAdminEmotes();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setEmotes(data.emotes);
       if (selected) {
         const hit = data.emotes.find((e) => e.id === selected.id);
         setSelected(hit ?? null);
       }
     } catch (err) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Load failed');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
-  }, [selected]);
+  }, [selected, loadGenRef, mountedRef]);
 
   useEffect(() => {
     void load();
@@ -443,7 +449,7 @@ export function AdminEmotesPanel() {
                   } ${busy ? 'opacity-60' : ''}`}
                 >
                   <span className="relative w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-black/40 border border-slate-800/80">
-                    <img src={emote.url} alt={emote.label} className="w-full h-full object-contain" loading="lazy" />
+                    <img src={safeEmoteUrl(emote.url) ?? ''} alt={emote.label} className="w-full h-full object-contain" loading="lazy" />
                     {emote.isPlaceholder && (
                       <span className="absolute bottom-0 inset-x-0 text-[5px] font-mono text-center bg-black/75 text-amber-300 py-px">
                         placeholder
@@ -469,7 +475,7 @@ export function AdminEmotesPanel() {
             <div className="rounded-2xl border border-slate-800/80 bg-black/30 p-4 space-y-4 h-full">
               <div className="flex items-start gap-4">
                 <div className="relative w-24 h-24 shrink-0 rounded-xl overflow-hidden bg-black/50 border border-slate-800">
-                  <img src={selected.url} alt={selected.label} className="w-full h-full object-contain" />
+                  <img src={safeEmoteUrl(selected.url) ?? ''} alt={selected.label} className="w-full h-full object-contain" />
                   {selected.isPlaceholder && (
                     <span className="absolute bottom-0 inset-x-0 text-[7px] font-mono text-center bg-black/80 text-amber-300 py-0.5">
                       Placeholder — upload to replace

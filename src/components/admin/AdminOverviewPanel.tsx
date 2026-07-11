@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, RefreshCw, Zap } from 'lucide-react';
 import { fetchAdminOverview, type AdminOverview } from '../../lib/analytics';
 import { ADMIN_TABS, type AdminTabId } from './AdminShell';
@@ -26,21 +26,32 @@ function QuickStat({ label, value, accent }: { label: string; value: string | nu
 export function AdminOverviewPanel({ onNavigate }: Props) {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [loading, setLoading] = useState(true);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
 
-  const load = async () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setLoading(true);
     try {
-      setOverview(await fetchAdminOverview());
+      const next = await fetchAdminOverview();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setOverview(next);
     } catch {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setOverview(null);
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   const modules = ADMIN_TABS.filter((t) => t.id !== 'overview');
 

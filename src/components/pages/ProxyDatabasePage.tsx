@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   exportDbTxt,
   fetchProxyDatabaseLists,
@@ -66,12 +66,21 @@ export function ProxyDatabasePage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [copied, setCopied] = useState(false);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const refresh = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     const [s, data] = await Promise.all([
       fetchProxyDatabaseStats().catch(() => null),
       fetchProxyDatabaseLists('all').catch(() => null),
     ]);
+    if (gen !== loadGenRef.current || !mountedRef.current) return;
     if (s) setStats(s);
     if (data) {
       setLists(data.lists);

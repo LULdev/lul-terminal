@@ -3,11 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BadgeCheck, Crown, Pencil, Plus, Search, Shield, Trash2, UserCheck, UserX } from 'lucide-react';
 import * as authApi from '../../lib/auth';
 import type { AuthUser, UserRole } from '../../types/auth';
 import { ROLE_LABELS } from '../../types/auth';
+import { safeAvatarUrl } from '../../lib/safeAvatarUrl';
 import { ActionButton, ToolCard } from '../pages/PageShell';
 
 const ASSIGNABLE_ROLES: UserRole[] = ['user', 'vip', 'admin'];
@@ -121,8 +122,16 @@ export function AdminUsersPanel() {
   const [error, setError] = useState('');
   const [editor, setEditor] = useState<UserFormState | null>(null);
   const [saving, setSaving] = useState(false);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
     try {
       const data = await authApi.adminListUsers({
@@ -130,11 +139,13 @@ export function AdminUsersPanel() {
         role: roleFilter,
         active: activeFilter || undefined,
       });
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setUsers(data.users);
     } catch (e) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(e instanceof Error ? e.message : 'Failed to load');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
   }, [search, roleFilter, activeFilter]);
 
@@ -260,7 +271,7 @@ export function AdminUsersPanel() {
         <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
           {users.map((u) => (
             <div key={u.id} className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-800/80 bg-black/25 hover:border-slate-700/80">
-              <img src={u.avatarUrl} alt="" className="w-10 h-10 rounded-lg border border-slate-700/50 shrink-0" />
+              <img src={safeAvatarUrl(u.avatarUrl, u.username)} alt="" className="w-10 h-10 rounded-lg border border-slate-700/50 shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-semibold text-slate-200 truncate">{u.displayName}</span>

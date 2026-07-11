@@ -13,7 +13,7 @@ const VIEWS_FILE = path.join(ROOT, 'post-views.json');
 
 const EMPTY = { version: 1, updatedAt: null, changelog: {}, news: {} };
 
-function sanitizePostId(id) {
+export function sanitizePostId(id) {
   return String(id ?? '').trim().slice(0, 48).replace(/[^a-zA-Z0-9._-]/g, '');
 }
 
@@ -22,7 +22,9 @@ async function ensureStore() {
   try {
     await fs.access(VIEWS_FILE);
   } catch {
-    await fs.writeFile(VIEWS_FILE, JSON.stringify(EMPTY, null, 2), 'utf8');
+    const tmp = `${VIEWS_FILE}.tmp`;
+    await fs.writeFile(tmp, JSON.stringify(EMPTY, null, 2), 'utf8');
+    await fs.rename(tmp, VIEWS_FILE);
   }
 }
 

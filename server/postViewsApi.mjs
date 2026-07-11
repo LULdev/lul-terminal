@@ -8,7 +8,7 @@ import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { ensureActivity } from './auth/achievements.mjs';
 import { loadUsersDb, saveUsersDb } from './auth/authStore.mjs';
 import { runCoinTransaction } from './gamesCoinLock.mjs';
-import { getAllPostViews, recordPostView } from './postViewsStore.mjs';
+import { getAllPostViews, recordPostView, sanitizePostId } from './postViewsStore.mjs';
 
 function sendJson(res, status, body) {
   res.statusCode = status;
@@ -42,7 +42,8 @@ export async function handlePostViewsRequest(req, res) {
       checkRateLimit(`post-view:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const type = String(body.type ?? '').trim();
-      const id = String(body.id ?? '').trim();
+      const rawId = String(body.id ?? '').trim();
+      const id = sanitizePostId(rawId);
       if (!id || (type !== 'changelog' && type !== 'news')) {
         return sendJson(res, 400, { error: 'type (changelog|news) and id required' });
       }
@@ -68,9 +69,16 @@ export async function handlePostViewsRequest(req, res) {
         act.flags[flagKey] = true;
         viewerUser.updatedAt = Date.now();
         await saveUsersDb(db);
-        const recorded = await recordPostView(type, id);
-        if (!recorded) throw new Error('Invalid id');
-        return recorded;
+        try {
+          const recorded = await recordPostView(type, id);
+          if (!recorded) throw new Error('Invalid id');
+          return recorded;
+        } catch (e) {
+          delete act.flags[flagKey];
+          viewerUser.updatedAt = Date.now();
+          await saveUsersDb(db);
+          throw e;
+        }
       });
 
       return sendJson(res, 200, result);

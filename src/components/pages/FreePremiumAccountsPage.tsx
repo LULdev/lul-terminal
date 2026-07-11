@@ -728,6 +728,12 @@ function PremiumAccountsContent({
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const refresh = useCallback(async () => {
     const gen = ++loadGenRef.current;
@@ -737,14 +743,14 @@ function PremiumAccountsContent({
         fetchPremiumAccountStats(),
         fetchPremiumAccounts({ category, status: statusFilter, search }),
       ]);
-      if (gen !== loadGenRef.current) return;
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setStats(s);
       setAccounts(data.accounts);
     } catch (e) {
-      if (gen !== loadGenRef.current) return;
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(e instanceof Error ? e.message : 'Failed to load');
     } finally {
-      if (gen === loadGenRef.current) setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
   }, [category, statusFilter, search]);
 
@@ -755,7 +761,10 @@ function PremiumAccountsContent({
   }, [refresh, search]);
 
   useVisibilityAwarePoll(() => {
-    fetchPremiumAccountStats().then(setStats).catch(() => {});
+    const gen = loadGenRef.current;
+    fetchPremiumAccountStats()
+      .then((s) => { if (gen === loadGenRef.current && mountedRef.current) setStats(s); })
+      .catch(() => {});
   }, 15_000);
 
   useEffect(() => {

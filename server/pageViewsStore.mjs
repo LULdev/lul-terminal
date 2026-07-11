@@ -22,7 +22,9 @@ async function ensureStore() {
   try {
     await fs.access(VIEWS_FILE);
   } catch {
-    await fs.writeFile(VIEWS_FILE, JSON.stringify(EMPTY, null, 2), 'utf8');
+    const tmp = `${VIEWS_FILE}.tmp`;
+    await fs.writeFile(tmp, JSON.stringify(EMPTY, null, 2), 'utf8');
+    await fs.rename(tmp, VIEWS_FILE);
   }
 }
 

@@ -445,9 +445,14 @@ export function applyActivityCtx(user, ctx = {}) {
         }
       }
       if (tab === 'news') {
-        const latest = getLatestNewsVersion();
+        let latest = '0.0.0';
+        try {
+          latest = getLatestNewsVersion();
+        } catch {
+          latest = '0.0.0';
+        }
         const lastRead = act.newsLastReadVersion ? String(act.newsLastReadVersion) : null;
-        if (lastRead !== latest) {
+        if (latest !== '0.0.0' && lastRead !== latest) {
           act.newsReads = Math.max(0, Number(act.newsReads) || 0) + 1;
           act.newsLastReadVersion = latest;
           touched = true;

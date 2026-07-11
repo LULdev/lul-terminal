@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ImageIcon, Smile } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { emoteToken, fetchChatEmotes, type ChatEmote } from '../../lib/chatEmotes';
+import { safeEmoteUrl } from './ChatMessageBody';
 import { focusShoutboxInput, insertShoutboxDraft } from '../../lib/shoutboxDraft';
 
 type EmoteMenuButtonProps = {
@@ -130,12 +131,19 @@ export function EmoteMenuButton({ onEmotePicked }: EmoteMenuButtonProps) {
                     title={`${emote.label} — type ${emoteToken(emote.code)}`}
                   >
                     <span className="relative w-10 h-10 rounded-lg overflow-hidden bg-black/40 border border-slate-800/80 flex items-center justify-center">
-                      <img
-                        src={emote.url}
-                        alt={emote.label}
-                        className="w-full h-full object-contain"
-                        loading="lazy"
-                      />
+                      {(() => {
+                        const emoteSrc = safeEmoteUrl(emote.url);
+                        return emoteSrc ? (
+                        <img
+                          src={emoteSrc}
+                          alt={emote.label}
+                          className="w-full h-full object-contain"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span className="text-[8px] font-mono text-fuchsia-300/70">{emoteToken(emote.code)}</span>
+                      );
+                      })()}
                       {emote.isPlaceholder && (
                         <span className="absolute bottom-0 inset-x-0 text-[5px] font-mono text-center bg-black/70 text-amber-300/90 py-px">
                           placeholder

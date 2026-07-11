@@ -26,6 +26,9 @@ export function issueRegistrationChallenge(req) {
   }
   const id = crypto.randomBytes(12).toString('hex');
   const ip = clientIp(req);
+  if (process.env.NODE_ENV === 'production' && ip === 'unknown') {
+    throw new Error('Registration temporarily unavailable — try again shortly');
+  }
   const row = {
     id,
     ip,
@@ -46,6 +49,9 @@ export function consumeRegistrationChallenge(challengeId, req) {
     throw new Error('Registration challenge expired — refresh and try again');
   }
   const ip = clientIp(req);
+  if (process.env.NODE_ENV === 'production' && (row.ip === 'unknown' || ip === 'unknown')) {
+    throw new Error('Registration challenge invalid for this network');
+  }
   if (row.ip && row.ip !== 'unknown' && ip !== 'unknown' && row.ip !== ip) {
     throw new Error('Registration challenge invalid for this network');
   }

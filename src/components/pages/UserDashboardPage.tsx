@@ -4,6 +4,8 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
+import { safeAvatarUrl } from '../../lib/safeAvatarUrl';
 import {
   Activity,
   ArrowRight,
@@ -76,6 +78,7 @@ export function UserDashboardPage({ onNavigate }: UserDashboardPageProps) {
   const [err, setErr] = useState('');
   const [inviteUrl, setInviteUrl] = useState('');
   const [activity, setActivity] = useState<{ pageVisits: number; commandsRun: number; shoutboxSent: number } | null>(null);
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   useEffect(() => {
     if (user) setEmail(user.email);
@@ -83,11 +86,13 @@ export function UserDashboardPage({ onNavigate }: UserDashboardPageProps) {
 
   const loadExtras = useCallback(async () => {
     if (!isLoggedIn) return;
+    const gen = ++loadGenRef.current;
     try {
       const [ref, act] = await Promise.all([
         fetchReferralInfo().catch(() => null),
         fetchMyActivity().catch(() => null),
       ]);
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       if (ref?.inviteUrl) setInviteUrl(ref.inviteUrl);
       if (act?.user?.activity) {
         setActivity({
@@ -97,7 +102,7 @@ export function UserDashboardPage({ onNavigate }: UserDashboardPageProps) {
         });
       }
     } catch { /* ignore */ }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, loadGenRef, mountedRef]);
 
   useEffect(() => {
     loadExtras();
@@ -173,7 +178,7 @@ export function UserDashboardPage({ onNavigate }: UserDashboardPageProps) {
           <div className={`absolute inset-0 bg-gradient-to-br ${glow} via-transparent to-indigo-950/40 pointer-events-none`} />
           <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
           <div className="relative p-5 sm:p-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            <img src={user.avatarUrl} alt={user.displayName} className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border-2 border-violet-500/30 shadow-lg shrink-0" />
+            <img src={safeAvatarUrl(user.avatarUrl, user.username)} alt={user.displayName} className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border-2 border-violet-500/30 shadow-lg shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <h2 className="text-lg font-semibold text-white truncate">{user.displayName}</h2>

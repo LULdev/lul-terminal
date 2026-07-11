@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Circle, RefreshCw } from 'lucide-react';
 import { fetchAdminOnline, type OnlineRadarData } from '../../lib/adminModules';
 import { useVisibilityAwarePoll } from '../../hooks/useVisibilityAwarePoll';
@@ -13,10 +13,26 @@ import { ToolCard } from '../pages/PageShell';
 export function AdminOnlinePanel() {
   const [data, setData] = useState<OnlineRadarData | null>(null);
   const [loading, setLoading] = useState(true);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
-    try { setData(await fetchAdminOnline()); } catch { setData(null); }
-    finally { setLoading(false); }
+    const gen = ++loadGenRef.current;
+    try {
+      const next = await fetchAdminOnline();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(next);
+    } catch {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(null);
+    } finally {
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
+    }
   }, []);
 
   useVisibilityAwarePoll(load, 20_000);

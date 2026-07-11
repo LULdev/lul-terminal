@@ -31,6 +31,14 @@ const EMPTY_STATE = {
 const EMPTY_RESULTS = { proxies: [], checked: [] };
 const EMPTY_CUSTOM = { proxies: [], updatedAt: null };
 
+let scraperWriteChain = Promise.resolve();
+
+export function withProxyScraperWrite(task) {
+  const run = scraperWriteChain.then(() => task());
+  scraperWriteChain = run.then(() => undefined, () => undefined);
+  return run;
+}
+
 async function fileExists(file) {
   try {
     await fs.access(file);
@@ -78,12 +86,29 @@ export async function loadSources() {
 }
 
 export async function saveSources(sources) {
-  await ensureStore();
-  await atomicWrite(SOURCES_FILE, {
-    version: 1,
-    updatedAt: new Date().toISOString(),
-    count: sources.length,
-    sources,
+  return withProxyScraperWrite(async () => {
+    await ensureStore();
+    await atomicWrite(SOURCES_FILE, {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      count: sources.length,
+      sources,
+    });
+  });
+}
+
+export async function mutateSources(mutator) {
+  return withProxyScraperWrite(async () => {
+    const sources = await loadSources();
+    const next = await mutator(sources);
+    await ensureStore();
+    await atomicWrite(SOURCES_FILE, {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      count: next.length,
+      sources: next,
+    });
+    return next;
   });
 }
 
@@ -93,13 +118,17 @@ export async function loadState() {
 }
 
 export async function saveState(state) {
-  await ensureStore();
-  await atomicWrite(STATE_FILE, state);
+  return withProxyScraperWrite(async () => {
+    await ensureStore();
+    await atomicWrite(STATE_FILE, state);
+  });
 }
 
 export async function saveResults(results) {
-  await ensureStore();
-  await atomicWrite(RESULTS_FILE, results);
+  return withProxyScraperWrite(async () => {
+    await ensureStore();
+    await atomicWrite(RESULTS_FILE, results);
+  });
 }
 
 export async function loadResults() {
@@ -117,12 +146,29 @@ export async function loadCustomProxies() {
 }
 
 export async function saveCustomProxies(proxies) {
-  await ensureStore();
-  await atomicWrite(CUSTOM_FILE, {
-    version: 1,
-    updatedAt: new Date().toISOString(),
-    count: proxies.length,
-    proxies,
+  return withProxyScraperWrite(async () => {
+    await ensureStore();
+    await atomicWrite(CUSTOM_FILE, {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      count: proxies.length,
+      proxies,
+    });
+  });
+}
+
+export async function mutateCustomProxies(mutator) {
+  return withProxyScraperWrite(async () => {
+    const existing = await loadCustomProxies();
+    const next = await mutator(existing);
+    await ensureStore();
+    await atomicWrite(CUSTOM_FILE, {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      count: next.proxies.length,
+      proxies: next.proxies,
+    });
+    return next;
   });
 }
 

@@ -58,6 +58,8 @@ export async function handleProxyDatabaseRequest(req, res) {
     if (req.method === 'POST' && pathname === '/api/proxy-db/daily-check') {
       await attachAuth(req);
       requireRole(req, canAccessAdmin);
+      const adminKey = req.auth?.user?.id ?? clientIp(req);
+      checkRateLimit(`proxy-db-check:${adminKey}`, { max: 10, windowMs: 60_000 });
       const body = await readJsonBody(req).catch(() => ({}));
       const result = await runDailyCheck({
         force: Boolean(body.force),

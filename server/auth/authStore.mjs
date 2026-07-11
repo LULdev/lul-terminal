@@ -23,13 +23,19 @@ export function newUserId() {
   return crypto.randomBytes(8).toString('hex');
 }
 
+async function atomicWriteJson(file, data) {
+  const tmp = `${file}.tmp`;
+  await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
+  await fs.rename(tmp, file);
+}
+
 export async function ensureAuthStore() {
   await fs.mkdir(ROOT, { recursive: true });
   try { await fs.access(USERS_FILE); } catch {
-    await fs.writeFile(USERS_FILE, JSON.stringify(EMPTY_USERS, null, 2), 'utf8');
+    await atomicWriteJson(USERS_FILE, EMPTY_USERS);
   }
   try { await fs.access(SESSIONS_FILE); } catch {
-    await fs.writeFile(SESSIONS_FILE, JSON.stringify(EMPTY_SESSIONS, null, 2), 'utf8');
+    await atomicWriteJson(SESSIONS_FILE, EMPTY_SESSIONS);
   }
 }
 
@@ -112,12 +118,6 @@ export async function loadUsersDb() {
   }
 }
 
-async function atomicWriteJson(file, data) {
-  const tmp = `${file}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
-  await fs.rename(tmp, file);
-}
-
 export async function saveUsersDb(db) {
   await ensureAuthStore();
   db.updatedAt = new Date().toISOString();
@@ -161,8 +161,7 @@ export async function saveSessionsDb(db) {
 
 export const BOT_USERNAME = 'bot';
 
-export async function ensureBotUser() {
-  const db = await loadUsersDb();
+async function ensureBotUserInDb(db) {
   const existing = db.users.find((u) => u.username === BOT_USERNAME);
   if (existing) {
     let changed = false;
@@ -221,85 +220,94 @@ export async function ensureBotUser() {
   return bot;
 }
 
+export async function ensureBotUser() {
+  return withUsersWrite(async () => {
+    const db = await loadUsersDb();
+    return ensureBotUserInDb(db);
+  });
+}
+
 export async function seedDefaultUsersIfEmpty() {
-  const db = await loadUsersDb();
-  if (db.users.length > 0) {
-    await ensureBotUser();
-    return db;
-  }
-
-  const now = Date.now();
-  const seedPw = (envKey, label) => {
-    const fromEnv = process.env[envKey];
-    if (fromEnv) return fromEnv;
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(`[auth] ${envKey} is required in production`);
+  return withUsersWrite(async () => {
+    const db = await loadUsersDb();
+    if (db.users.length > 0) {
+      await ensureBotUserInDb(db);
+      return db;
     }
-    const generated = crypto.randomBytes(12).toString('base64url');
-    console.warn(`[auth] Seeded ${label} password — set ${envKey} or change immediately (password not logged).`);
-    return generated;
-  };
-  const adminHash = await hashPassword(seedPw('SEED_ADMIN_PASSWORD', 'admin'));
-  const vipHash = await hashPassword(seedPw('SEED_VIP_PASSWORD', 'vip'));
 
-  db.users = [
-    {
-      id: newUserId(),
-      username: 'admin',
-      email: 'admin@lul.terminal',
-      passwordHash: adminHash,
-      role: 'admin',
-      active: true,
-      displayName: 'System Admin',
-      bio: 'Terminal root access.',
-      avatarUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=admin',
-      coverUrl: 'linear-gradient(135deg,#1e1b4b,#312e81,#0f172a)',
-      verified: true,
-      profileViews: 0,
-      website: '',
-      socialLinks: [],
-      achievements: [],
-      referralCode: '',
-      referredBy: null,
-      referralsCount: 0,
-      imagesUploaded: 0,
-      memesCreated: 0,
-      pastesCreated: 0,
-      pasteViewsTotal: 0,
-      createdAt: now,
-      updatedAt: now,
-      lastLoginAt: null,
-    },
-    {
-      id: newUserId(),
-      username: 'vipdemo',
-      email: 'vip@lul.terminal',
-      passwordHash: vipHash,
-      role: 'vip',
-      active: true,
-      displayName: 'VIP Demo',
-      bio: 'Premium vault access.',
-      avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=vip',
-      coverUrl: 'linear-gradient(135deg,#78350f,#b45309,#0f172a)',
-      verified: true,
-      profileViews: 0,
-      website: '',
-      socialLinks: [],
-      achievements: [],
-      referralCode: '',
-      referredBy: null,
-      referralsCount: 0,
-      imagesUploaded: 0,
-      memesCreated: 0,
-      pastesCreated: 0,
-      pasteViewsTotal: 0,
-      createdAt: now,
-      updatedAt: now,
-      lastLoginAt: null,
-    },
-  ];
+    const now = Date.now();
+    const seedPw = (envKey, label) => {
+      const fromEnv = process.env[envKey];
+      if (fromEnv) return fromEnv;
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`[auth] ${envKey} is required in production`);
+      }
+      const generated = crypto.randomBytes(12).toString('base64url');
+      console.warn(`[auth] Seeded ${label} password — set ${envKey} or change immediately (password not logged).`);
+      return generated;
+    };
+    const adminHash = await hashPassword(seedPw('SEED_ADMIN_PASSWORD', 'admin'));
+    const vipHash = await hashPassword(seedPw('SEED_VIP_PASSWORD', 'vip'));
 
-  await saveUsersDb(db);
-  await ensureBotUser();
-  return db;
+    db.users = [
+      {
+        id: newUserId(),
+        username: 'admin',
+        email: 'admin@lul.terminal',
+        passwordHash: adminHash,
+        role: 'admin',
+        active: true,
+        displayName: 'System Admin',
+        bio: 'Terminal root access.',
+        avatarUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=admin',
+        coverUrl: 'linear-gradient(135deg,#1e1b4b,#312e81,#0f172a)',
+        verified: true,
+        profileViews: 0,
+        website: '',
+        socialLinks: [],
+        achievements: [],
+        referralCode: '',
+        referredBy: null,
+        referralsCount: 0,
+        imagesUploaded: 0,
+        memesCreated: 0,
+        pastesCreated: 0,
+        pasteViewsTotal: 0,
+        createdAt: now,
+        updatedAt: now,
+        lastLoginAt: null,
+      },
+      {
+        id: newUserId(),
+        username: 'vipdemo',
+        email: 'vip@lul.terminal',
+        passwordHash: vipHash,
+        role: 'vip',
+        active: true,
+        displayName: 'VIP Demo',
+        bio: 'Premium vault access.',
+        avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=vip',
+        coverUrl: 'linear-gradient(135deg,#78350f,#b45309,#0f172a)',
+        verified: true,
+        profileViews: 0,
+        website: '',
+        socialLinks: [],
+        achievements: [],
+        referralCode: '',
+        referredBy: null,
+        referralsCount: 0,
+        imagesUploaded: 0,
+        memesCreated: 0,
+        pastesCreated: 0,
+        pasteViewsTotal: 0,
+        createdAt: now,
+        updatedAt: now,
+        lastLoginAt: null,
+      },
+    ];
+
+    await saveUsersDb(db);
+    await ensureBotUserInDb(db);
+    return db;
+  });
 }

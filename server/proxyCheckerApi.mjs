@@ -23,6 +23,7 @@ import {
   saveCheckerState,
 } from './proxyCheckerStore.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
+import { pruneJobMap } from './jobPrune.mjs';
 
 const jobs = new Map();
 
@@ -75,6 +76,7 @@ export async function handleProxyCheckerRequest(req, res) {
     await requireAdmin(req);
 
     if (req.method === 'GET' && pathname === '/api/proxy-checker/presets') {
+      checkRateLimit(`proxy-checker:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       return sendJson(res, 200, { testUrls: TEST_URL_PRESETS });
     }
 
@@ -102,6 +104,7 @@ export async function handleProxyCheckerRequest(req, res) {
       }
 
       if (req.method === 'DELETE') {
+        checkRateLimit(`proxy-checker-act:${req.auth.user.id}`, { max: 30, windowMs: 60_000 });
         if (job.control) job.control.cancelled = true;
         job.status = 'cancelled';
         job.message = 'Check cancelled';
@@ -110,6 +113,7 @@ export async function handleProxyCheckerRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/proxy-checker/check') {
+      checkRateLimit(`proxy-checker-spawn:${req.auth.user.id}`, { max: 5, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const jobId = crypto.randomBytes(8).toString('hex');
       const job = {
@@ -128,6 +132,7 @@ export async function handleProxyCheckerRequest(req, res) {
         recovered: 0,
         control: null,
       };
+      pruneJobMap(jobs);
       jobs.set(jobId, job);
       const control = attachJobControl(job);
 
@@ -260,10 +265,12 @@ export async function handleProxyCheckerRequest(req, res) {
           await saveCheckerResults({ checked, summary, checkedAt: Date.now(), database });
 
           job.status = 'done';
+          job.finishedAt = Date.now();
           job.message = `${summary.alive} alive / ${checked.length} checked → DB +${database.added} · ~${database.updated} updated`;
           job.result = { ...summary, checked, database };
         } catch (e) {
           job.status = 'error';
+          job.finishedAt = Date.now();
           job.error = e instanceof Error ? e.message : 'Check failed';
         }
       })();

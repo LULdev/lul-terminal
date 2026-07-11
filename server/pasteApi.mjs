@@ -4,6 +4,8 @@
  */
 
 import { attachAuth, requireAuth, requireRole } from './auth/authApi.mjs';
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
+import { resolvePublicOrigin } from './resolvePublicOrigin.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { claimGuestView } from './viewDedup.mjs';
 import { requireMemberTab } from './tabAccessGuard.mjs';
@@ -54,9 +56,7 @@ async function readJsonBody(req, limit = 600 * 1024) {
 }
 
 function originFromReq(req) {
-  const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3000';
-  const proto = req.headers['x-forwarded-proto'] || 'http';
-  return `${proto}://${host}`;
+  return resolvePublicOrigin(req);
 }
 
 async function requireAdmin(req) {
@@ -126,6 +126,72 @@ async function clientUserId(req) {
 async function loadAlive(id) {
   const meta = await purgeIfExpired(await getMeta(id));
   return meta;
+}
+
+/** Shared view counter with per-user flags + guest IP dedup (used by /view POST and /raw GET). */
+async function countPasteViewDeduped(req, pasteId, { consumeBurn = false } = {}) {
+  await attachAuth(req);
+  const viewerId = req.auth?.user?.id ?? null;
+  return runCoinTransaction(async () => {
+    let countMeta = true;
+    if (viewerId) {
+      const db = await loadUsersDb();
+      const viewer = db.users.find((u) => u.id === viewerId);
+      if (viewer) {
+        const flagKey = `paste_meta_view_${pasteId.slice(0, 14)}`;
+        const act = ensureActivity(viewer);
+        if (act.flags[flagKey]) {
+          countMeta = false;
+        }
+      }
+    }
+    if (!countMeta) {
+      const meta = await loadAlive(pasteId);
+      if (!meta) return null;
+      return { views: meta.views ?? 0, burned: false, deduped: true, meta };
+    }
+    if (!viewerId && !(await claimGuestView('paste', clientIp(req), pasteId))) {
+      const meta = await loadAlive(pasteId);
+      if (!meta) return null;
+      return { views: meta.views ?? 0, burned: false, deduped: true, meta };
+    }
+    let reservedDb = null;
+    let reservedViewer = null;
+    let reservedFlagKey = null;
+    if (viewerId) {
+      reservedDb = await loadUsersDb();
+      reservedViewer = reservedDb.users.find((u) => u.id === viewerId);
+      if (reservedViewer) {
+        reservedFlagKey = `paste_meta_view_${pasteId.slice(0, 14)}`;
+        const act = ensureActivity(reservedViewer);
+        act.flags[reservedFlagKey] = true;
+        reservedViewer.updatedAt = Date.now();
+        await saveUsersDb(reservedDb);
+      }
+    }
+    let result;
+    try {
+      result = await recordView(pasteId, { consumeBurn });
+    } catch (e) {
+      if (reservedViewer && reservedFlagKey && reservedDb) {
+        const act = ensureActivity(reservedViewer);
+        delete act.flags[reservedFlagKey];
+        reservedViewer.updatedAt = Date.now();
+        await saveUsersDb(reservedDb);
+      }
+      throw e;
+    }
+    if (!result) {
+      if (reservedViewer && reservedFlagKey && reservedDb) {
+        const act = ensureActivity(reservedViewer);
+        delete act.flags[reservedFlagKey];
+        reservedViewer.updatedAt = Date.now();
+        await saveUsersDb(reservedDb);
+      }
+      return null;
+    }
+    return { views: result.meta.views ?? 0, burned: result.burned, deduped: false, meta: result.meta };
+  });
 }
 
 export async function handlePasteRequest(req, res) {
@@ -279,7 +345,12 @@ export async function handlePasteRequest(req, res) {
         res.end('Not found');
         return;
       }
-      const access = await resolvePasteAccess(req, meta, url.searchParams.get('password') ?? '');
+      if (url.searchParams.has('password')) {
+        res.statusCode = 400;
+        res.end('Password must be sent via POST /api/paste/:id/view or /unlock');
+        return;
+      }
+      const access = await resolvePasteAccess(req, meta, '');
       if (!access.allowed) {
         if (access.notFound) {
           res.statusCode = 404;
@@ -296,13 +367,12 @@ export async function handlePasteRequest(req, res) {
         res.end('Not found');
         return;
       }
-      await attachAuth(req);
-      const viewResult = await recordView(meta.id, { consumeBurn: meta.burnAfterRead });
+      const viewResult = await countPasteViewDeduped(req, meta.id, { consumeBurn: meta.burnAfterRead });
       if (viewResult?.meta?.userId && req.auth?.user?.id) {
-        incrementUserPasteViews(viewResult.meta.userId, {
+        await incrementUserPasteViews(viewResult.meta.userId, {
           viewerId: req.auth.user.id,
           pasteId: viewResult.meta.id,
-        }).catch(() => {});
+        });
       }
       res.statusCode = 200;
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -330,46 +400,15 @@ export async function handlePasteRequest(req, res) {
           requiresPassword: access.requiresPassword ?? false,
         });
       }
-      await attachAuth(req);
       const pasteId = viewMatch[1];
-      const viewerId = req.auth?.user?.id ?? null;
-      const payload = await runCoinTransaction(async () => {
-        let countMeta = true;
-        if (viewerId) {
-          const db = await loadUsersDb();
-          const viewer = db.users.find((u) => u.id === viewerId);
-          if (viewer) {
-            const flagKey = `paste_meta_view_${pasteId.slice(0, 14)}`;
-            const act = ensureActivity(viewer);
-            if (act.flags[flagKey]) {
-              countMeta = false;
-            } else {
-              act.flags[flagKey] = true;
-              viewer.updatedAt = Date.now();
-              await saveUsersDb(db);
-            }
-          }
-        }
-        if (!countMeta) {
-          const meta = await loadAlive(pasteId);
-          if (!meta) return null;
-          return { views: meta.views ?? 0, burned: false, deduped: true };
-        }
-        if (!viewerId && !claimGuestView('paste', clientIp(req), pasteId)) {
-          const meta = await loadAlive(pasteId);
-          if (!meta) return null;
-          return { views: meta.views ?? 0, burned: false, deduped: true };
-        }
-        const result = await recordView(pasteId);
-        if (!result) return null;
-        return { views: result.meta.views ?? 0, burned: result.burned, deduped: false, meta: result.meta };
-      });
+      const payload = await countPasteViewDeduped(req, pasteId, { consumeBurn: meta.burnAfterRead });
       if (!payload) return sendJson(res, 404, { error: 'Not found' });
+      const viewerId = req.auth?.user?.id ?? null;
       if (payload.meta?.userId && viewerId) {
-        incrementUserPasteViews(payload.meta.userId, {
+        await incrementUserPasteViews(payload.meta.userId, {
           viewerId,
           pasteId: payload.meta.id,
-        }).catch(() => {});
+        });
       }
       return sendJson(res, 200, {
         views: payload.views,
@@ -427,7 +466,16 @@ export async function handlePasteRequest(req, res) {
         return sendJson(res, 403, { error: 'Invalid password' });
       }
       const content = await getContent(meta.id);
+      if (!content) return sendJson(res, 404, { error: 'Not found' });
       const unlockUid = await clientUserId(req);
+      if (meta.burnAfterRead) {
+        const viewResult = await countPasteViewDeduped(req, meta.id, { consumeBurn: true });
+        if (!viewResult) return sendJson(res, 404, { error: 'Not found' });
+        if (viewResult.meta?.userId && unlockUid) {
+          await incrementUserPasteViews(viewResult.meta.userId, { viewerId: unlockUid, pasteId: meta.id });
+        }
+        return sendJson(res, 200, toClientPaste(viewResult.meta, content, req, { userId: unlockUid }));
+      }
       return sendJson(res, 200, {
         ...toClientPaste(meta, content, req, { userId: unlockUid }),
       });
@@ -443,9 +491,16 @@ export async function handlePasteRequest(req, res) {
         if (!meta) return sendJson(res, 404, { error: 'Not found' });
         const uid = await clientUserId(req);
 
-        const access = await resolvePasteAccess(req, meta, url.searchParams.get('password') ?? '');
+        if (url.searchParams.has('password')) {
+          return sendJson(res, 400, { error: 'Password must be sent via POST /api/paste/:id/view or /unlock' });
+        }
+        const access = await resolvePasteAccess(req, meta, '');
         if (!access.allowed) {
           if (access.notFound) return sendJson(res, 404, { error: 'Not found' });
+          const isOwner = uid && meta.userId && String(meta.userId) === String(uid);
+          if (access.requiresPassword && !isOwner) {
+            return sendJson(res, 404, { error: 'Not found' });
+          }
           return sendJson(res, 200, {
             ...toClientMeta(meta, req, { userId: uid }),
             content: null,
@@ -455,7 +510,20 @@ export async function handlePasteRequest(req, res) {
         }
 
         const content = await getContent(id);
-        return sendJson(res, 200, toClientPaste(meta, content, req, { userId: uid }));
+        if (!content) return sendJson(res, 404, { error: 'Not found' });
+        const viewResult = await countPasteViewDeduped(req, id, { consumeBurn: Boolean(meta.burnAfterRead) });
+        if (!viewResult) return sendJson(res, 404, { error: 'Not found' });
+        if (viewResult.meta?.userId && uid) {
+          await incrementUserPasteViews(viewResult.meta.userId, { viewerId: uid, pasteId: id });
+        }
+        const outMeta = viewResult.meta ?? meta;
+        if (viewResult.burned) {
+          return sendJson(res, 200, {
+            ...toClientPaste(outMeta, content, req, { userId: uid }),
+            burned: true,
+          });
+        }
+        return sendJson(res, 200, toClientPaste(outMeta, content, req, { userId: uid }));
       }
 
       if (req.method === 'PATCH') {
@@ -492,12 +560,11 @@ export async function handlePasteRequest(req, res) {
 }
 
 export function createPasteMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname.startsWith('/api/paste')) {
-      handlePasteRequest(req, res);
-      return;
+      return handlePasteRequest(req, res);
     }
     next();
-  };
+  });
 }

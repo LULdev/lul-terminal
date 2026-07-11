@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActionButton, OutputBox, PageShell, TerminalInput, TerminalTextarea, ToolCard } from './PageShell';
 import { generateFakeName, removeDuplicateLines } from '../../utils/generators';
 
@@ -17,6 +17,12 @@ export function NetToolkitPage() {
   const [dedupOut, setDedupOut] = useState('');
   const [fakeName, setFakeName] = useState(generateFakeName());
   const [loading, setLoading] = useState('');
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const lookupWhois = async () => {
     setLoading('whois');
@@ -32,11 +38,13 @@ export function NetToolkitPage() {
         `REGISTRAR: ${data.entities?.[0]?.vcardArray?.[1]?.find((v: unknown[]) => v[0] === 'fn')?.[3] ?? 'n/a'}`,
         `NAMESERVERS: ${(data.nameservers ?? []).map((n: { ldhName: string }) => n.ldhName).join(', ') || 'n/a'}`,
       ];
-      setWhoisOut(lines.join('\n'));
+      if (mountedRef.current) setWhoisOut(lines.join('\n'));
     } catch (err) {
-      setWhoisOut(`WHOIS lookup failed: ${err instanceof Error ? err.message : 'unknown error'}\nTip: Check domain spelling or try again later.`);
+      if (mountedRef.current) {
+        setWhoisOut(`WHOIS lookup failed: ${err instanceof Error ? err.message : 'unknown error'}\nTip: Check domain spelling or try again later.`);
+      }
     } finally {
-      setLoading('');
+      if (mountedRef.current) setLoading('');
     }
   };
 
@@ -53,11 +61,11 @@ export function NetToolkitPage() {
         const answers = (data.Answer ?? []).map((a: { type: number; data: string }) => `  [${type}] ${a.data}`).join('\n');
         chunks.push(`${type}:\n${answers || '  (no records)'}`);
       }
-      setDnsOut(chunks.join('\n\n'));
+      if (mountedRef.current) setDnsOut(chunks.join('\n\n'));
     } catch (err) {
-      setDnsOut(`DNS lookup failed: ${err instanceof Error ? err.message : 'unknown error'}`);
+      if (mountedRef.current) setDnsOut(`DNS lookup failed: ${err instanceof Error ? err.message : 'unknown error'}`);
     } finally {
-      setLoading('');
+      if (mountedRef.current) setLoading('');
     }
   };
 
@@ -70,18 +78,20 @@ export function NetToolkitPage() {
       const res = await fetch(url);
       const data = await res.json();
       if (data.error) throw new Error(data.reason ?? 'lookup error');
-      setIpOut([
-        `IP: ${data.ip}`,
-        `CITY: ${data.city}, ${data.region}`,
-        `COUNTRY: ${data.country_name} (${data.country_code})`,
-        `ISP: ${data.org ?? data.asn ?? 'n/a'}`,
-        `TZ: ${data.timezone ?? 'n/a'}`,
-        `LAT/LON: ${data.latitude}, ${data.longitude}`,
-      ].join('\n'));
+      if (mountedRef.current) {
+        setIpOut([
+          `IP: ${data.ip}`,
+          `CITY: ${data.city}, ${data.region}`,
+          `COUNTRY: ${data.country_name} (${data.country_code})`,
+          `ISP: ${data.org ?? data.asn ?? 'n/a'}`,
+          `TZ: ${data.timezone ?? 'n/a'}`,
+          `LAT/LON: ${data.latitude}, ${data.longitude}`,
+        ].join('\n'));
+      }
     } catch (err) {
-      setIpOut(`IP lookup failed: ${err instanceof Error ? err.message : 'unknown error'}`);
+      if (mountedRef.current) setIpOut(`IP lookup failed: ${err instanceof Error ? err.message : 'unknown error'}`);
     } finally {
-      setLoading('');
+      if (mountedRef.current) setLoading('');
     }
   };
 

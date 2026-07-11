@@ -45,7 +45,9 @@ export async function ensureDatabase() {
   try {
     await fs.access(DB_FILE);
   } catch {
-    await fs.writeFile(DB_FILE, JSON.stringify(EMPTY_DB, null, 2), 'utf8');
+    const tmp = `${DB_FILE}.tmp`;
+    await fs.writeFile(tmp, JSON.stringify(EMPTY_DB, null, 2), 'utf8');
+    await fs.rename(tmp, DB_FILE);
   }
 }
 
@@ -67,11 +69,13 @@ export async function loadDatabase() {
   }
 }
 
+export async function persistDatabase(db) {
+  await ensureDatabase();
+  const tmp = `${DB_FILE}.tmp`;
+  await fs.writeFile(tmp, JSON.stringify(db, null, 2), 'utf8');
+  await fs.rename(tmp, DB_FILE);
+}
+
 export async function saveDatabase(db) {
-  return withProxyDbWrite(async () => {
-    await ensureDatabase();
-    const tmp = `${DB_FILE}.tmp`;
-    await fs.writeFile(tmp, JSON.stringify(db, null, 2), 'utf8');
-    await fs.rename(tmp, DB_FILE);
-  });
+  return withProxyDbWrite(() => persistDatabase(db));
 }

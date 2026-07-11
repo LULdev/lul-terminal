@@ -25,8 +25,19 @@ export function newMessageId() {
   return crypto.randomBytes(6).toString('hex');
 }
 
-export async function loadLobbyDb() {
+async function ensureLobbyStore() {
   await fs.mkdir(ROOT, { recursive: true });
+  try {
+    await fs.access(LOBBY_FILE);
+  } catch {
+    const tmp = `${LOBBY_FILE}.tmp`;
+    await fs.writeFile(tmp, JSON.stringify(EMPTY_LOBBY, null, 2), 'utf8');
+    await fs.rename(tmp, LOBBY_FILE);
+  }
+}
+
+export async function loadLobbyDb() {
+  await ensureLobbyStore();
   try {
     const raw = await fs.readFile(LOBBY_FILE, 'utf8');
     const data = JSON.parse(raw);

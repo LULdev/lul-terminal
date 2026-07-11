@@ -125,6 +125,7 @@ export function UnifiedTerminalPanel({
   const knownIdsRef = useRef(new Set<string>());
   const initialDoneRef = useRef(false);
   const loadGenRef = useRef(0);
+  const pollBackoffRef = useRef(4000);
   const mountedRef = useRef(true);
   const isMutedRef = useRef(isMuted);
   const hadMessagesRef = useRef(false);
@@ -179,6 +180,7 @@ export function UnifiedTerminalPanel({
       if (gen !== loadGenRef.current || !mountedRef.current) return;
 
       setChatStatus('ok');
+      pollBackoffRef.current = 4000;
 
       const lobbyChanged = Boolean(
         data.updatedAt
@@ -219,6 +221,7 @@ export function UnifiedTerminalPanel({
       if (gen !== loadGenRef.current || !mountedRef.current) return;
       if (e instanceof ChatFetchError && e.status === 429) {
         setChatStatus('rate_limited');
+        pollBackoffRef.current = Math.min(pollBackoffRef.current * 2, 60_000);
       } else {
         setChatStatus('offline');
       }
@@ -232,16 +235,21 @@ export function UnifiedTerminalPanel({
     initialDoneRef.current = false;
     lobbyUpdatedAtRef.current = null;
     void loadMessages(true);
-    const poll = setInterval(() => {
-      if (document.hidden) return;
-      void loadMessages(!initialDoneRef.current);
-    }, 4000);
+    let poll: ReturnType<typeof setTimeout> | null = null;
+    const schedulePoll = () => {
+      if (poll) clearTimeout(poll);
+      poll = setTimeout(() => {
+        if (!document.hidden) void loadMessages(!initialDoneRef.current);
+        schedulePoll();
+      }, pollBackoffRef.current);
+    };
+    schedulePoll();
     const onVisible = () => {
       if (!document.hidden) void loadMessages(!initialDoneRef.current);
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
-      clearInterval(poll);
+      if (poll) clearTimeout(poll);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [loadMessages, pollEnabled]);

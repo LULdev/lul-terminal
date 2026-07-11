@@ -4,12 +4,12 @@
  */
 
 import { checkProxiesBatch } from './proxyScraperEngine.mjs';
-import { loadDatabase, saveDatabase } from './proxyDatabaseStore.mjs';
+import { loadDatabase, persistDatabase, saveDatabase, withProxyDbWrite } from './proxyDatabaseStore.mjs';
 
 const STALE_OFFLINE_DAYS = 3;
 const TYPES = ['http', 'https', 'socks4', 'socks5'];
 
-let dailyCheckRunning = false;
+let dailyCheckPromise = null;
 
 export function proxyKey(proxy) {
   return `${proxy.type}:${proxy.host}:${proxy.port}`;
@@ -92,6 +92,7 @@ export async function getProxiesGrouped({ status, type } = {}) {
 export async function upsertCheckedProxies(checkedProxies) {
   if (!checkedProxies?.length) return { added: 0, updated: 0, skipped: 0, total: 0 };
 
+  return withProxyDbWrite(async () => {
   const db = await loadDatabase();
   const index = new Map(db.proxies.map((p, i) => [proxyKey(p), i]));
   let added = 0;
@@ -150,13 +151,15 @@ export async function upsertCheckedProxies(checkedProxies) {
   }
 
   db.meta.lastUpsertAt = now;
-  await saveDatabase(db);
+  await persistDatabase(db);
   return { added, updated, skipped, total: db.proxies.length };
+  });
 }
 
 export async function upsertWorkingProxies(aliveProxies) {
   if (!aliveProxies?.length) return { added: 0, updated: 0, total: 0 };
 
+  return withProxyDbWrite(async () => {
   const db = await loadDatabase();
   const index = new Map(db.proxies.map((p, i) => [proxyKey(p), i]));
   let added = 0;
@@ -200,9 +203,10 @@ export async function upsertWorkingProxies(aliveProxies) {
   }
 
   db.meta.lastUpsertAt = now;
-  await saveDatabase(db);
+  await persistDatabase(db);
 
   return { added, updated, total: db.proxies.length };
+  });
 }
 
 function applyOfflineDay(proxy, today) {
@@ -225,10 +229,15 @@ function applyOfflineDay(proxy, today) {
 }
 
 export async function runDailyCheck({ force = false, timeoutMs = 5000, concurrency = 40 } = {}) {
-  if (dailyCheckRunning) {
-    return { skipped: true, reason: 'already_running' };
-  }
+  if (dailyCheckPromise) return dailyCheckPromise;
 
+  dailyCheckPromise = runDailyCheckImpl({ force, timeoutMs, concurrency }).finally(() => {
+    dailyCheckPromise = null;
+  });
+  return dailyCheckPromise;
+}
+
+async function runDailyCheckImpl({ force, timeoutMs, concurrency }) {
   const db = await loadDatabase();
   const today = dayKey();
 
@@ -237,37 +246,47 @@ export async function runDailyCheck({ force = false, timeoutMs = 5000, concurren
   }
 
   if (!db.proxies.length) {
-    db.meta.lastDailyCheckAt = Date.now();
-    db.meta.lastDailyCheckDay = today;
-    await saveDatabase(db);
-    return { skipped: false, checked: 0, removed: 0, working: 0, offline: 0, stats: computeStats(db) };
+    return withProxyDbWrite(async () => {
+      const fresh = await loadDatabase();
+      if (!force && fresh.meta.lastDailyCheckDay === today) {
+        return { skipped: true, reason: 'already_checked_today', stats: computeStats(fresh) };
+      }
+      fresh.meta.lastDailyCheckAt = Date.now();
+      fresh.meta.lastDailyCheckDay = today;
+      await persistDatabase(fresh);
+      return { skipped: false, checked: 0, removed: 0, working: 0, offline: 0, stats: computeStats(fresh) };
+    });
   }
 
-  dailyCheckRunning = true;
+  const toCheck = db.proxies.map((p) => ({
+    host: p.host,
+    port: p.port,
+    type: p.type,
+    raw: p.raw,
+  }));
 
-  try {
-    const toCheck = db.proxies.map((p) => ({
-      host: p.host,
-      port: p.port,
-      type: p.type,
-      raw: p.raw,
-    }));
+  const results = await checkProxiesBatch(toCheck, {
+    limit: toCheck.length,
+    timeoutMs,
+    concurrency,
+    testUrl: 'http://www.google.com/generate_204',
+  });
 
-    const results = await checkProxiesBatch(toCheck, {
-      limit: toCheck.length,
-      timeoutMs,
-      concurrency,
-      testUrl: 'http://www.google.com/generate_204',
-    });
+  const resultMap = new Map(results.map((r) => [proxyKey(r), r]));
 
-    const resultMap = new Map(results.map((r) => [proxyKey(r), r]));
+  return withProxyDbWrite(async () => {
+    const fresh = await loadDatabase();
+    if (!force && fresh.meta.lastDailyCheckDay === today) {
+      return { skipped: true, reason: 'already_checked_today', stats: computeStats(fresh) };
+    }
+
     const kept = [];
     let removed = 0;
     let working = 0;
     let offline = 0;
     const now = Date.now();
 
-    for (const proxy of db.proxies) {
+    for (const proxy of fresh.proxies) {
       const result = resultMap.get(proxyKey(proxy));
       proxy.lastCheckedAt = now;
 
@@ -287,17 +306,17 @@ export async function runDailyCheck({ force = false, timeoutMs = 5000, concurren
 
       if (proxy.consecutiveOfflineDays > STALE_OFFLINE_DAYS) {
         removed += 1;
-        db.meta.totalRemovedStale += 1;
+        fresh.meta.totalRemovedStale += 1;
         continue;
       }
 
       kept.push(proxy);
     }
 
-    db.proxies = kept;
-    db.meta.lastDailyCheckAt = now;
-    db.meta.lastDailyCheckDay = today;
-    await saveDatabase(db);
+    fresh.proxies = kept;
+    fresh.meta.lastDailyCheckAt = now;
+    fresh.meta.lastDailyCheckDay = today;
+    await persistDatabase(fresh);
 
     return {
       skipped: false,
@@ -305,11 +324,9 @@ export async function runDailyCheck({ force = false, timeoutMs = 5000, concurren
       working,
       offline,
       removed,
-      stats: computeStats(db),
+      stats: computeStats(fresh),
     };
-  } finally {
-    dailyCheckRunning = false;
-  }
+  });
 }
 
 export function isDailyCheckDue(db) {

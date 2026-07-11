@@ -7,6 +7,13 @@ const buckets = new Map();
 
 const TRUST_PROXY = process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true';
 
+const TRUSTED_PROXY_IPS = new Set(
+  (process.env.TRUSTED_PROXY_IPS ?? '127.0.0.1,::1,::ffff:127.0.0.1')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
+);
+
 if (process.env.NODE_ENV === 'production' && !TRUST_PROXY) {
   console.warn('[rate-limit] TRUST_PROXY is not set — clientIp uses socket address only (set TRUST_PROXY=1 behind a reverse proxy)');
 }
@@ -24,12 +31,20 @@ function pruneStaleBuckets() {
   }
 }
 
+function isTrustedProxyHop(remote) {
+  if (!remote) return false;
+  return TRUSTED_PROXY_IPS.has(remote);
+}
+
 export function clientIp(req) {
-  if (TRUST_PROXY) {
+  const remote = req.socket?.remoteAddress ?? 'unknown';
+  if (TRUST_PROXY && isTrustedProxyHop(remote)) {
+    const real = req.headers?.['x-real-ip'];
+    if (real) return String(real).split(',')[0].trim();
     const fwd = req.headers?.['x-forwarded-for'];
     if (fwd) return String(fwd).split(',')[0].trim();
   }
-  return req.socket?.remoteAddress ?? 'unknown';
+  return remote;
 }
 
 /** In-memory sliding-window rate limiter (per-process). */

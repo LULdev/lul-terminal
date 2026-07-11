@@ -15,8 +15,7 @@ import {
 import {
   assertCanChat,
   assertCanModerateShoutboxTarget,
-  checkChatRateLimit,
-  recordChatRateLimit,
+  reserveChatRateLimit,
   getActivityFlag,
   setActivityFlag,
 } from './chatGuards.mjs';
@@ -279,9 +278,8 @@ export async function executeChatCommand(user, rawText) {
 
   if (!body.startsWith('/')) {
     if (body.length > MAX_MESSAGE_LEN) throw new Error(`Message too long (max ${MAX_MESSAGE_LEN})`);
-    await checkChatRateLimit(user.id);
+    await reserveChatRateLimit(user.id);
     const message = await pushChatMessage(user, { text: body, kind: 'chat' });
-    await recordChatRateLimit(user.id);
     return message;
   }
 
@@ -294,9 +292,8 @@ export async function executeChatCommand(user, rawText) {
   const args = rest ? rest.split(/\s+/) : [];
 
   const runCmd = async (fn) => {
-    await checkChatRateLimit(user.id);
+    await reserveChatRateLimit(user.id);
     const result = await fn();
-    await recordChatRateLimit(user.id);
     await runCoinTransaction(async () => {
       const db = await loadUsersDb();
       const fresh = db.users.find((u) => u.id === user.id);

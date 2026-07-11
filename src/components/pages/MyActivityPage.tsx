@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity,
   BarChart3,
@@ -45,19 +45,30 @@ export function MyActivityPage() {
   const [data, setData] = useState<UserActivitySummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
     if (!isLoggedIn) {
       setLoading(false);
       return;
     }
+    const gen = ++loadGenRef.current;
     setLoading(true);
     try {
-      setData(await fetchMyActivity());
+      const next = await fetchMyActivity();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(next);
     } catch (e) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setMsg(e instanceof Error ? e.message : 'Failed to load');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
   }, [isLoggedIn]);
 

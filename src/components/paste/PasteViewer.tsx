@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown,
   ChevronUp,
@@ -33,6 +33,7 @@ import {
 } from '../../lib/paste';
 import { languageLabel } from '../../data/pasteLanguages';
 import { useAuth } from '../../context/AuthContext';
+import { safeAvatarUrl } from '../../lib/safeAvatarUrl';
 import { PasteCodeView } from './PasteCodeView';
 import { PasteStarRating } from './PasteStarRating';
 
@@ -55,6 +56,12 @@ export function PasteViewer({ id }: Props) {
   const [ratingAvg, setRatingAvg] = useState(0);
   const [ratingCount, setRatingCount] = useState(0);
   const [userRating, setUserRating] = useState<number | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const originalContent = paste?.content ?? '';
   const deduped = useMemo(
@@ -146,20 +153,24 @@ export function PasteViewer({ id }: Props) {
     setError('');
     try {
       const data = await unlockPaste(id, password);
+      if (!mountedRef.current) return;
       setPaste(data);
       setRatingAvg(data.ratingAvg ?? 0);
       setRatingCount(data.ratingCount ?? 0);
       setUserRating(data.userRating ?? null);
       const counted = await recordPasteView(id);
+      if (!mountedRef.current) return;
       setViews(counted.views);
       setViewsReady(true);
       if (counted.burned) {
         setError('This paste was burn-after-read and has been consumed.');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid password');
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err.message : 'Invalid password');
+      }
     } finally {
-      setUnlocking(false);
+      if (mountedRef.current) setUnlocking(false);
     }
   };
 
@@ -174,9 +185,7 @@ export function PasteViewer({ id }: Props) {
     setDedupeActive(true);
   };
 
-  const avatarUrl = paste?.username
-    ? `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(paste.username)}`
-    : null;
+  const avatarUrl = paste?.username ? safeAvatarUrl(paste.avatarUrl, paste.username) : null;
 
   if (loading) {
     return (

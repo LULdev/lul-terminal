@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useVisibilityAwarePoll } from '../../hooks/useVisibilityAwarePoll';
 import { Radio, Users } from 'lucide-react';
 import { fetchActiveTodayUsers, formatRelativeTime, type ActiveTodayUser } from '../../lib/analytics';
 import { TabId } from '../../config/menuItems';
 import { ROLE_LABELS, type UserRole } from '../../types/auth';
+import { safeAvatarUrl } from '../../lib/safeAvatarUrl';
 import { VerifiedBadge } from '../auth/VerifiedBadge';
 
 type TodayActiveUsersProps = {
@@ -32,18 +33,30 @@ export function TodayActiveUsers({ onNavigate, currentUsername }: TodayActiveUse
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(() => {
+    const gen = ++loadGenRef.current;
     fetchActiveTodayUsers()
       .then((d) => {
+        if (gen !== loadGenRef.current || !mountedRef.current) return;
         setData(d);
         setError('');
       })
       .catch(() => {
+        if (gen !== loadGenRef.current || !mountedRef.current) return;
         setData(null);
         setError('Could not load active users.');
       })
-      .finally(() => { setLoading(false); });
+      .finally(() => {
+        if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
+      });
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -93,14 +106,7 @@ export function TodayActiveUsers({ onNavigate, currentUsername }: TodayActiveUse
             <p className="text-[9px] font-mono text-rose-400/90">{error}</p>
             <button
               type="button"
-              onClick={() => {
-                setLoading(true);
-                setError('');
-                fetchActiveTodayUsers()
-                  .then((d) => { setData(d); setError(''); })
-                  .catch(() => { setData(null); setError('Could not load active users.'); })
-                  .finally(() => setLoading(false));
-              }}
+              onClick={() => { void load(); }}
               className="text-[9px] font-mono text-emerald-400 hover:text-emerald-300"
             >
               Retry
@@ -154,7 +160,7 @@ function UserChip({
     >
       <span className="relative shrink-0">
         <img
-          src={user.avatarUrl}
+          src={safeAvatarUrl(user.avatarUrl, user.username)}
           alt={user.displayName}
           className={`w-7 h-7 rounded-full object-cover ring-2 ${ring} ${user.isOnline ? 'shadow-[0_0_10px_rgba(52,211,153,0.35)]' : ''}`}
         />

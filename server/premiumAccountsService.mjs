@@ -6,6 +6,9 @@
 import { loadAccountsDb, newAccountId, saveAccountsDb, withAccountsWrite } from './premiumAccountsStore.mjs';
 import { canAccessAdmin } from './auth/permissions.mjs';
 import { postBotAccountAdded, postBotAccountSubmitted } from './chatBot.mjs';
+import { parseVaultBulkText } from './premiumAccountsBulkParse.mjs';
+
+const BULK_IMPORT_MAX = 500;
 
 const CATEGORIES = ['streaming', 'vpn', 'software', 'gaming', 'porn', 'other'];
 const PLANS = ['Free', 'Premium', 'WorkingButFree'];
@@ -231,6 +234,167 @@ export async function removeAccount(id) {
     if (db.accounts.length === before) throw new Error('Account not found');
     await saveAccountsDb(db);
   });
-  const stats = await getStats();
+  const stats = await getStats({ isAdmin: true });
   return { stats };
+}
+
+function buildAccountFromPayload(payload, creator, { forceAdmin = false } = {}) {
+  const website = String(payload.website ?? payload.url ?? '').trim();
+  const service = String(payload.service ?? payload.name ?? '').trim()
+    || (website ? serviceFromWebsite(website) : '');
+  const email = String(payload.email ?? payload.username ?? '').trim();
+  const password = String(payload.password ?? '').trim();
+  const category = CATEGORIES.includes(payload.category) ? payload.category : 'other';
+  const isAdmin = forceAdmin || Boolean(creator && canAccessAdmin(creator));
+  const status = isAdmin && STATUSES.includes(payload.status) ? payload.status : 'unchecked';
+  const plan = isAdmin && PLANS.includes(payload.plan) ? payload.plan : undefined;
+  const vip = isAdmin ? Boolean(payload.vip) : false;
+
+  if (!service || !email || !password) {
+    throw new Error('Name, username and password are required');
+  }
+
+  return {
+    service,
+    website: website || undefined,
+    category,
+    email,
+    password,
+    status,
+    plan,
+    vip,
+    expiresAt: payload.expiresAt ? String(payload.expiresAt).trim() : null,
+    notes: payload.notes ? String(payload.notes).trim() : undefined,
+    isAdmin,
+  };
+}
+
+export async function updateAccount(id, payload, editor) {
+  if (!editor || !canAccessAdmin(editor)) {
+    throw new Error('Admin permission required');
+  }
+
+  const account = await withAccountsWrite(async () => {
+    const db = await loadAccountsDb();
+    const row = db.accounts.find((a) => a.id === id);
+    if (!row) throw new Error('Account not found');
+
+    if (payload.service !== undefined || payload.name !== undefined) {
+      const next = String(payload.service ?? payload.name ?? '').trim();
+      if (next) row.service = next;
+    }
+    if (payload.website !== undefined || payload.url !== undefined) {
+      const next = String(payload.website ?? payload.url ?? '').trim();
+      row.website = next || undefined;
+    }
+    if (payload.email !== undefined || payload.username !== undefined) {
+      const next = String(payload.email ?? payload.username ?? '').trim();
+      if (next) row.email = next;
+    }
+    if (payload.password !== undefined) {
+      const next = String(payload.password).trim();
+      if (next) row.password = next;
+    }
+    if (payload.category !== undefined && CATEGORIES.includes(payload.category)) {
+      row.category = payload.category;
+    }
+    if (payload.status !== undefined && STATUSES.includes(payload.status)) {
+      row.status = payload.status;
+      if (isWorkingStatus(payload.status)) {
+        row.lastVerifiedAt = Date.now();
+      }
+    }
+    if (payload.plan !== undefined) {
+      row.plan = PLANS.includes(payload.plan) ? payload.plan : undefined;
+    }
+    if (payload.vip !== undefined) row.vip = Boolean(payload.vip);
+    if (payload.expiresAt !== undefined) {
+      row.expiresAt = payload.expiresAt ? String(payload.expiresAt).trim() : null;
+    }
+    if (payload.notes !== undefined) {
+      row.notes = payload.notes ? String(payload.notes).trim() : undefined;
+    }
+
+    await saveAccountsDb(db);
+    return row;
+  });
+
+  const stats = await getStats({ isAdmin: true });
+  return { account, stats };
+}
+
+export async function bulkImportAccounts(rawText, options = {}, creator) {
+  if (!creator || !canAccessAdmin(creator)) {
+    throw new Error('Admin permission required');
+  }
+
+  const parsed = parseVaultBulkText(rawText);
+  if (!parsed.length) {
+    throw new Error('No entries found — use Name / Username / Password / Url blocks');
+  }
+  if (parsed.length > BULK_IMPORT_MAX) {
+    throw new Error(`Too many entries (max ${BULK_IMPORT_MAX})`);
+  }
+
+  const valid = parsed.filter((e) => e.valid);
+  const invalid = parsed.filter((e) => !e.valid);
+  const defaultCategory = CATEGORIES.includes(options.category) ? options.category : 'other';
+  const defaultStatus = STATUSES.includes(options.status) ? options.status : 'working';
+  const defaultPlan = PLANS.includes(options.plan) ? options.plan : undefined;
+  const defaultVip = Boolean(options.vip);
+
+  const result = await withAccountsWrite(async () => {
+    const db = await loadAccountsDb();
+    const now = Date.now();
+    const imported = [];
+
+    for (const entry of valid) {
+      const built = buildAccountFromPayload({
+        name: entry.name,
+        username: entry.username,
+        password: entry.password,
+        url: entry.url,
+        category: defaultCategory,
+        status: defaultStatus,
+        plan: defaultPlan,
+        vip: defaultVip,
+      }, creator, { forceAdmin: true });
+
+      const next = {
+        id: newAccountId(),
+        service: built.service,
+        website: built.website,
+        category: built.category,
+        email: built.email,
+        password: built.password,
+        status: built.status,
+        plan: built.plan,
+        vip: built.vip,
+        views: 0,
+        createdByUserId: creator.id,
+        createdByUsername: creator.username,
+        expiresAt: built.expiresAt,
+        notes: built.notes,
+        firstSeenAt: now,
+        lastVerifiedAt: isWorkingStatus(built.status) ? now : null,
+      };
+      db.accounts.push(next);
+      imported.push(next);
+    }
+
+    await saveAccountsDb(db);
+    return {
+      imported,
+      stats: computeStats(db.accounts, { isAdmin: true }),
+    };
+  });
+
+  return {
+    imported: result.imported.length,
+    failed: invalid.length,
+    total: parsed.length,
+    errors: invalid.map((e) => ({ index: e.index, name: e.name, errors: e.errors })),
+    accounts: result.imported,
+    stats: result.stats,
+  };
 }

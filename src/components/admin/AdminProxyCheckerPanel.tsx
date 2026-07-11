@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   ArrowLeft,
@@ -92,7 +92,18 @@ export function AdminProxyCheckerPanel({ onGoToScraper }: AdminProxyCheckerPanel
   const [liveRecovered, setLiveRecovered] = useState(0);
   const [liveEta, setLiveEta] = useState<string | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const jobAbortRef = useRef<AbortController | null>(null);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
   const [logs, setLogs] = useState<string[]>([]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      jobAbortRef.current?.abort();
+    };
+  }, []);
   const [inputMode, setInputMode] = useState<InputMode>('scraped');
   const [pasteText, setPasteText] = useState('');
   const [profile, setProfile] = useState<keyof typeof PROFILES>('standard');
@@ -125,12 +136,14 @@ export function AdminProxyCheckerPanel({ onGoToScraper }: AdminProxyCheckerPanel
   };
 
   const refresh = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     const [s, res, scraped, p] = await Promise.all([
       fetchCheckerStats().catch(() => null),
       fetchCheckerResults(),
       fetchProxyResults(),
       fetchTestUrlPresets(),
     ]);
+    if (gen !== loadGenRef.current || !mountedRef.current) return;
     if (s) setStats(s);
     setChecked(res.checked ?? []);
     setPoolCount(scraped.poolCount ?? scraped.proxies?.length ?? 0);
@@ -166,14 +179,18 @@ export function AdminProxyCheckerPanel({ onGoToScraper }: AdminProxyCheckerPanel
         limit: checkLimit > 0 ? checkLimit : 0,
       });
       setActiveJobId(jobId);
+      jobAbortRef.current?.abort();
+      const abort = new AbortController();
+      jobAbortRef.current = abort;
       const finalJob = await pollCheckerJob(jobId, (job) => {
+        if (!mountedRef.current) return;
         setMsg(job.message);
         setProgress(job.total ? Math.round((job.progress / job.total) * 100) : 0);
         if (job.alive != null) setLiveAlive(job.alive);
         if (job.recovered != null) setLiveRecovered(job.recovered);
         if (job.logs?.length) setLogs(job.logs.slice(-30));
         setLiveEta(formatEta(job.etaMs));
-      });
+      }, 800, { signal: abort.signal });
       await refresh();
       setMsg(
         finalJob.status === 'cancelled'
@@ -181,6 +198,7 @@ export function AdminProxyCheckerPanel({ onGoToScraper }: AdminProxyCheckerPanel
           : 'Check complete — results synced to Proxy Database',
       );
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       setMsg(e instanceof Error ? e.message : 'Check failed');
     } finally {
       setBusy(false);

@@ -24,6 +24,14 @@ const EMPTY_STATE = {
 
 const EMPTY_RESULTS = { checked: [], summary: null, checkedAt: null };
 
+let checkerWriteChain = Promise.resolve();
+
+export function withProxyCheckerWrite(task) {
+  const run = checkerWriteChain.then(() => task());
+  checkerWriteChain = run.then(() => undefined, () => undefined);
+  return run;
+}
+
 async function fileExists(file) {
   try {
     await fs.access(file);
@@ -60,13 +68,17 @@ export async function loadCheckerState() {
 }
 
 export async function saveCheckerState(state) {
-  await ensureStore();
-  await atomicWrite(STATE_FILE, state);
+  return withProxyCheckerWrite(async () => {
+    await ensureStore();
+    await atomicWrite(STATE_FILE, state);
+  });
 }
 
 export async function saveCheckerResults(results) {
-  await ensureStore();
-  await atomicWrite(RESULTS_FILE, results);
+  return withProxyCheckerWrite(async () => {
+    await ensureStore();
+    await atomicWrite(RESULTS_FILE, results);
+  });
 }
 
 export async function loadCheckerResults() {

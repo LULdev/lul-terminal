@@ -56,6 +56,7 @@ import { RpsGlobalMeta, RpsMoveTendency } from '../games/RpsMoveTendency';
 import { TttArena } from '../games/TttArena';
 import { CoinEarningsFeed } from '../games/CoinEarningsFeed';
 import { GameAchievementBadges } from '../games/GameAchievementBadges';
+import { safeAvatarUrl } from '../../lib/safeAvatarUrl';
 import { PageShell } from './PageShell';
 
 function getGameSlice(state: GamesState | null, gameId: string) {
@@ -156,7 +157,7 @@ function LeaderMini({
         {rows.slice(0, 5).map((r) => (
           <div key={r.rank} className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-white/[0.02]">
             <span className={`text-[9px] font-mono w-5 ${accent}`}>#{r.rank}</span>
-            <img src={r.avatarUrl} alt={r.displayName} className="w-6 h-6 rounded-md border border-slate-700/50" />
+            <img src={safeAvatarUrl(r.avatarUrl, r.username)} alt={r.displayName} className="w-6 h-6 rounded-md border border-slate-700/50" />
             <span className="text-[10px] text-slate-300 truncate flex-1">{r.displayName}</span>
             <span className={`text-[10px] font-mono font-bold tabular-nums ${accent}`}>{r.value}</span>
           </div>
@@ -202,6 +203,8 @@ export function GamesPage() {
   const prevGameRef = useRef<GameId>(selectedGame);
   const lastSettings = useRef({ bet: 10, mode: 'pvp' as const, seriesType: 'single' as RpsSeriesType, difficulty: 'normal', roomCode: '' });
   const mountedRef = useRef(true);
+  const metaGenRef = useRef(0);
+  const loadGenRef = useRef(0);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -267,15 +270,18 @@ export function GamesPage() {
   }, [user?.id, syncAchievements, refresh]);
 
   const loadMeta = useCallback(async () => {
+    const gen = ++metaGenRef.current;
     try {
       const [b, h] = await Promise.all([
         fetchGamesLeaderboard(),
         fetchGamesHistory(20),
       ]);
+      if (gen !== metaGenRef.current || !mountedRef.current) return;
       setBoards(b);
       setHistory(h.matches);
       setMetaError('');
     } catch (e) {
+      if (gen !== metaGenRef.current || !mountedRef.current) return;
       setMetaError(e instanceof Error ? e.message : 'Failed to load leaderboard data');
     }
   }, []);
@@ -287,6 +293,7 @@ export function GamesPage() {
 
   const load = useCallback(async (opts?: { gameId?: GameId; applySlice?: boolean }) => {
     const gameId = opts?.gameId ?? selectedGameRef.current;
+    const gen = ++loadGenRef.current;
     if (actingRef.current) {
       pendingLoadRef.current = true;
       pendingLoadGameIdRef.current = gameId;
@@ -297,12 +304,13 @@ export function GamesPage() {
     const seqBefore = matchSeqRef.current;
     try {
       const s = await fetchGamesState();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       if (actingRef.current || matchSeqRef.current !== seqBefore) {
         pendingLoadRef.current = true;
         pendingLoadGameIdRef.current = gameId;
         return;
       }
-      if (!mountedRef.current) return;
+      if (gameId !== selectedGameRef.current) return;
       setState(s);
       if (opts?.applySlice !== false) {
         const slice = s.games?.[gameId] ?? s[gameId as 'rps' | 'ttt'];
@@ -310,9 +318,11 @@ export function GamesPage() {
       }
       setError('');
     } catch (e) {
-      if (mountedRef.current) setError(e instanceof Error ? e.message : 'Load failed');
+      if (gen === loadGenRef.current && mountedRef.current) {
+        setError(e instanceof Error ? e.message : 'Load failed');
+      }
     } finally {
-      if (mountedRef.current) setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
   }, [applySliceState]);
 

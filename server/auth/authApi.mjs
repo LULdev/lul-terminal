@@ -44,7 +44,7 @@ import {
 } from './adminService.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from '../rateLimit.mjs';
 
-let initialized = false;
+let initPromise = null;
 
 function sendJson(res, status, body) {
   res.statusCode = status;
@@ -65,10 +65,8 @@ async function readJsonBody(req, limit = 512 * 1024) {
 }
 
 export async function attachAuth(req) {
-  if (!initialized) {
-    await initAuth();
-    initialized = true;
-  }
+  initPromise ??= initAuth();
+  await initPromise;
   const cookies = parseCookies(req);
   const token = cookies[SESSION_COOKIE];
   if (token) await reconcileExpiredSession(token);
@@ -104,6 +102,7 @@ export async function handleAuthRequest(req, res) {
     await attachAuth(req);
 
     if (req.method === 'GET' && pathname === '/api/auth/me') {
+      checkRateLimit(`auth-me:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
       const { countAccountsByCreator } = await import('../premiumAccountsService.mjs');
       let user = null;
       let accountsSubmitted = 0;
@@ -148,6 +147,7 @@ export async function handleAuthRequest(req, res) {
 
     if (req.method === 'GET' && pathname === '/api/auth/referral/me') {
       const user = requireAuth(req);
+      checkRateLimit(`referral-read:${user.id}`, { max: 30, windowMs: 60_000 });
       const info = await getReferralInfo(user.id, req);
       return sendJson(res, 200, info);
     }
@@ -175,6 +175,7 @@ export async function handleAuthRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/auth/logout') {
+      checkRateLimit(`logout:${clientIp(req)}`, { max: 30, windowMs: 60_000 });
       await logoutUser(req.auth.token);
       clearSessionCookie(res);
       return sendJson(res, 200, { ok: true });
@@ -182,6 +183,7 @@ export async function handleAuthRequest(req, res) {
 
     if (req.method === 'PATCH' && pathname === '/api/auth/profile') {
       const user = requireAuth(req);
+      checkRateLimit(`profile-patch:${user.id}`, { max: 10, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const updated = await updateProfile(user.id, body, { keepToken: req.auth.token });
       return sendJson(res, 200, { user: updated.user, newUnlocks: updated.newUnlocks ?? [] });
@@ -199,7 +201,6 @@ export async function handleAuthRequest(req, res) {
     if (req.method === 'POST' && pathname === '/api/auth/achievements/sync') {
       const user = requireAuth(req);
       checkRateLimit(`ach-sync:${user.id}`, { max: 30, windowMs: 60_000 });
-      const body = await readJsonBody(req);
       const result = await syncUserAchievements(user.id, {});
       return sendJson(res, 200, { user: result.user, newUnlocks: result.newUnlocks ?? [] });
     }
@@ -222,6 +223,7 @@ export async function handleAuthRequest(req, res) {
 
     const avatarFileMatch = pathname.match(/^\/api\/auth\/avatars\/([a-f0-9]+\.(?:jpg|png|gif|webp))$/);
     if (avatarFileMatch && req.method === 'GET') {
+      checkRateLimit(`avatar-file:${clientIp(req)}`, { max: 180, windowMs: 60_000 });
       const hit = await getAvatarFile(avatarFileMatch[1]);
       if (!hit) return sendJson(res, 404, { error: 'Not found' });
       res.statusCode = 200;
@@ -233,6 +235,7 @@ export async function handleAuthRequest(req, res) {
 
     if (req.method === 'DELETE' && pathname === '/api/auth/account') {
       const user = requireAuth(req);
+      checkRateLimit(`account-delete:${user.id}`, { max: 3, windowMs: 3600_000 });
       await deleteOwnAccount(user.id);
       clearSessionCookie(res);
       return sendJson(res, 200, { ok: true });
@@ -245,6 +248,7 @@ export async function handleAuthRequest(req, res) {
 
     const publicUserMatch = pathname.match(/^\/api\/auth\/users\/([a-z0-9_]+)$/);
     if (publicUserMatch && req.method === 'GET') {
+      checkRateLimit(`profile-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       const profile = await getPublicProfileByUsername(publicUserMatch[1]);
       return sendJson(res, 200, { user: profile });
     }
@@ -264,6 +268,7 @@ export async function handleAuthRequest(req, res) {
       requireRole(req, canAccessAdmin);
 
       if (req.method === 'GET' && pathname === '/api/auth/admin/users') {
+        checkRateLimit(`admin-users-list:${req.auth.user.id}`, { max: 60, windowMs: 60_000 });
         const data = await listUsers({
           search: url.searchParams.get('search') ?? undefined,
           role: url.searchParams.get('role') ?? undefined,
@@ -272,7 +277,10 @@ export async function handleAuthRequest(req, res) {
         return sendJson(res, 200, data);
       }
 
+      const adminActKey = `admin-users-act:${req.auth.user.id}`;
+
       if (req.method === 'POST' && pathname === '/api/auth/admin/users') {
+        checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
         const body = await readJsonBody(req);
         const user = await createUserAdmin(body);
         return sendJson(res, 201, { user });
@@ -280,12 +288,14 @@ export async function handleAuthRequest(req, res) {
 
       const patchMatch = pathname.match(/^\/api\/auth\/admin\/users\/([a-f0-9]+)$/);
       if (patchMatch && req.method === 'PATCH') {
+        checkRateLimit(adminActKey, { max: 30, windowMs: 60_000 });
         const body = await readJsonBody(req);
         const user = await updateUserAdmin(patchMatch[1], body);
         return sendJson(res, 200, { user });
       }
 
       if (patchMatch && req.method === 'DELETE') {
+        checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
         await deleteUserAdmin(patchMatch[1], req.auth.user.id);
         return sendJson(res, 200, { ok: true });
       }

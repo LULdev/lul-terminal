@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, Globe, Play, Plus, Trash2 } from 'lucide-react';
 import {
   addProxySource,
@@ -39,13 +39,26 @@ export function AdminProxyScraperPanel({ onScrapeSuccess, onGoToChecker, scrapeR
   const [customName, setCustomName] = useState('');
   const [oneOffUrls, setOneOffUrls] = useState('');
   const [topSources, setTopSources] = useState<SourceScrapeResult[]>([]);
+  const jobAbortRef = useRef<AbortController | null>(null);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      jobAbortRef.current?.abort();
+    };
+  }, []);
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     const [src, s, res] = await Promise.all([
       fetchProxySources(),
       fetchProxyStats().catch(() => null),
       fetchProxyResults(),
     ]);
+    if (gen !== loadGenRef.current || !mountedRef.current) return;
     setSources(src);
     if (s) setStats(s);
     setPoolCount(res.poolCount ?? res.proxies?.length ?? 0);
@@ -66,11 +79,15 @@ export function AdminProxyScraperPanel({ onScrapeSuccess, onGoToChecker, scrapeR
         .split(/\r?\n/)
         .map((l) => l.trim())
         .filter((l) => l.startsWith('http'));
+      jobAbortRef.current?.abort();
+      const abort = new AbortController();
+      jobAbortRef.current = abort;
       const jobId = await startScrapeJob({ customUrls: customUrls.length ? customUrls : undefined });
       const finalJob = await pollJob(jobId, (job) => {
+        if (!mountedRef.current) return;
         setMsg(job.message);
         if (job.logs?.length) setLogs(job.logs.slice(-20));
-      });
+      }, 800, { signal: abort.signal });
       const results = finalJob.result?.sourceResults ?? [];
       setTopSources(
         [...results]
@@ -82,6 +99,7 @@ export function AdminProxyScraperPanel({ onScrapeSuccess, onGoToChecker, scrapeR
       setMsg('Scrape complete — pool ready for checker');
       onScrapeSuccess?.();
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       setMsg(e instanceof Error ? e.message : 'Scrape failed');
     } finally {
       setBusy(false);

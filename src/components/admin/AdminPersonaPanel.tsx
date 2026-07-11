@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
 import { Globe, MapPin, RefreshCw, Search } from 'lucide-react';
 import {
   fetchPersonaEntries,
@@ -31,23 +32,27 @@ export function AdminPersonaPanel() {
   const [search, setSearch] = useState('');
   const [country, setCountry] = useState('');
   const [selected, setSelected] = useState<PersonaEntry | null>(null);
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
     try {
       const [s, e] = await Promise.all([
         fetchPersonaStats(),
         fetchPersonaEntries({ limit: 150, country: country || undefined, q: search || undefined }),
       ]);
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setStats(s);
       setEntries(e.entries);
       setEntryTotal(e.total);
     } catch (err) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Load failed');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
-  }, [search, country]);
+  }, [search, country, loadGenRef, mountedRef]);
 
   useEffect(() => {
     setLoading(true);

@@ -457,6 +457,7 @@ export function ProfilePage({ routeUsername, onNavigateTab }: ProfilePageProps) 
 
             {activeTab === 'settings' && (
               <ProfileSettingsTab
+                username={user.username}
                 displayName={displayName}
                 bio={bio}
                 website={website}

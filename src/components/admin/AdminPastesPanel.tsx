@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
 import {
   ExternalLink,
   Eye,
@@ -88,23 +89,27 @@ export function AdminPastesPanel() {
   const [editor, setEditor] = useState<EditForm | null>(null);
   const [viewer, setViewer] = useState<{ meta: AdminPasteMeta; content: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
     try {
       const [list, pasteStats] = await Promise.all([
         fetchAdminPastes({ q: search, visibility: visFilter, sort, limit: 200 }),
         fetchAdminPasteStats(),
       ]);
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setPastes(list.pastes);
       setTotal(list.total);
       setStats(pasteStats);
     } catch (e) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(e instanceof Error ? e.message : 'Failed to load pastes');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
-  }, [search, visFilter, sort]);
+  }, [search, visFilter, sort, loadGenRef, mountedRef]);
 
   useEffect(() => {
     setLoading(true);
