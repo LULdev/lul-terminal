@@ -206,12 +206,12 @@ export async function handlePasteRequest(req, res) {
     }
 
     if (req.method === 'GET' && pathname === '/api/paste/stats') {
-      checkRateLimit(`paste-stats:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`paste-stats:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       return sendJson(res, 200, await readStats());
     }
 
     if (req.method === 'GET' && pathname === '/api/paste/public') {
-      checkRateLimit(`paste-public:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`paste-public:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       const limit = Math.min(80, Math.max(1, Number(url.searchParams.get('limit')) || 40));
       const items = await listPublicArchive(limit);
       return sendJson(res, 200, {
@@ -221,7 +221,7 @@ export async function handlePasteRequest(req, res) {
     }
 
     if (req.method === 'GET' && pathname === '/api/paste/trending') {
-      checkRateLimit(`paste-trending:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`paste-trending:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       const limit = Math.min(40, Math.max(1, Number(url.searchParams.get('limit')) || 12));
       const items = await listTrendingPublic(limit);
       return sendJson(res, 200, {
@@ -232,13 +232,13 @@ export async function handlePasteRequest(req, res) {
 
     if (req.method === 'GET' && pathname === '/api/paste/admin/stats') {
       await requireAdmin(req);
-      checkRateLimit(`paste-admin:${req.auth?.user?.id ?? clientIp(req)}`, { max: 120, windowMs: 60_000 });
+      await checkRateLimit(`paste-admin:${req.auth?.user?.id ?? clientIp(req)}`, { max: 120, windowMs: 60_000 });
       return sendJson(res, 200, await computeAdminPasteStats());
     }
 
     if (req.method === 'GET' && pathname === '/api/paste/admin') {
       await requireAdmin(req);
-      checkRateLimit(`paste-admin:${req.auth?.user?.id ?? clientIp(req)}`, { max: 120, windowMs: 60_000 });
+      await checkRateLimit(`paste-admin:${req.auth?.user?.id ?? clientIp(req)}`, { max: 120, windowMs: 60_000 });
       const q = url.searchParams.get('q') ?? '';
       const visibility = url.searchParams.get('visibility') ?? 'all';
       const sort = url.searchParams.get('sort') ?? 'newest';
@@ -256,7 +256,7 @@ export async function handlePasteRequest(req, res) {
       const id = adminIdMatch[1];
       await requireAdmin(req);
       const adminKey = req.auth?.user?.id ?? clientIp(req);
-      checkRateLimit(`paste-admin:${adminKey}`, { max: 120, windowMs: 60_000 });
+      await checkRateLimit(`paste-admin:${adminKey}`, { max: 120, windowMs: 60_000 });
       const meta = await loadAlive(id);
       if (!meta) return sendJson(res, 404, { error: 'Paste not found' });
 
@@ -270,7 +270,7 @@ export async function handlePasteRequest(req, res) {
       }
 
       if (req.method === 'PATCH') {
-        checkRateLimit(`paste-admin-act:${adminKey}`, { max: 30, windowMs: 60_000 });
+        await checkRateLimit(`paste-admin-act:${adminKey}`, { max: 30, windowMs: 60_000 });
         const body = await readJsonBody(req);
         const updated = await adminUpdatePaste(id, body);
         const content = await getContent(id);
@@ -281,7 +281,7 @@ export async function handlePasteRequest(req, res) {
       }
 
       if (req.method === 'DELETE') {
-        checkRateLimit(`paste-admin-act:${adminKey}`, { max: 20, windowMs: 60_000 });
+        await checkRateLimit(`paste-admin-act:${adminKey}`, { max: 20, windowMs: 60_000 });
         const result = await adminDeletePaste(id);
         return sendJson(res, 200, result);
       }
@@ -290,14 +290,14 @@ export async function handlePasteRequest(req, res) {
     if (req.method === 'GET' && pathname === '/api/paste/my/stats') {
       await attachAuth(req);
       const user = requireAuth(req);
-      checkRateLimit(`paste-my-stats:${user.id}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`paste-my-stats:${user.id}`, { max: 60, windowMs: 60_000 });
       return sendJson(res, 200, await computeUserPasteStats(user.id));
     }
 
     if (req.method === 'GET' && pathname === '/api/paste/my') {
       await attachAuth(req);
       const user = requireAuth(req);
-      checkRateLimit(`paste-my-list:${user.id}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`paste-my-list:${user.id}`, { max: 60, windowMs: 60_000 });
       const sort = url.searchParams.get('sort') ?? 'newest';
       const items = await listByUser(user.id, sort);
       return sendJson(res, 200, {
@@ -309,7 +309,7 @@ export async function handlePasteRequest(req, res) {
     if (req.method === 'POST' && pathname === '/api/paste') {
       await attachAuth(req);
       const user = requireAuth(req);
-      checkRateLimit(`paste-create:${user.id}`, { max: 15, windowMs: 60_000 });
+      await checkRateLimit(`paste-create:${user.id}`, { max: 15, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const meta = await savePaste({
         title: body.title,
@@ -339,7 +339,7 @@ export async function handlePasteRequest(req, res) {
 
     const rawMatch = pathname.match(/^\/api\/paste\/([A-Za-z0-9_-]{10,14})\/raw$/);
     if (rawMatch && req.method === 'GET') {
-      checkRateLimit(`paste-pw:${clientIp(req)}:${rawMatch[1]}`, { max: 15, windowMs: 900_000 });
+      await checkRateLimit(`paste-pw:${clientIp(req)}:${rawMatch[1]}`, { max: 15, windowMs: 900_000 });
       const meta = await loadAlive(rawMatch[1]);
       if (!meta) {
         res.statusCode = 404;
@@ -384,7 +384,7 @@ export async function handlePasteRequest(req, res) {
 
     const viewMatch = pathname.match(/^\/api\/paste\/([A-Za-z0-9_-]{10,14})\/view$/);
     if (viewMatch && req.method === 'POST') {
-      checkRateLimit(`paste-view:${clientIp(req)}:${viewMatch[1]}`, { max: 40, windowMs: 60_000 });
+      await checkRateLimit(`paste-view:${clientIp(req)}:${viewMatch[1]}`, { max: 40, windowMs: 60_000 });
       const meta = await loadAlive(viewMatch[1]);
       if (!meta) return sendJson(res, 404, { error: 'Not found' });
       let viewPassword = '';
@@ -421,7 +421,7 @@ export async function handlePasteRequest(req, res) {
     if (forkMatch && req.method === 'POST') {
       await attachAuth(req);
       const user = requireAuth(req);
-      checkRateLimit(`paste-fork:${user.id}`, { max: 30, windowMs: 60_000 });
+      await checkRateLimit(`paste-fork:${user.id}`, { max: 30, windowMs: 60_000 });
       const meta = await loadAlive(forkMatch[1]);
       if (!meta) return sendJson(res, 404, { error: 'Not found' });
       if (meta.userId !== user.id) return sendJson(res, 403, { error: 'Not allowed' });
@@ -440,7 +440,7 @@ export async function handlePasteRequest(req, res) {
     if (rateMatch && req.method === 'POST') {
       await attachAuth(req);
       const user = requireAuth(req);
-      checkRateLimit(`paste-rate:${user.id}`, { max: 20, windowMs: 60_000 });
+      await checkRateLimit(`paste-rate:${user.id}`, { max: 20, windowMs: 60_000 });
       const meta = await loadAlive(rateMatch[1]);
       if (!meta) return sendJson(res, 404, { error: 'Not found' });
       if (meta.userId === user.id) return sendJson(res, 403, { error: 'Cannot rate own paste' });
@@ -456,7 +456,7 @@ export async function handlePasteRequest(req, res) {
 
     const unlockMatch = pathname.match(/^\/api\/paste\/([A-Za-z0-9_-]{10,14})\/unlock$/);
     if (unlockMatch && req.method === 'POST') {
-      checkRateLimit(`paste-pw:${clientIp(req)}:${unlockMatch[1]}`, { max: 15, windowMs: 900_000 });
+      await checkRateLimit(`paste-pw:${clientIp(req)}:${unlockMatch[1]}`, { max: 15, windowMs: 900_000 });
       const meta = await loadAlive(unlockMatch[1]);
       if (!meta) return sendJson(res, 404, { error: 'Not found' });
       if (meta.visibility !== 'protected') {
@@ -491,7 +491,7 @@ export async function handlePasteRequest(req, res) {
       const id = idMatch[1];
 
       if (req.method === 'GET') {
-        checkRateLimit(`paste-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+        await checkRateLimit(`paste-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
         const meta = await loadAlive(id);
         if (!meta) return sendJson(res, 404, { error: 'Not found' });
         const uid = await clientUserId(req);
@@ -534,7 +534,7 @@ export async function handlePasteRequest(req, res) {
       if (req.method === 'PATCH') {
         await attachAuth(req);
         const user = requireAuth(req);
-        checkRateLimit(`paste-update:${user.id}`, { max: 30, windowMs: 60_000 });
+        await checkRateLimit(`paste-update:${user.id}`, { max: 30, windowMs: 60_000 });
         const body = await readJsonBody(req);
         const meta = await updatePaste(id, user.id, body);
         const content = await getContent(id);
@@ -544,7 +544,7 @@ export async function handlePasteRequest(req, res) {
       if (req.method === 'DELETE') {
         await attachAuth(req);
         const user = requireAuth(req);
-        checkRateLimit(`paste-delete:${user.id}`, { max: 20, windowMs: 60_000 });
+        await checkRateLimit(`paste-delete:${user.id}`, { max: 20, windowMs: 60_000 });
         const result = await deletePaste(id, user.id);
         return sendJson(res, 200, result);
       }

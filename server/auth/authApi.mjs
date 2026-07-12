@@ -104,7 +104,7 @@ export async function handleAuthRequest(req, res) {
     await attachAuth(req);
 
     if (req.method === 'GET' && pathname === '/api/auth/me') {
-      checkRateLimit(`auth-me:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
+      await checkRateLimit(`auth-me:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
       const { countAccountsByCreator } = await import('../premiumAccountsService.mjs');
       let user = null;
       let accountsSubmitted = 0;
@@ -131,14 +131,14 @@ export async function handleAuthRequest(req, res) {
     }
 
     if (req.method === 'GET' && pathname === '/api/auth/register/challenge') {
-      checkRateLimit(`reg-challenge:${clientIp(req)}`, { max: 30, windowMs: 15 * 60_000 });
+      await checkRateLimit(`reg-challenge:${clientIp(req)}`, { max: 30, windowMs: 15 * 60_000 });
       const { issueRegistrationChallenge } = await import('./registrationChallenge.mjs');
       return sendJson(res, 200, issueRegistrationChallenge(req));
     }
 
     if (req.method === 'POST' && pathname === '/api/auth/register') {
       const ip = clientIp(req);
-      checkRateLimit(`register:${ip}`, { max: 2, windowMs: 24 * 60 * 60_000 });
+      await checkRateLimit(`register:${ip}`, { max: 2, windowMs: 24 * 60 * 60_000 });
       const body = await readJsonBody(req);
       const result = await registerUser(body, req);
       if (result.registrationLockToken) {
@@ -150,13 +150,13 @@ export async function handleAuthRequest(req, res) {
     if (req.method === 'GET' && pathname === '/api/auth/referral/me') {
       const user = requireAuth(req);
       await requireMemberTab(req, 'invite');
-      checkRateLimit(`referral-read:${user.id}`, { max: 30, windowMs: 60_000 });
+      await checkRateLimit(`referral-read:${user.id}`, { max: 30, windowMs: 60_000 });
       const info = await getReferralInfo(user.id, req);
       return sendJson(res, 200, info);
     }
 
     if (req.method === 'POST' && pathname === '/api/auth/login') {
-      checkRateLimit(`login:${clientIp(req)}`, { max: 25, windowMs: 15 * 60_000 });
+      await checkRateLimit(`login:${clientIp(req)}`, { max: 25, windowMs: 15 * 60_000 });
       const body = await readJsonBody(req);
       const result = await loginUser(body);
       setSessionCookie(res, result.token, result.maxAgeSec);
@@ -178,7 +178,7 @@ export async function handleAuthRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/auth/logout') {
-      checkRateLimit(`logout:${clientIp(req)}`, { max: 30, windowMs: 60_000 });
+      await checkRateLimit(`logout:${clientIp(req)}`, { max: 30, windowMs: 60_000 });
       await logoutUser(req.auth.token);
       clearSessionCookie(res);
       return sendJson(res, 200, { ok: true });
@@ -186,7 +186,7 @@ export async function handleAuthRequest(req, res) {
 
     if (req.method === 'PATCH' && pathname === '/api/auth/profile') {
       const user = requireAuth(req);
-      checkRateLimit(`profile-patch:${user.id}`, { max: 10, windowMs: 60_000 });
+      await checkRateLimit(`profile-patch:${user.id}`, { max: 10, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const updated = await updateProfile(user.id, body, { keepToken: req.auth.token });
       return sendJson(res, 200, { user: updated.user, newUnlocks: updated.newUnlocks ?? [] });
@@ -194,7 +194,7 @@ export async function handleAuthRequest(req, res) {
 
     if (req.method === 'POST' && pathname === '/api/auth/avatar') {
       const user = requireAuth(req);
-      checkRateLimit(`avatar:${user.id}`, { max: 10, windowMs: 60_000 });
+      await checkRateLimit(`avatar:${user.id}`, { max: 10, windowMs: 60_000 });
       const body = await readJsonBody(req, 3 * 1024 * 1024);
       const buffer = Buffer.from(body.data ?? '', 'base64');
       const result = await uploadUserAvatar(user.id, { mime: body.mime, buffer });
@@ -204,7 +204,7 @@ export async function handleAuthRequest(req, res) {
     if (req.method === 'POST' && pathname === '/api/auth/achievements/sync') {
       const user = requireAuth(req);
       await requireMemberTab(req, 'dashboard');
-      checkRateLimit(`ach-sync:${user.id}`, { max: 30, windowMs: 60_000 });
+      await checkRateLimit(`ach-sync:${user.id}`, { max: 30, windowMs: 60_000 });
       const result = await syncUserAchievements(user.id, {});
       return sendJson(res, 200, { user: result.user, newUnlocks: result.newUnlocks ?? [] });
     }
@@ -212,7 +212,7 @@ export async function handleAuthRequest(req, res) {
     if (req.method === 'POST' && pathname === '/api/auth/achievements/event') {
       const user = requireAuth(req);
       await requireMemberTab(req, 'fun');
-      checkRateLimit(`ach-event:${user.id}`, { max: 20, windowMs: 60_000 });
+      await checkRateLimit(`ach-event:${user.id}`, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const result = await recordAchievementEvent(user.id, String(body.event ?? ''), body.proof);
       return sendJson(res, 200, { user: result.user, newUnlocks: result.newUnlocks ?? [] });
@@ -221,7 +221,7 @@ export async function handleAuthRequest(req, res) {
     if (req.method === 'POST' && pathname === '/api/auth/achievements/terminal-command') {
       const user = requireAuth(req);
       await requireMemberTab(req, 'dashboard');
-      checkRateLimit(`ach-cmd:${user.id}`, { max: 40, windowMs: 60_000 });
+      await checkRateLimit(`ach-cmd:${user.id}`, { max: 40, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const result = await recordTerminalCommand(
         user.id,
@@ -234,7 +234,7 @@ export async function handleAuthRequest(req, res) {
 
     const avatarFileMatch = pathname.match(/^\/api\/auth\/avatars\/([a-f0-9]+\.(?:jpg|png|gif|webp))$/);
     if (avatarFileMatch && req.method === 'GET') {
-      checkRateLimit(`avatar-file:${clientIp(req)}`, { max: 180, windowMs: 60_000 });
+      await checkRateLimit(`avatar-file:${clientIp(req)}`, { max: 180, windowMs: 60_000 });
       const hit = await getAvatarFile(avatarFileMatch[1]);
       if (!hit) return sendJson(res, 404, { error: 'Not found' });
       res.statusCode = 200;
@@ -246,20 +246,20 @@ export async function handleAuthRequest(req, res) {
 
     if (req.method === 'DELETE' && pathname === '/api/auth/account') {
       const user = requireAuth(req);
-      checkRateLimit(`account-delete:${user.id}`, { max: 3, windowMs: 3600_000 });
+      await checkRateLimit(`account-delete:${user.id}`, { max: 3, windowMs: 3600_000 });
       await deleteOwnAccount(user.id);
       clearSessionCookie(res);
       return sendJson(res, 200, { ok: true });
     }
 
     if (req.method === 'GET' && pathname === '/api/auth/stats') {
-      checkRateLimit(`auth-stats:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`auth-stats:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       return sendJson(res, 200, await getPublicAuthStats());
     }
 
     const publicUserMatch = pathname.match(/^\/api\/auth\/users\/([a-z0-9_]+)$/);
     if (publicUserMatch && req.method === 'GET') {
-      checkRateLimit(`profile-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await checkRateLimit(`profile-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       const profile = await getPublicProfileByUsername(publicUserMatch[1]);
       return sendJson(res, 200, { user: profile });
     }
@@ -269,10 +269,11 @@ export async function handleAuthRequest(req, res) {
       await attachAuth(req);
       await requireMemberTab(req, 'profile');
       const viewerId = req.auth?.user?.id ?? clientIp(req);
-      checkRateLimit(`profile-view:${viewerId}`, { max: 40, windowMs: 60_000 });
+      await checkRateLimit(`profile-view:${viewerId}`, { max: 40, windowMs: 60_000 });
       const result = await incrementProfileView(profileViewMatch[1], {
         viewer: req.auth?.user ?? null,
         sessionTab: req.auth?.session?.analyticsLastTab ?? null,
+        sessionToken: req.auth?.token ?? null,
       });
       return sendJson(res, 200, { user: result.user, credited: result.credited });
     }
@@ -281,7 +282,7 @@ export async function handleAuthRequest(req, res) {
       requireRole(req, canAccessAdmin);
 
       if (req.method === 'GET' && pathname === '/api/auth/admin/users') {
-        checkRateLimit(`admin-users-list:${req.auth.user.id}`, { max: 60, windowMs: 60_000 });
+        await checkRateLimit(`admin-users-list:${req.auth.user.id}`, { max: 60, windowMs: 60_000 });
         const data = await listUsers({
           search: url.searchParams.get('search') ?? undefined,
           role: url.searchParams.get('role') ?? undefined,
@@ -293,7 +294,7 @@ export async function handleAuthRequest(req, res) {
       const adminActKey = `admin-users-act:${req.auth.user.id}`;
 
       if (req.method === 'POST' && pathname === '/api/auth/admin/users') {
-        checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
+        await checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
         const body = await readJsonBody(req);
         const user = await createUserAdmin(body);
         return sendJson(res, 201, { user });
@@ -301,14 +302,14 @@ export async function handleAuthRequest(req, res) {
 
       const patchMatch = pathname.match(/^\/api\/auth\/admin\/users\/([a-f0-9]+)$/);
       if (patchMatch && req.method === 'PATCH') {
-        checkRateLimit(adminActKey, { max: 30, windowMs: 60_000 });
+        await checkRateLimit(adminActKey, { max: 30, windowMs: 60_000 });
         const body = await readJsonBody(req);
         const user = await updateUserAdmin(patchMatch[1], body);
         return sendJson(res, 200, { user });
       }
 
       if (patchMatch && req.method === 'DELETE') {
-        checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
+        await checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
         await deleteUserAdmin(patchMatch[1], req.auth.user.id);
         return sendJson(res, 200, { ok: true });
       }

@@ -55,7 +55,7 @@ export async function handleImageHostRequest(req, res) {
       await requireMemberTab(req, 'memegen');
       await attachAuth(req);
       const user = requireAuth(req);
-      checkRateLimit(`image-meme-upload:${user.id}`, { max: 20, windowMs: 60_000 });
+      await checkRateLimit(`image-meme-upload:${user.id}`, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const buffer = Buffer.from(body.data ?? '', 'base64');
       const meta = await saveImage({
@@ -74,19 +74,19 @@ export async function handleImageHostRequest(req, res) {
     await requireMemberTab(req, 'imagehost');
 
     if (req.method === 'GET' && pathname === '/api/images/stats') {
-      checkRateLimit(`image-stats:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`image-stats:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       return sendJson(res, 200, await readStats());
     }
 
     if (req.method === 'GET' && pathname === '/api/images/my/stats') {
-      checkRateLimit(`image-gallery:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`image-gallery:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       await attachAuth(req);
       const user = requireAuth(req);
       return sendJson(res, 200, await computeUserGalleryStats(user.id));
     }
 
     if (req.method === 'GET' && pathname === '/api/images/my') {
-      checkRateLimit(`image-gallery:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`image-gallery:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       await attachAuth(req);
       const user = requireAuth(req);
       const sort = url.searchParams.get('sort') ?? 'newest';
@@ -101,7 +101,7 @@ export async function handleImageHostRequest(req, res) {
     if (req.method === 'POST' && pathname === '/api/images/upload') {
       await attachAuth(req);
       const user = requireAuth(req);
-      checkRateLimit(`image-upload:${user.id}`, { max: 20, windowMs: 60_000 });
+      await checkRateLimit(`image-upload:${user.id}`, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const buffer = Buffer.from(body.data ?? '', 'base64');
       const userId = user.id;
@@ -130,7 +130,7 @@ export async function handleImageHostRequest(req, res) {
 
     const metaMatch = pathname.match(/^\/api\/images\/([a-f0-9]{16})$/);
     if (metaMatch && req.method === 'GET') {
-      checkRateLimit(`image-meta:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await checkRateLimit(`image-meta:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       const meta = await getMeta(metaMatch[1]);
       if (!meta) return sendJson(res, 404, { error: 'Not found' });
       return sendJson(res, 200, toClientMeta(meta, req));
@@ -138,7 +138,7 @@ export async function handleImageHostRequest(req, res) {
 
     const viewMatch = pathname.match(/^\/api\/images\/([a-f0-9]{16})\/view$/);
     if (viewMatch && req.method === 'POST') {
-      checkRateLimit(`image-view:${clientIp(req)}:${viewMatch[1]}`, { max: 40, windowMs: 60_000 });
+      await checkRateLimit(`image-view:${clientIp(req)}:${viewMatch[1]}`, { max: 40, windowMs: 60_000 });
       await attachAuth(req);
       const imageId = viewMatch[1];
       const viewerId = req.auth?.user?.id ?? null;
@@ -202,7 +202,7 @@ export async function handleImageHostRequest(req, res) {
     if (patchMatch && req.method === 'PATCH') {
       await attachAuth(req);
       const user = requireAuth(req);
-      checkRateLimit(`image-update:${user.id}`, { max: 30, windowMs: 60_000 });
+      await checkRateLimit(`image-update:${user.id}`, { max: 30, windowMs: 60_000 });
       const body = await readJsonBody(req, 64 * 1024);
       const meta = await updateImageRecord(patchMatch[1], user.id, body);
       return sendJson(res, 200, toClientMeta(meta, req));
@@ -212,14 +212,14 @@ export async function handleImageHostRequest(req, res) {
     if (deleteMatch && req.method === 'DELETE') {
       await attachAuth(req);
       const user = requireAuth(req);
-      checkRateLimit(`image-delete:${user.id}`, { max: 20, windowMs: 60_000 });
+      await checkRateLimit(`image-delete:${user.id}`, { max: 20, windowMs: 60_000 });
       const result = await deleteImageRecord(deleteMatch[1], user.id);
       return sendJson(res, 200, result);
     }
 
     const hostingMatch = pathname.match(/^\/hosting\/([a-f0-9]{16})$/);
     if (hostingMatch && req.method === 'GET') {
-      checkRateLimit(`hosting-file:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
+      await checkRateLimit(`hosting-file:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
       const hit = await getFilePath(hostingMatch[1]);
       if (!hit) {
         res.statusCode = 404;

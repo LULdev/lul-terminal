@@ -6,6 +6,7 @@
 import { loadSessionsDb, saveSessionsDb, withSessionsWrite } from './auth/authStore.mjs';
 
 const MIN_DWELL_MS = 2000;
+export const PROFILE_VIEW_BURST_CAP = 5;
 
 /** Whether a tab_visit may trigger achievement side effects (blocks spoofed tab bursts). */
 export function canCreditTabVisit(session, tab, { forceRemint = false } = {}) {
@@ -57,11 +58,34 @@ export async function tryClaimTabVisitCredit(token, tab, { forceRemint = false }
       analyticsLastVisitAt: session.analyticsLastVisitAt ?? null,
     };
 
+    if (snapshot.analyticsLastTab === 'profile' && tab !== 'profile') {
+      session.profileViewCreditsUsed = 0;
+    }
+    if (tab === 'profile' && snapshot.analyticsLastTab !== 'profile') {
+      session.profileViewCreditsUsed = 0;
+    }
+
     session.analyticsLastTab = tab;
     session.analyticsDwellReady = false;
     session.analyticsLastVisitAt = Date.now();
     await saveSessionsDb(db);
     return { claimed: true, snapshot };
+  });
+}
+
+/** Cap unique profile-view achievement credits per profile-tab stint. */
+export async function tryClaimProfileViewCredit(token) {
+  if (!token) return false;
+  return withSessionsWrite(async () => {
+    const db = await loadSessionsDb();
+    const session = db.sessions.find((s) => s.token === token);
+    if (!session || session.expiresAt <= Date.now()) return false;
+    if (String(session.analyticsLastTab ?? '') !== 'profile') return false;
+    const used = Number(session.profileViewCreditsUsed) || 0;
+    if (used >= PROFILE_VIEW_BURST_CAP) return false;
+    session.profileViewCreditsUsed = used + 1;
+    await saveSessionsDb(db);
+    return true;
   });
 }
 

@@ -78,18 +78,18 @@ export async function handleProxyCheckerRequest(req, res) {
     await requireAdmin(req);
 
     if (req.method === 'GET' && pathname === '/api/proxy-checker/presets') {
-      checkRateLimit(`proxy-checker:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await checkRateLimit(`proxy-checker:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       return sendJson(res, 200, { testUrls: TEST_URL_PRESETS });
     }
 
     if (req.method === 'GET' && pathname === '/api/proxy-checker/stats') {
-      checkRateLimit(`proxy-checker:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await checkRateLimit(`proxy-checker:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       const state = await loadCheckerState();
       return sendJson(res, 200, state);
     }
 
     if (req.method === 'GET' && pathname === '/api/proxy-checker/results') {
-      checkRateLimit(`proxy-checker:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await checkRateLimit(`proxy-checker:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       const data = await loadCheckerResults();
       const state = await loadCheckerState();
       return sendJson(res, 200, { ...data, stats: state });
@@ -101,12 +101,12 @@ export async function handleProxyCheckerRequest(req, res) {
       if (!job) return sendJson(res, 404, { error: 'Job not found' });
 
       if (req.method === 'GET') {
-        checkRateLimit(`proxy-checker-job:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
+        await checkRateLimit(`proxy-checker-job:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
         return sendJson(res, 200, job);
       }
 
       if (req.method === 'DELETE') {
-        checkRateLimit(`proxy-checker-act:${req.auth.user.id}`, { max: 30, windowMs: 60_000 });
+        await checkRateLimit(`proxy-checker-act:${req.auth.user.id}`, { max: 30, windowMs: 60_000 });
         if (job.control) job.control.cancelled = true;
         job.status = 'cancelled';
         job.message = 'Check cancelled';
@@ -115,7 +115,7 @@ export async function handleProxyCheckerRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/proxy-checker/check') {
-      checkRateLimit(`proxy-checker-spawn:${req.auth.user.id}`, { max: 5, windowMs: 60_000 });
+      await checkRateLimit(`proxy-checker-spawn:${req.auth.user.id}`, { max: 5, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const jobId = crypto.randomBytes(8).toString('hex');
       const job = {

@@ -57,7 +57,7 @@ export async function handleAnalyticsRequest(req, res) {
       const rateKey = req.auth?.user?.id
         ? `analytics:${req.auth.user.id}`
         : `analytics-guest:${clientIp(req)}`;
-      checkRateLimit(rateKey, {
+      await checkRateLimit(rateKey, {
         max: req.auth?.user?.id ? 90 : 30,
         windowMs: 60_000,
       });
@@ -113,7 +113,7 @@ export async function handleAnalyticsRequest(req, res) {
       let proofPayload = null;
       if (req.auth?.user?.id && persistTab && (eventType === 'tab_visit' || eventType === 'faq_visit')) {
         try {
-          checkRateLimit(`analytics-tab-visit:${req.auth.user.id}`, { max: 24, windowMs: 60_000 });
+          await checkRateLimit(`analytics-tab-visit:${req.auth.user.id}`, { max: 24, windowMs: 60_000 });
           const sessionCreated = Number(req.auth.session?.createdAt) || 0;
           const forceRemint = Boolean(body.meta?.forceRemint)
             && sessionCreated > 0
@@ -157,7 +157,7 @@ export async function handleAnalyticsRequest(req, res) {
       await attachAuth(req);
       const user = requireAuth(req);
       await requireMemberTab(req, 'activity');
-      checkRateLimit(`analytics-me:${user.id}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`analytics-me:${user.id}`, { max: 60, windowMs: 60_000 });
       const summary = await buildUserActivitySummary(user.id);
       if (!summary) return sendJson(res, 404, { error: 'Not found' });
       return sendJson(res, 200, summary);
@@ -168,14 +168,14 @@ export async function handleAnalyticsRequest(req, res) {
       await attachAuth(req);
       requireRole(req, canAccessAdmin);
       const adminKey = req.auth?.user?.id ?? clientIp(req);
-      checkRateLimit(`analytics-admin:${adminKey}`, { max: 120, windowMs: 60_000 });
+      await checkRateLimit(`analytics-admin:${adminKey}`, { max: 120, windowMs: 60_000 });
     }
 
     if (req.method === 'GET' && pathname === '/api/analytics/active-today') {
       await attachAuth(req);
       requireRole(req, canAccessAdmin);
       const adminKey = req.auth?.user?.id ?? clientIp(req);
-      checkRateLimit(`analytics-admin:${adminKey}`, { max: 120, windowMs: 60_000 });
+      await checkRateLimit(`analytics-admin:${adminKey}`, { max: 120, windowMs: 60_000 });
       const limit = Math.min(Number(url.searchParams.get('limit')) || 48, 80);
       return sendJson(res, 200, await listActiveTodayUsers(limit));
     }
@@ -196,7 +196,7 @@ export async function handleAnalyticsRequest(req, res) {
 
     if (req.method === 'POST' && pathname === '/api/analytics/admin/purge') {
       const adminKey = req.auth?.user?.id ?? clientIp(req);
-      checkRateLimit(`analytics-admin-act:${adminKey}`, { max: 10, windowMs: 60_000 });
+      await checkRateLimit(`analytics-admin-act:${adminKey}`, { max: 10, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const keep = Number(body.keep) || 2000;
       return sendJson(res, 200, await purgeOldEvents(keep));

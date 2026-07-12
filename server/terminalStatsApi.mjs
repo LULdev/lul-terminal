@@ -25,7 +25,7 @@ export async function handleTerminalStatsRequest(req, res) {
     return;
   }
   try {
-    checkRateLimit(`terminal-stats:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+    await checkRateLimit(`terminal-stats:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
     await requireMemberTab(req, 'stats');
     await attachAuth(req);
     const includeSensitive = Boolean(req.auth?.user && canAccessAdmin(req.auth.user));

@@ -42,7 +42,7 @@ export async function handleAccessControlRequest(req, res) {
 
   try {
     if (req.method === 'GET' && pathname === '/api/access-control') {
-      checkRateLimit(`access-control:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`access-control:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       const db = await loadAccessControl();
       return sendJson(res, 200, {
         version: db.version,
@@ -55,7 +55,7 @@ export async function handleAccessControlRequest(req, res) {
       await attachAuth(req);
       requireRole(req, canAccessAdmin);
       const adminKey = req.auth?.user?.id ?? clientIp(req);
-      checkRateLimit(`access-control-admin:${adminKey}`, { max: 120, windowMs: 60_000 });
+      await checkRateLimit(`access-control-admin:${adminKey}`, { max: 120, windowMs: 60_000 });
     }
 
     if (req.method === 'GET' && pathname === '/api/access-control/admin') {
@@ -72,7 +72,7 @@ export async function handleAccessControlRequest(req, res) {
 
     if (req.method === 'PATCH' && pathname === '/api/access-control/admin') {
       const adminKey = req.auth?.user?.id ?? clientIp(req);
-      checkRateLimit(`access-control-admin-act:${adminKey}`, { max: 20, windowMs: 60_000 });
+      await checkRateLimit(`access-control-admin-act:${adminKey}`, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
       if (body.resetDefaults) {
         const db = await saveAccessControl({ pages: { ...DEFAULT_VISIBILITY } });

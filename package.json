@@ -1,7 +1,7 @@
 {
   "name": "lul-terminal",
   "private": true,
-  "version": "3.36.92",
+  "version": "3.36.93",
   "description": "Community arcade, profiles, tools & terminal hub",
   "repository": {
     "type": "git",
@@ -43,6 +43,7 @@
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "recharts": "^3.9.1",
+    "redis": "^4.7.1",
     "socks-proxy-agent": "^10.1.0",
     "vite": "^6.2.3"
   },

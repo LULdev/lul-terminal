@@ -23,7 +23,7 @@ export async function handleStatusRequest(req, res) {
     return;
   }
   try {
-    checkRateLimit(`status:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+    await checkRateLimit(`status:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
     await requireMemberTab(req, 'status');
     sendJson(res, 200, await buildSystemStatus());
   } catch (e) {

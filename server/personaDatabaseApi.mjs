@@ -20,19 +20,19 @@ export async function handlePersonaDatabaseRequest(req, res) {
 
   try {
     if (req.method === 'GET' && pathname === '/api/persona-db/stats') {
-      checkRateLimit(`persona-db:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`persona-db:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       await requireMemberTab(req, 'identity');
       return sendJson(res, 200, await getPersonaStats());
     }
 
     if (req.method === 'GET' && pathname === '/api/persona-db/countries') {
-      checkRateLimit(`persona-db:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`persona-db:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       await requireMemberTab(req, 'identity');
       return sendJson(res, 200, { countries: await listCountries() });
     }
 
     if (req.method === 'GET' && pathname === '/api/persona-db/random') {
-      checkRateLimit(`persona-db:${clientIp(req)}`, { max: 40, windowMs: 60_000 });
+      await checkRateLimit(`persona-db:${clientIp(req)}`, { max: 40, windowMs: 60_000 });
       await requireMemberTab(req, 'identity');
       const country = url.searchParams.get('country')?.trim() || undefined;
       const entry = await pickRandomEntry(country);

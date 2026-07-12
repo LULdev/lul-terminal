@@ -23,6 +23,19 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.93',
+    title: 'Deferred hardening — profile burst, Redis limits, chat policy, dedup',
+    date: 'Jul 12, 2026 - 19:00',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — Profile-view burst cap: max 5 credited views per profile-tab stint (session profileViewCreditsUsed).' },
+      { priority: 'P2', text: 'P2 — Shared rate limiter: memory / file (RATE_LIMIT_SHARED) / Redis (REDIS_URL); checkRateLimit async.' },
+      { priority: 'P2', text: 'P2 — Chat API requires login via requireChatAccess even when fun tab is public.' },
+      { priority: 'P3', text: 'P3 — Guest view dedup fail-open by default (GUEST_VIEW_DEDUP_FAIL_OPEN=0 for fail-closed).' },
+      { priority: 'P9', text: 'P9 — Deferred items: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.92',
     title: 'Extreme deep audit — round 31 (server/client/chat/news/paste)',
     date: 'Jul 12, 2026 - 18:00',

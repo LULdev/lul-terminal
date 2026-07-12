@@ -92,7 +92,7 @@ export async function handleXmlLinkScraperRequest(req, res) {
     await requireAdmin(req);
 
     if (req.method === 'GET' && pathname === '/api/xml-scraper/presets') {
-      checkRateLimit(`xml-scraper:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await checkRateLimit(`xml-scraper:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       return sendJson(res, 200, {
         presets: PATTERN_PRESETS,
         websiteFeatures: WEBSITE_SCRAPER_FEATURES,
@@ -103,7 +103,7 @@ export async function handleXmlLinkScraperRequest(req, res) {
 
     const jobMatch = pathname.match(/^\/api\/xml-scraper\/jobs\/([a-zA-Z0-9_-]+)$/);
     if (req.method === 'GET' && jobMatch) {
-      checkRateLimit(`xml-scraper-job:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
+      await checkRateLimit(`xml-scraper-job:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
       const job = crawlJobs.get(jobMatch[1]);
       if (!job) return sendJson(res, 404, { error: 'Job not found' });
       return sendJson(res, 200, {
@@ -118,7 +118,7 @@ export async function handleXmlLinkScraperRequest(req, res) {
     }
 
     if (req.method === 'POST' && jobMatch) {
-      checkRateLimit(`xml-scraper-act:${req.auth?.user?.id ?? clientIp(req)}`, { max: 30, windowMs: 60_000 });
+      await checkRateLimit(`xml-scraper-act:${req.auth?.user?.id ?? clientIp(req)}`, { max: 30, windowMs: 60_000 });
       const job = crawlJobs.get(jobMatch[1]);
       if (!job) return sendJson(res, 404, { error: 'Job not found' });
       if (job.status !== 'running') return sendJson(res, 400, { error: 'Job is not running' });
@@ -131,7 +131,7 @@ export async function handleXmlLinkScraperRequest(req, res) {
     const adminActKey = `xml-scraper-act:${req.auth?.user?.id ?? clientIp(req)}`;
 
     if (req.method === 'POST' && pathname === '/api/xml-scraper/scan') {
-      checkRateLimit(adminActKey, { max: 30, windowMs: 60_000 });
+      await checkRateLimit(adminActKey, { max: 30, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const xml = String(body.xml ?? '');
       const pattern = String(body.pattern ?? '*:*');
@@ -141,12 +141,12 @@ export async function handleXmlLinkScraperRequest(req, res) {
     }
 
     if (req.method === 'GET' && pathname === '/api/xml-scraper/colon-db/stats') {
-      checkRateLimit(`xml-scraper:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await checkRateLimit(`xml-scraper:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       return sendJson(res, 200, await getColonDbStats());
     }
 
     if (req.method === 'GET' && pathname === '/api/xml-scraper/colon-db/entries') {
-      checkRateLimit(`xml-scraper:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await checkRateLimit(`xml-scraper:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       const url = new URL(req.url, 'http://localhost');
       const { entries, total } = await listColonDbEntries({
         limit: Math.min(200, Math.max(1, Number(url.searchParams.get('limit')) || 100)),
@@ -157,7 +157,7 @@ export async function handleXmlLinkScraperRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/xml-scraper/save-to-db') {
-      checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
+      await checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req, 2 * 1024 * 1024);
       const source = body.source === 'xml' ? 'xml' : 'atlas';
 
@@ -175,7 +175,7 @@ export async function handleXmlLinkScraperRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/xml-scraper/crawl') {
-      checkRateLimit(adminActKey, { max: 5, windowMs: 60_000 });
+      await checkRateLimit(adminActKey, { max: 5, windowMs: 60_000 });
       const body = await readJsonBody(req, 64 * 1024);
       const startUrl = String(body.startUrl ?? '').trim();
       if (!startUrl) throw new Error('startUrl is required');

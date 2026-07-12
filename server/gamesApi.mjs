@@ -49,29 +49,29 @@ export async function handleGamesRequest(req, res) {
     const user = req.auth?.user ?? null;
 
     if (req.method === 'GET' && pathname === '/api/games/state') {
-      checkRateLimit(`games-state:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
+      await checkRateLimit(`games-state:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
       return sendJson(res, 200, await getGamesState(user?.id ?? null));
     }
 
     if (req.method === 'GET' && pathname === '/api/games/catalog') {
-      checkRateLimit(`games-catalog:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await checkRateLimit(`games-catalog:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       return sendJson(res, 200, { games: GAME_IDS });
     }
 
     if (req.method === 'GET' && pathname === '/api/games/leaderboard') {
-      checkRateLimit(`games-leaderboard:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await checkRateLimit(`games-leaderboard:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       return sendJson(res, 200, await getGamesLeaderboard());
     }
 
     if (req.method === 'GET' && pathname === '/api/games/history') {
-      checkRateLimit(`games-history:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await checkRateLimit(`games-history:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 20));
       return sendJson(res, 200, { matches: await getRecentHistory(limit) });
     }
 
     if (req.method === 'GET' && pathname === '/api/games/coin-feed') {
       const u = requireUser(req);
-      checkRateLimit(`games-feed:${u.id}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`games-feed:${u.id}`, { max: 60, windowMs: 60_000 });
       const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 40));
       return sendJson(res, 200, await getCoinFeed(u.id, limit));
     }
@@ -81,7 +81,7 @@ export async function handleGamesRequest(req, res) {
       const handler = getGameHandler(genericMatchGet[1]);
       if (!handler) return sendJson(res, 404, { error: 'Game not found' });
       const u = requireUser(req);
-      checkRateLimit(`games-match:${u.id}`, { max: 120, windowMs: 60_000 });
+      await checkRateLimit(`games-match:${u.id}`, { max: 120, windowMs: 60_000 });
       const match = await Promise.resolve(handler.getMatch(genericMatchGet[2], u.id));
       if (!match) return sendJson(res, 404, { error: 'Match not found' });
       return sendJson(res, 200, { match });
@@ -94,14 +94,14 @@ export async function handleGamesRequest(req, res) {
       if (!handler) return sendJson(res, 404, { error: 'Game not found' });
       if (req.method === 'POST') {
         const u = requireUser(req);
-        checkRateLimit(`games-queue:${u.id}`, { max: 30, windowMs: 60_000 });
+        await checkRateLimit(`games-queue:${u.id}`, { max: 30, windowMs: 60_000 });
         const body = await readJsonBody(req);
         const result = await handler.joinQueue(u.id, body);
         return sendJson(res, 200, result);
       }
       if (req.method === 'DELETE') {
         const u = requireUser(req);
-        checkRateLimit(`games-queue-leave:${u.id}`, { max: 40, windowMs: 60_000 });
+        await checkRateLimit(`games-queue-leave:${u.id}`, { max: 40, windowMs: 60_000 });
         return sendJson(res, 200, await handler.leaveQueue(u.id));
       }
     }
@@ -111,7 +111,7 @@ export async function handleGamesRequest(req, res) {
       const handler = getGameHandler(genericMove[1]);
       if (!handler) return sendJson(res, 404, { error: 'Game not found' });
       const u = requireUser(req);
-      checkRateLimit(`games-move:${u.id}`, { max: 120, windowMs: 60_000 });
+      await checkRateLimit(`games-move:${u.id}`, { max: 120, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const move = body.move ?? body.cell ?? body.column ?? body.col;
       const result = await handler.submitMove(u.id, String(body.matchId ?? ''), move);
@@ -126,7 +126,7 @@ export async function handleGamesRequest(req, res) {
 
     if (req.method === 'POST' && pathname === '/api/games/daily-bonus') {
       const u = requireUser(req);
-      checkRateLimit(`games-daily:${u.id}`, { max: 5, windowMs: 60_000 });
+      await checkRateLimit(`games-daily:${u.id}`, { max: 5, windowMs: 60_000 });
       return sendJson(res, 200, await claimDailyBonus(u.id));
     }
 

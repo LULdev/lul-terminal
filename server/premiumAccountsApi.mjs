@@ -83,7 +83,7 @@ export async function handlePremiumAccountsRequest(req, res) {
     const isAdmin = Boolean(req.auth?.user && canAccessAdmin(req.auth.user));
 
     if (req.method === 'GET' && pathname === '/api/premium-accounts/public-stats') {
-      checkRateLimit(`premium-public-stats:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`premium-public-stats:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       await requireMemberTab(req, 'premiumaccounts');
       return sendJson(res, 200, await getPublicAccountStats());
     }
@@ -91,7 +91,7 @@ export async function handlePremiumAccountsRequest(req, res) {
     if (req.method === 'GET' && pathname === '/api/premium-accounts/stats') {
       requirePremiumView(req);
       await requireMemberTab(req, 'premiumaccounts');
-      checkRateLimit(`premium-read:${req.auth.user.id}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`premium-read:${req.auth.user.id}`, { max: 60, windowMs: 60_000 });
       const stats = await getStats({ isAdmin });
       return sendJson(res, 200, stats);
     }
@@ -99,7 +99,7 @@ export async function handlePremiumAccountsRequest(req, res) {
     if (req.method === 'GET' && pathname === '/api/premium-accounts/accounts') {
       requirePremiumView(req);
       await requireMemberTab(req, 'premiumaccounts');
-      checkRateLimit(`premium-read:${req.auth.user.id}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`premium-read:${req.auth.user.id}`, { max: 60, windowMs: 60_000 });
       const data = await listAccounts({
         category: url.searchParams.get('category') ?? undefined,
         status: url.searchParams.get('status') ?? undefined,
@@ -113,7 +113,7 @@ export async function handlePremiumAccountsRequest(req, res) {
       if (!req.auth?.user || !canAccessAdmin(req.auth.user)) {
         throw new Error('Admin permission required');
       }
-      checkRateLimit(`premium-bulk:${req.auth.user.id}`, { max: 5, windowMs: 60_000 });
+      await checkRateLimit(`premium-bulk:${req.auth.user.id}`, { max: 5, windowMs: 60_000 });
       const body = await readJsonBody(req, 2 * 1024 * 1024);
       const result = await bulkImportAccounts(body.text ?? body.raw ?? '', body, req.auth.user);
       return sendJson(res, 201, result);
@@ -122,7 +122,7 @@ export async function handlePremiumAccountsRequest(req, res) {
     if (req.method === 'POST' && pathname === '/api/premium-accounts/accounts') {
       requirePremiumSubmit(req);
       await requireMemberTab(req, 'premiumaccounts');
-      checkRateLimit(`premium-submit:${req.auth.user.id}`, { max: 20, windowMs: 60_000 });
+      await checkRateLimit(`premium-submit:${req.auth.user.id}`, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const result = await addAccount(body, req.auth.user);
       return sendJson(res, 201, result);
@@ -133,7 +133,7 @@ export async function handlePremiumAccountsRequest(req, res) {
       if (!req.auth?.user || !canAccessAdmin(req.auth.user)) {
         throw new Error('Admin permission required');
       }
-      checkRateLimit(`premium-admin-act:${req.auth.user.id}`, { max: 30, windowMs: 60_000 });
+      await checkRateLimit(`premium-admin-act:${req.auth.user.id}`, { max: 30, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const approveStatus = body.status === 'working_free' ? 'working_free' : 'working';
       const result = await approveAccount(approveMatch[1], approveStatus);
@@ -145,7 +145,7 @@ export async function handlePremiumAccountsRequest(req, res) {
       if (!req.auth?.user || !canAccessAdmin(req.auth.user)) {
         throw new Error('Admin permission required');
       }
-      checkRateLimit(`premium-admin-act:${req.auth.user.id}`, { max: 30, windowMs: 60_000 });
+      await checkRateLimit(`premium-admin-act:${req.auth.user.id}`, { max: 30, windowMs: 60_000 });
       const result = await rejectAccount(rejectUncheckedMatch[1]);
       return sendJson(res, 200, result);
     }
@@ -154,7 +154,7 @@ export async function handlePremiumAccountsRequest(req, res) {
     if (viewMatch && req.method === 'POST') {
       requirePremiumView(req);
       await requireMemberTab(req, 'premiumaccounts');
-      checkRateLimit(`premium-view:${req.auth.user.id}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`premium-view:${req.auth.user.id}`, { max: 60, windowMs: 60_000 });
       const accountId = viewMatch[1];
       const viewerId = req.auth.user.id;
       const result = await runCoinTransaction(async () => {
@@ -190,7 +190,7 @@ export async function handlePremiumAccountsRequest(req, res) {
       if (!req.auth?.user || !canAccessAdmin(req.auth.user)) {
         throw new Error('Admin permission required');
       }
-      checkRateLimit(`premium-admin-act:${req.auth.user.id}`, { max: 40, windowMs: 60_000 });
+      await checkRateLimit(`premium-admin-act:${req.auth.user.id}`, { max: 40, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const result = await updateAccount(accountIdMatch[1], body, req.auth.user);
       return sendJson(res, 200, result);
@@ -198,7 +198,7 @@ export async function handlePremiumAccountsRequest(req, res) {
 
     if (accountIdMatch && req.method === 'DELETE') {
       requirePremiumDelete(req);
-      checkRateLimit(`premium-admin-act:${req.auth.user.id}`, { max: 20, windowMs: 60_000 });
+      await checkRateLimit(`premium-admin-act:${req.auth.user.id}`, { max: 20, windowMs: 60_000 });
       const result = await removeAccount(accountIdMatch[1]);
       return sendJson(res, 200, result);
     }
@@ -209,7 +209,7 @@ export async function handlePremiumAccountsRequest(req, res) {
         throw new Error('You must be logged in with a registered account to report an entry');
       }
       await requireMemberTab(req, 'premiumaccounts');
-      checkRateLimit(`premium-report:${req.auth.user.id}`, { max: 10, windowMs: 60_000 });
+      await checkRateLimit(`premium-report:${req.auth.user.id}`, { max: 10, windowMs: 60_000 });
       const reporter = req.auth.user;
       const body = await readJsonBody(req);
       const result = await reportAccountNotWorking(reportMatch[1], reporter, body.note);
@@ -220,7 +220,7 @@ export async function handlePremiumAccountsRequest(req, res) {
       if (!req.auth?.user || !canAccessAdmin(req.auth.user)) {
         throw new Error('Admin permission required');
       }
-      checkRateLimit(`premium-admin:${req.auth.user.id}`, { max: 120, windowMs: 60_000 });
+      await checkRateLimit(`premium-admin:${req.auth.user.id}`, { max: 120, windowMs: 60_000 });
       const reports = await listPendingReports();
       return sendJson(res, 200, { reports });
     }
@@ -230,7 +230,7 @@ export async function handlePremiumAccountsRequest(req, res) {
       if (!req.auth?.user || !canAccessAdmin(req.auth.user)) {
         throw new Error('Admin permission required');
       }
-      checkRateLimit(`premium-admin-act:${req.auth.user.id}`, { max: 30, windowMs: 60_000 });
+      await checkRateLimit(`premium-admin-act:${req.auth.user.id}`, { max: 30, windowMs: 60_000 });
       const result = await acceptReport(acceptMatch[1], req.auth.user);
       return sendJson(res, 200, result);
     }
@@ -240,7 +240,7 @@ export async function handlePremiumAccountsRequest(req, res) {
       if (!req.auth?.user || !canAccessAdmin(req.auth.user)) {
         throw new Error('Admin permission required');
       }
-      checkRateLimit(`premium-admin-act:${req.auth.user.id}`, { max: 30, windowMs: 60_000 });
+      await checkRateLimit(`premium-admin-act:${req.auth.user.id}`, { max: 30, windowMs: 60_000 });
       const result = await rejectReport(rejectMatch[1], req.auth.user);
       return sendJson(res, 200, result);
     }

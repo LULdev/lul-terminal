@@ -36,14 +36,14 @@ export async function handlePostViewsRequest(req, res) {
 
   try {
     if (req.method === 'GET' && pathname === '/api/post-views') {
-      checkRateLimit(`post-views-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await checkRateLimit(`post-views-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       await attachAuth(req);
       requireAuth(req);
       return sendJson(res, 200, await getAllPostViews());
     }
 
     if (req.method === 'POST' && pathname === '/api/post-views/view') {
-      checkRateLimit(`post-view:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`post-view:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const type = String(body.type ?? '').trim();
       const rawId = String(body.id ?? '').trim();

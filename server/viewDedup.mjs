@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Guest view dedup — persisted JSON store + in-memory cache.
+ * GUEST_VIEW_DEDUP_FAIL_OPEN=1 (default): store errors allow first view (no under-count).
+ * GUEST_VIEW_DEDUP_FAIL_OPEN=0: store errors block counting (fail-closed).
  */
 
 import fs from 'fs/promises';
@@ -19,6 +21,11 @@ const guestViews = new Map();
 let lastPruneAt = Date.now();
 let writeChain = Promise.resolve();
 let loaded = false;
+
+function guestViewDedupFailOpen() {
+  const raw = String(process.env.GUEST_VIEW_DEDUP_FAIL_OPEN ?? '1').toLowerCase();
+  return raw !== '0' && raw !== 'false';
+}
 
 async function ensureGuestViewsStore() {
   await fs.mkdir(path.dirname(GUEST_VIEWS_FILE), { recursive: true });
@@ -75,7 +82,10 @@ function withGuestViewWrite(task) {
   return run;
 }
 
-/** Returns true when this IP has not yet viewed the resource (caller should count the view). */
+/**
+ * Returns true when this IP has not yet viewed the resource (caller should count the view).
+ * On persistence failure: fail-open (default) returns true; fail-closed returns false.
+ */
 export async function claimGuestView(scope, ip, resourceId) {
   await guestViewsReady;
   if (!ip || !resourceId) return true;
@@ -91,7 +101,7 @@ export async function claimGuestView(scope, ip, resourceId) {
       return true;
     });
   } catch (err) {
-    console.error('[view-dedup] CRITICAL: claim failed — skipping view count', err);
-    return false;
+    console.error('[view-dedup] claim persist failed', err);
+    return guestViewDedupFailOpen();
   }
 }

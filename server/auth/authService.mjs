@@ -433,7 +433,7 @@ export async function recordTabVisitFromAnalytics(userId, tab, { forceRemint = f
     let proof = null;
     if (shouldMint) {
       try {
-        checkRateLimit(`ach-proof-mint:${userId}`, { max: 10, windowMs: 60_000 });
+        await checkRateLimit(`ach-proof-mint:${userId}`, { max: 10, windowMs: 60_000 });
         proof = mintAchievementProof(user, safeTab);
       } catch (e) {
         if (!isRateLimitError(e)) throw e;
@@ -602,7 +602,7 @@ export async function getPublicProfileByUsername(username) {
   return view;
 }
 
-export async function incrementProfileView(username, { viewer = null, sessionTab = null } = {}) {
+export async function incrementProfileView(username, { viewer = null, sessionTab = null, sessionToken = null } = {}) {
   return runCoinTransaction(async () => {
     const db = await loadUsersDb();
     const uname = normalizeUsername(username);
@@ -624,9 +624,11 @@ export async function incrementProfileView(username, { viewer = null, sessionTab
       const viewerUser = db.users.find((u) => u.id === viewer.id);
       const onProfileTab = String(sessionTab ?? '') === 'profile';
       if (viewerUser && onProfileTab) {
+        const { tryClaimProfileViewCredit } = await import('../analyticsTabIntegrity.mjs');
+        const burstOk = sessionToken ? await tryClaimProfileViewCredit(sessionToken) : false;
         const visitKey = `profile_visit_${uname}`;
         const alreadyVisited = Boolean(ensureActivity(viewerUser).flags[visitKey]);
-        if (!alreadyVisited) {
+        if (burstOk && !alreadyVisited) {
           user.profileViews = (Number(user.profileViews) || 0) + 1;
           user.updatedAt = Date.now();
           dirty = true;

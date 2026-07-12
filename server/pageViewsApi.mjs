@@ -25,7 +25,7 @@ export async function handlePageViewsRequest(req, res) {
 
   try {
     if (req.method === 'GET' && pathname === '/api/page-views') {
-      checkRateLimit(`page-views-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await checkRateLimit(`page-views-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       await attachAuth(req);
       requireAuth(req);
       await requireMemberTab(req, 'stats');
@@ -34,7 +34,7 @@ export async function handlePageViewsRequest(req, res) {
 
     const viewMatch = pathname.match(/^\/api\/page-views\/([a-zA-Z0-9_-]{1,24})\/view$/);
     if (viewMatch && req.method === 'POST') {
-      checkRateLimit(`page-view:${clientIp(req)}`, { max: 40, windowMs: 60_000 });
+      await checkRateLimit(`page-view:${clientIp(req)}`, { max: 40, windowMs: 60_000 });
       await attachAuth(req);
       const viewer = requireAuth(req);
       const pageId = sanitizePageId(viewMatch[1]);
@@ -72,7 +72,7 @@ export async function handlePageViewsRequest(req, res) {
 
     const idMatch = pathname.match(/^\/api\/page-views\/([a-zA-Z0-9_-]{1,24})$/);
     if (idMatch && req.method === 'GET') {
-      checkRateLimit(`page-views-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await checkRateLimit(`page-views-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       const id = sanitizePageId(idMatch[1]);
       if (!id) return sendJson(res, 400, { error: 'Invalid page id' });
       await attachAuth(req);

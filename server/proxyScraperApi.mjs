@@ -114,14 +114,14 @@ export async function handleProxyScraperRequest(req, res) {
       : null;
 
     if (req.method === 'GET' && pathname === '/api/proxy/sources') {
-      checkRateLimit(`proxy-scraper:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`proxy-scraper:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       await requireMemberTab(req, 'proxydatabase');
       const sources = await loadSources();
       return sendJson(res, 200, { count: sources.length, sources });
     }
 
     if (req.method === 'GET' && pathname === '/api/proxy/stats') {
-      checkRateLimit(`proxy-scraper:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`proxy-scraper:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       await requireMemberTab(req, 'proxydatabase');
       const state = await loadState();
       const sources = await loadSources();
@@ -136,7 +136,7 @@ export async function handleProxyScraperRequest(req, res) {
     }
 
     if (req.method === 'GET' && pathname === '/api/proxy/results') {
-      checkRateLimit(`proxy-scraper:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`proxy-scraper:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       await requireMemberTab(req, 'proxydatabase');
       const pool = await loadScrapePool();
       const state = await loadState();
@@ -153,14 +153,14 @@ export async function handleProxyScraperRequest(req, res) {
     }
 
     if (req.method === 'GET' && pathname === '/api/proxy/custom') {
-      checkRateLimit(`proxy-scraper:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`proxy-scraper:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       await requireMemberTab(req, 'proxydatabase');
       const custom = await loadCustomProxies();
       return sendJson(res, 200, { count: custom.proxies.length, proxies: custom.proxies, updatedAt: custom.updatedAt });
     }
 
     if (req.method === 'POST' && pathname === '/api/proxy/custom') {
-      checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
+      await checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const defaultType = ['http', 'https', 'socks4', 'socks5'].includes(body.defaultType) ? body.defaultType : 'http';
 
@@ -202,7 +202,7 @@ export async function handleProxyScraperRequest(req, res) {
 
     const customDelete = pathname.match(/^\/api\/proxy\/custom\/([^/]+)$/);
     if (customDelete && req.method === 'DELETE') {
-      checkRateLimit(adminActKey, { max: 30, windowMs: 60_000 });
+      await checkRateLimit(adminActKey, { max: 30, windowMs: 60_000 });
       const key = decodeURIComponent(customDelete[1]);
       const result = await mutateCustomProxies(async (existing) => {
         const next = existing.proxies.filter((p) => proxyEntryKey(p) !== key);
@@ -213,14 +213,14 @@ export async function handleProxyScraperRequest(req, res) {
     }
 
     if (req.method === 'DELETE' && pathname === '/api/proxy/custom') {
-      checkRateLimit(adminActKey, { max: 5, windowMs: 60_000 });
+      await checkRateLimit(adminActKey, { max: 5, windowMs: 60_000 });
       await saveCustomProxies([]);
       return sendJson(res, 200, { ok: true, count: 0 });
     }
 
     const jobMatch = pathname.match(/^\/api\/proxy\/jobs\/([a-f0-9]+)$/);
     if (jobMatch && req.method === 'GET') {
-      checkRateLimit(`proxy-scraper-job:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
+      await checkRateLimit(`proxy-scraper-job:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
       await attachAuth(req);
       requireRole(req, canAccessAdmin);
       const job = jobs.get(jobMatch[1]);
@@ -229,7 +229,7 @@ export async function handleProxyScraperRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/proxy/sources') {
-      checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
+      await checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
       let created = null;
       const sources = await mutateSources(async (list) => {
@@ -243,7 +243,7 @@ export async function handleProxyScraperRequest(req, res) {
 
     const patchSource = pathname.match(/^\/api\/proxy\/sources\/([^/]+)$/);
     if (patchSource && req.method === 'PATCH') {
-      checkRateLimit(adminActKey, { max: 30, windowMs: 60_000 });
+      await checkRateLimit(adminActKey, { max: 30, windowMs: 60_000 });
       const body = await readJsonBody(req);
       let updated = null;
       const sources = await mutateSources(async (list) => {
@@ -259,7 +259,7 @@ export async function handleProxyScraperRequest(req, res) {
     }
 
     if (patchSource && req.method === 'DELETE') {
-      checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
+      await checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
       const sources = await mutateSources(async (list) => {
         const next = list.filter((s) => s.id !== patchSource[1]);
         if (next.length === list.length) throw new Error('Source not found');
@@ -269,7 +269,7 @@ export async function handleProxyScraperRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/proxy/scrape') {
-      checkRateLimit(`proxy-scraper-spawn:${req.auth.user.id}`, { max: 5, windowMs: 60_000 });
+      await checkRateLimit(`proxy-scraper-spawn:${req.auth.user.id}`, { max: 5, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const jobId = crypto.randomBytes(8).toString('hex');
       const job = {
@@ -345,7 +345,7 @@ export async function handleProxyScraperRequest(req, res) {
     }
 
     if (req.method === 'POST' && pathname === '/api/proxy/test-source') {
-      checkRateLimit(adminActKey, { max: 15, windowMs: 60_000 });
+      await checkRateLimit(adminActKey, { max: 15, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const source = sanitizeSource(body);
       const result = await fetchSource(source);

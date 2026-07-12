@@ -41,14 +41,14 @@ export async function handleNewsRequest(req, res) {
 
   try {
     if (req.method === 'GET' && pathname === '/api/news/meta') {
-      checkRateLimit(`news-meta:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`news-meta:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       await requireMemberTab(req, 'news');
       const feedVersion = await getNewsFeedVersion();
       return sendJson(res, 200, { feedVersion });
     }
 
     if (req.method === 'GET' && pathname === '/api/news') {
-      checkRateLimit(`news-feed:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`news-feed:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       await requireMemberTab(req, 'news');
       const data = await listPublishedArticles();
       return sendJson(res, 200, data);
@@ -59,14 +59,14 @@ export async function handleNewsRequest(req, res) {
 
     if (req.method === 'GET' && pathname === '/api/news/admin') {
       requireRole(req, canAccessAdmin);
-      checkRateLimit(`news-admin:${adminKey}`, { max: 120, windowMs: 60_000 });
+      await checkRateLimit(`news-admin:${adminKey}`, { max: 120, windowMs: 60_000 });
       const data = await listAllArticles();
       return sendJson(res, 200, data);
     }
 
     if (req.method === 'POST' && pathname === '/api/news') {
       const user = requireRole(req, canAccessAdmin);
-      checkRateLimit(`news-admin-act:${adminKey}`, { max: 20, windowMs: 60_000 });
+      await checkRateLimit(`news-admin-act:${adminKey}`, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const article = await createArticle(body, user);
       const feedVersion = await getNewsFeedVersion();
@@ -76,7 +76,7 @@ export async function handleNewsRequest(req, res) {
     const patchMatch = pathname.match(/^\/api\/news\/([a-zA-Z0-9._-]+)$/);
     if (patchMatch && req.method === 'PATCH') {
       requireRole(req, canAccessAdmin);
-      checkRateLimit(`news-admin-act:${adminKey}`, { max: 30, windowMs: 60_000 });
+      await checkRateLimit(`news-admin-act:${adminKey}`, { max: 30, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const article = await updateArticle(patchMatch[1], body);
       const feedVersion = await getNewsFeedVersion();
@@ -85,7 +85,7 @@ export async function handleNewsRequest(req, res) {
 
     if (patchMatch && req.method === 'DELETE') {
       requireRole(req, canAccessAdmin);
-      checkRateLimit(`news-admin-act:${adminKey}`, { max: 20, windowMs: 60_000 });
+      await checkRateLimit(`news-admin-act:${adminKey}`, { max: 20, windowMs: 60_000 });
       await deleteArticle(patchMatch[1]);
       const feedVersion = await getNewsFeedVersion();
       return sendJson(res, 200, { ok: true, feedVersion });

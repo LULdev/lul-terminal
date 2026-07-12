@@ -38,14 +38,14 @@ export async function handleProxyDatabaseRequest(req, res) {
 
   try {
     if (req.method === 'GET' && pathname === '/api/proxy-db/stats') {
-      checkRateLimit(`proxy-db:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`proxy-db:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       await requireMemberTab(req, 'proxydatabase');
       const stats = await getDatabaseStats();
       return sendJson(res, 200, stats);
     }
 
     if (req.method === 'GET' && pathname === '/api/proxy-db/lists') {
-      checkRateLimit(`proxy-db:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await checkRateLimit(`proxy-db:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
       await requireMemberTab(req, 'proxydatabase');
       const status = url.searchParams.get('status') ?? 'all';
       const type = url.searchParams.get('type') ?? '';
@@ -60,7 +60,7 @@ export async function handleProxyDatabaseRequest(req, res) {
       await attachAuth(req);
       requireRole(req, canAccessAdmin);
       const adminKey = req.auth?.user?.id ?? clientIp(req);
-      checkRateLimit(`proxy-db-check:${adminKey}`, { max: 10, windowMs: 60_000 });
+      await checkRateLimit(`proxy-db-check:${adminKey}`, { max: 10, windowMs: 60_000 });
       const body = await readJsonBody(req).catch(() => ({}));
       const rawConcurrency = Number(body.concurrency);
       const concurrency = Number.isFinite(rawConcurrency)
