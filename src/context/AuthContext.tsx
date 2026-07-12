@@ -179,6 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       /* login response already hydrated user + permissions */
     }
     setAuthModal(null);
+    clearViewDedupSessionKeys();
     setAuthSuccessTick((t) => t + 1);
     trackEvent('login').catch(() => {});
   }, [refresh, handleUnlocks]);

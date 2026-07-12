@@ -43,7 +43,7 @@ function sendJson(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-async function readJsonBody(req, limit = 600 * 1024) {
+async function readJsonBody(req, limit = 512 * 1024) {
   const chunks = [];
   let size = 0;
   for await (const chunk of req) {

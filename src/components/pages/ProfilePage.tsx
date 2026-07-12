@@ -69,6 +69,7 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
   const [publicProfile, setPublicProfile] = useState<PublicProfile | null>(null);
   const [publicLoading, setPublicLoading] = useState(false);
   const [publicError, setPublicError] = useState('');
+  const [profileTabFallback, setProfileTabFallback] = useState(false);
   const [dailyBonus, setDailyBonus] = useState<DailyBonusInfo | null>(null);
   const [gamesState, setGamesState] = useState<GamesState | null>(null);
   const [gamesLeaderboard, setGamesLeaderboard] = useState<GamesLeaderboard | null>(null);
@@ -119,12 +120,21 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
   }, [user?.id, user?.updatedAt, isOwnProfile]);
 
   React.useEffect(() => {
+    if (!isLoggedIn || isOwnProfile || !routeUsername || profileTabReadyTick > 0) {
+      setProfileTabFallback(false);
+      return;
+    }
+    const t = setTimeout(() => setProfileTabFallback(true), 10_000);
+    return () => clearTimeout(t);
+  }, [isLoggedIn, isOwnProfile, routeUsername, profileTabReadyTick]);
+
+  React.useEffect(() => {
     if (!routeUsername || isOwnProfile) {
       setPublicProfile(null);
       setPublicError('');
       return;
     }
-    if (isLoggedIn && !profileTabReadyTick) {
+    if (isLoggedIn && !profileTabReadyTick && !profileTabFallback) {
       setPublicLoading(true);
       setPublicError('');
       return;
@@ -132,7 +142,7 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
     let cancelled = false;
     setPublicLoading(true);
     setPublicError('');
-    const load = isLoggedIn
+    const load = isLoggedIn && profileTabReadyTick > 0
       ? authApi.recordProfileView(routeUsername)
       : authApi.fetchPublicProfile(routeUsername).then((profile) => ({ user: profile, credited: false as const }));
     load
@@ -148,7 +158,7 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
         if (!cancelled) setPublicLoading(false);
       });
     return () => { cancelled = true; };
-  }, [routeUsername, isOwnProfile, isLoggedIn, profileTabReadyTick]);
+  }, [routeUsername, isOwnProfile, isLoggedIn, profileTabReadyTick, profileTabFallback]);
 
   React.useEffect(() => {
     if (!isOwnProfile || !isLoggedIn || !customization.privacy.showCoins) {

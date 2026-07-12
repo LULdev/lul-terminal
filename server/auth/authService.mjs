@@ -766,7 +766,7 @@ export async function incrementUserPasteViews(userId, { viewerId, pasteId } = {}
     const db = await loadUsersDb();
     const viewer = db.users.find((u) => u.id === viewerId);
     if (!viewer || viewer.role === 'bot') return [];
-    const flagKey = `paste_view_${String(pasteId).slice(0, 20)}`;
+    const flagKey = `paste_view_${String(pasteId)}`;
     const act = ensureActivity(viewer);
     if (act.flags[flagKey]) return [];
     act.flags[flagKey] = true;

@@ -74,7 +74,7 @@ async function bumpAggregates(event) {
     day.uniqueUsers.push(event.userId);
   }
   if (event.type === 'login') day.logins = (day.logins ?? 0) + 1;
-  if (event.type === 'tab_visit') day.tabVisits = (day.tabVisits ?? 0) + 1;
+  if (event.type === 'tab_visit' && event.tab) day.tabVisits = (day.tabVisits ?? 0) + 1;
 
   agg.eventCounts[event.type] = (agg.eventCounts[event.type] ?? 0) + 1;
   if (event.tab) {

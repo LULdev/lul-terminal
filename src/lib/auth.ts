@@ -61,7 +61,16 @@ export async function fetchPublicProfile(username: string): Promise<PublicProfil
 
 const PROFILE_VIEW_PREFIX = 'lul_profile_view_';
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+/** Mirrors server analyticsTabIntegrity MIN_DWELL_MS + buffer */
+const PROFILE_VIEW_DWELL_MS = 2100;
 const profileViewInflight = new Map<string, Promise<ProfileViewResult>>();
+
+async function waitForProfileDwell() {
+  const deadline = Date.now() + PROFILE_VIEW_DWELL_MS;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, Math.min(400, deadline - Date.now())));
+  }
+}
 
 export type ProfileViewResult = {
   user: PublicProfile;
@@ -76,24 +85,37 @@ export async function recordProfileView(username: string): Promise<ProfileViewRe
   const run = (async (): Promise<ProfileViewResult> => {
     const sessionKey = `${PROFILE_VIEW_PREFIX}${uname}`;
     if (!sessionStorage.getItem(sessionKey)) {
-      for (let attempt = 0; attempt < 4; attempt++) {
+      await waitForProfileDwell();
+      for (let attempt = 0; attempt < 5; attempt++) {
         try {
           const res = await sessionFetch(`${API}/users/${encodeURIComponent(uname)}/view`, {
             method: 'POST',
           });
+          if (res.status === 429) {
+            const retryAfter = res.headers.get('Retry-After');
+            const waitMs = retryAfter && Number.isFinite(Number(retryAfter))
+              ? Math.min(Number(retryAfter) * 1000, 30_000)
+              : 2000;
+            await new Promise((r) => setTimeout(r, waitMs));
+            continue;
+          }
           if (res.ok) {
             const data = await res.json() as { user: PublicProfile; credited?: boolean };
             if (data.credited) {
               sessionStorage.setItem(sessionKey, '1');
               return { user: data.user, credited: true };
             }
-            if (attempt < 3) {
-              await new Promise((r) => setTimeout(r, 400));
+            if (attempt < 4) {
+              await new Promise((r) => setTimeout(r, 600));
               continue;
             }
             return { user: data.user, credited: false };
           }
         } catch { /* fall through */ }
+        if (attempt < 4) {
+          await new Promise((r) => setTimeout(r, 600));
+          continue;
+        }
         break;
       }
     }

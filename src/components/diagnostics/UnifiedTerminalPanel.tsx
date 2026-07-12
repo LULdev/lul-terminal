@@ -248,7 +248,7 @@ export function UnifiedTerminalPanel({
   }, [applyDisplayWindow, replaceDisplayWindow]);
 
   useEffect(() => {
-    if (!pollEnabled || !isLoggedIn) return;
+    if (!pollEnabled || !isLoggedIn || chatStatus === 'gated') return;
     initialDoneRef.current = false;
     lobbyUpdatedAtRef.current = null;
     void loadMessages(true);
@@ -269,7 +269,7 @@ export function UnifiedTerminalPanel({
       if (poll) clearTimeout(poll);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [loadMessages, pollEnabled, isLoggedIn]);
+  }, [loadMessages, pollEnabled, isLoggedIn, chatStatus]);
 
   const sendChat = useCallback(async (text: string): Promise<SendChatResult> => {
     try {

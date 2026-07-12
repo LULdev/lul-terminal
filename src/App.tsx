@@ -213,7 +213,7 @@ export default function App() {
           tabEnteredAtRef.current = Date.now();
         }
         if (r?.proof && r.proof.tab === trackedTab) setAchievementProof(r.proof);
-        if (trackedTab === 'profile' && r?.ok !== false) setProfileTabReadyTick((t) => t + 1);
+        if (trackedTab === 'profile' && r?.proof?.tab === 'profile') setProfileTabReadyTick((t) => t + 1);
         if (r?.user) {
           patchUser(r.user);
           if (trackedTab === 'changelog' && r.user.changelogLastReadVersion === APP_VERSION) {

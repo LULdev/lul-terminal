@@ -9,6 +9,7 @@ import { sessionFetch } from './sessionFetch';
 
 const API = '/api/paste';
 const VIEW_SESSION_PREFIX = 'lul_paste_view_';
+const viewInflight = new Map<string, Promise<{ views: number; burned: boolean }>>();
 
 export type PasteMeta = {
   id: string;
@@ -216,18 +217,31 @@ export async function unlockPaste(id: string, password: string): Promise<PasteRe
 }
 
 export async function recordPasteView(id: string): Promise<{ views: number; burned: boolean }> {
-  const sessionKey = `${VIEW_SESSION_PREFIX}${id}`;
-  if (!sessionStorage.getItem(sessionKey)) {
-    try {
-      const res = await sessionFetch(`${API}/${id}/view`, { method: 'POST' });
-      if (res.ok) {
-        sessionStorage.setItem(sessionKey, '1');
-        return res.json();
-      }
-    } catch { /* fall through */ }
+  const pending = viewInflight.get(id);
+  if (pending) return pending;
+
+  const run = (async () => {
+    const sessionKey = `${VIEW_SESSION_PREFIX}${id}`;
+    if (!sessionStorage.getItem(sessionKey)) {
+      try {
+        const res = await sessionFetch(`${API}/${id}/view`, { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json() as { views: number; burned: boolean; deduped?: boolean };
+          if (!data.deduped) sessionStorage.setItem(sessionKey, '1');
+          return data;
+        }
+      } catch { /* fall through */ }
+    }
+    const meta = await fetchPasteMeta(id);
+    return { views: meta?.views ?? 0, burned: false };
+  })();
+
+  viewInflight.set(id, run);
+  try {
+    return await run;
+  } finally {
+    if (viewInflight.get(id) === run) viewInflight.delete(id);
   }
-  const meta = await fetchPasteMeta(id);
-  return { views: meta?.views ?? 0, burned: false };
 }
 
 export function pollPasteMeta(

@@ -19,6 +19,7 @@ export const ALLOWED_MIME = new Set([
 
 const API = '/api/images';
 const VIEW_SESSION_PREFIX = 'lul_img_view_';
+const viewInflight = new Map<string, Promise<number>>();
 
 export type HostedImageMeta = {
   id: string;
@@ -216,19 +217,31 @@ export async function fetchHostedImage(id: string): Promise<HostedImageMeta | nu
 }
 
 export async function recordImageView(id: string): Promise<number> {
-  const sessionKey = `${VIEW_SESSION_PREFIX}${id}`;
-  if (!sessionStorage.getItem(sessionKey)) {
-    try {
-      const res = await sessionFetch(`${API}/${id}/view`, { method: 'POST' });
-      if (res.ok) {
-        sessionStorage.setItem(sessionKey, '1');
-        const data = await res.json() as { views: number };
-        return data.views;
-      }
-    } catch { /* fall through */ }
+  const pending = viewInflight.get(id);
+  if (pending) return pending;
+
+  const run = (async () => {
+    const sessionKey = `${VIEW_SESSION_PREFIX}${id}`;
+    if (!sessionStorage.getItem(sessionKey)) {
+      try {
+        const res = await sessionFetch(`${API}/${id}/view`, { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json() as { views: number; deduped?: boolean };
+          if (!data.deduped) sessionStorage.setItem(sessionKey, '1');
+          return data.views;
+        }
+      } catch { /* fall through */ }
+    }
+    const meta = await fetchHostedImage(id);
+    return meta?.views ?? 0;
+  })();
+
+  viewInflight.set(id, run);
+  try {
+    return await run;
+  } finally {
+    if (viewInflight.get(id) === run) viewInflight.delete(id);
   }
-  const meta = await fetchHostedImage(id);
-  return meta?.views ?? 0;
 }
 
 export function pollImageMeta(

@@ -102,6 +102,10 @@ export async function handleAnalyticsRequest(req, res) {
         return sendJson(res, 201, { ok: true, eventId: null, user: null, proof: null });
       }
 
+      if (tabGatedTypes.has(eventType) && !persistTab) {
+        return sendJson(res, 201, { ok: true, eventId: null, user: null, proof: null });
+      }
+
       const eventBase = {
         type: eventType,
         userId: req.auth?.user?.id ?? null,
@@ -132,11 +136,11 @@ export async function handleAnalyticsRequest(req, res) {
           if (!claim.claimed) {
             return sendJson(res, 201, { ok: true, eventId: null, user: null, proof: null });
           }
-          event = await recordEvent(eventBase);
           try {
             const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, persistTab, { forceRemint });
             userPayload = visitResult?.user ?? null;
             proofPayload = visitResult?.proof ?? null;
+            event = await recordEvent(eventBase);
           } catch (sideErr) {
             if (claim.snapshot) {
               await rollbackTabVisitCredit(req.auth.token, claim.snapshot);
@@ -148,6 +152,8 @@ export async function handleAnalyticsRequest(req, res) {
           if (!isRateLimitError(e) && msg !== 'Permission denied') {
             console.warn('[analytics] tab visit side effect failed', e);
           }
+          const status = isRateLimitError(e) ? 429 : 201;
+          return sendJson(res, status, { ok: false, eventId: null, user: null, proof: null });
         }
       } else {
         event = await recordEvent(eventBase);

@@ -23,6 +23,24 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.96',
+    title: 'Extreme deep audit — round 34 (analytics ordering + profile dwell sync)',
+    date: 'Jul 12, 2026 - 22:00',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — profileTabReadyTick only on minted profile proof; 10s fallback to public profile.' },
+      { priority: 'P1', text: 'P1 — tab_visit: side effects before recordEvent; ok:false on failure (no orphan events).' },
+      { priority: 'P2', text: 'P2 — recordProfileView waits 2.1s dwell + longer retries; 429 Retry-After honored.' },
+      { priority: 'P2', text: 'P2 — Denied/gated tab_visit/tab_dwell not persisted when persistTab is null.' },
+      { priority: 'P3', text: 'P3 — Shoutbox poll stops on gated (403); dead client command_run track removed.' },
+      { priority: 'P3', text: 'P3 — clearViewDedupSessionKeys on login (stale sessionStorage after browser restart).' },
+      { priority: 'P4', text: 'P4 — Paste server limit 512 KB; paste_view flag uses full id; image self-views skipped.' },
+      { priority: 'P4', text: 'P4 — Image/paste view inflight coalescing; dedup session key only when !deduped.' },
+      { priority: 'P5', text: 'P5 — tabVisits aggregate only when event.tab is set.' },
+      { priority: 'P9', text: 'P9 — Round 34 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.95',
     title: 'Extreme deep audit — round 33 (integrity + client regressions)',
     date: 'Jul 12, 2026 - 21:00',

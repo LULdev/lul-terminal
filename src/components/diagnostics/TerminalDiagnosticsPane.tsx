@@ -30,7 +30,7 @@ import {
 import * as authApi from '../../lib/auth';
 import { useAuth } from '../../context/AuthContext';
 import type { SyncAchievementsOpts } from '../../lib/auth';
-import { trackEvent } from '../../lib/analytics';
+
 import type { TabId } from '../../config/menuItems';
 
 export type ThemeColor = 'indigo' | 'emerald' | 'amber' | 'cyan' | 'rose';
@@ -318,10 +318,6 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
       if (!body) return;
       const query = body.toLowerCase();
       const displayCmd = formatTerminalCommand(body);
-
-      if (isLoggedIn) {
-        trackEvent('command_run', { meta: { cmd: query.slice(0, 40) } }).catch(() => {});
-      }
 
       if (query !== 'clean') {
         appendLog(displayCmd, 'info');
