@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { sanitizeAvatarUrl } from './auth/safeMediaUrl.mjs';
 import { loadUsersDb } from './auth/authStore.mjs';
 import { normalizeProfileCustomization } from './profileCustomization.mjs';
 import { getCoinFeedForUser } from './coinLedger.mjs';
@@ -97,7 +98,7 @@ export async function getGamesLeaderboard() {
       userId: u.id,
       username: u.username,
       displayName: u.displayName,
-      avatarUrl: u.avatarUrl,
+      avatarUrl: sanitizeAvatarUrl(u.avatarUrl) || '',
       value: Number(u.lulCoins) || 0,
     }));
 

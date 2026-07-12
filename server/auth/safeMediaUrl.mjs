@@ -21,10 +21,24 @@ export function sanitizeAvatarUrl(raw) {
   return '';
 }
 
+export function sanitizeExternalUrl(raw) {
+  const v = String(raw ?? '').trim().slice(0, 256);
+  if (!v) return '';
+  if (v.startsWith('//')) return '';
+  try {
+    const parsed = new URL(v.startsWith('http') ? v : `https://${v}`);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.toString();
+  } catch { /* invalid */ }
+  return '';
+}
+
 export function sanitizeCoverUrl(raw) {
   const v = String(raw ?? '').trim().slice(0, 512);
   if (!v) return '';
-  if (GRADIENT_RE.test(v)) return v;
+  if (GRADIENT_RE.test(v)) {
+    if (/,\s*url\s*\(/i.test(v) || /\burl\s*\(/i.test(v)) return '';
+    return v;
+  }
   if (SOLID_RE.test(v)) return v;
   if (v.startsWith('url(')) {
     const inner = v.slice(4, -1).trim().replace(/^["']|["']$/g, '');

@@ -24,6 +24,8 @@ import {
 } from './proxyScraperStore.mjs';
 import { dedupeProxies } from './proxyScraperEngine.mjs';
 import { parseProxiesFromText } from './proxyParseCore.mjs';
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
+import { assertSafeFetchUrl } from './assertSafeFetchUrl.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { pruneJobMap } from './jobPrune.mjs';
 
@@ -54,8 +56,7 @@ async function requireAdmin(req) {
 
 function sanitizeSource(raw, idx = 0) {
   const id = String(raw.id ?? `src-${crypto.randomBytes(4).toString('hex')}`).slice(0, 48);
-  const url = String(raw.url ?? '').trim();
-  if (!url.startsWith('http')) throw new Error('Invalid URL');
+  const url = assertSafeFetchUrl(String(raw.url ?? '').trim());
   const type = ['http', 'https', 'socks4', 'socks5'].includes(raw.type) ? raw.type : 'http';
   return {
     id,
@@ -362,12 +363,11 @@ export async function handleProxyScraperRequest(req, res) {
 }
 
 export function createProxyScraperMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname.startsWith('/api/proxy')) {
-      handleProxyScraperRequest(req, res);
-      return;
+      return handleProxyScraperRequest(req, res);
     }
     next();
-  };
+  });
 }

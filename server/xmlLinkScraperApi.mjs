@@ -17,6 +17,7 @@ import {
 } from './colonScraperDatabaseService.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { pruneJobMap } from './jobPrune.mjs';
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 
 const MAX_XML_BYTES = 10 * 1024 * 1024;
 const crawlJobs = new Map();
@@ -148,7 +149,7 @@ export async function handleXmlLinkScraperRequest(req, res) {
       checkRateLimit(`xml-scraper:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       const url = new URL(req.url, 'http://localhost');
       const { entries, total } = await listColonDbEntries({
-        limit: Number(url.searchParams.get('limit')) || 100,
+        limit: Math.min(200, Math.max(1, Number(url.searchParams.get('limit')) || 100)),
         website: url.searchParams.get('website') ?? undefined,
         q: url.searchParams.get('q') ?? undefined,
       });
@@ -157,7 +158,7 @@ export async function handleXmlLinkScraperRequest(req, res) {
 
     if (req.method === 'POST' && pathname === '/api/xml-scraper/save-to-db') {
       checkRateLimit(adminActKey, { max: 20, windowMs: 60_000 });
-      const body = await readJsonBody(2 * 1024 * 1024);
+      const body = await readJsonBody(req, 2 * 1024 * 1024);
       const source = body.source === 'xml' ? 'xml' : 'atlas';
 
       if (source === 'xml') {
@@ -175,7 +176,7 @@ export async function handleXmlLinkScraperRequest(req, res) {
 
     if (req.method === 'POST' && pathname === '/api/xml-scraper/crawl') {
       checkRateLimit(adminActKey, { max: 5, windowMs: 60_000 });
-      const body = await readJsonBody(64 * 1024);
+      const body = await readJsonBody(req, 64 * 1024);
       const startUrl = String(body.startUrl ?? '').trim();
       if (!startUrl) throw new Error('startUrl is required');
 
@@ -227,17 +228,11 @@ export async function handleXmlLinkScraperRequest(req, res) {
 }
 
 export function createXmlLinkScraperMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname.startsWith('/api/xml-scraper')) {
-      handleXmlLinkScraperRequest(req, res).catch((e) => {
-        if (!res.headersSent) {
-          const msg = e instanceof Error ? e.message : 'Server error';
-          sendJson(res, 500, { error: msg });
-        }
-      });
-      return;
+      return handleXmlLinkScraperRequest(req, res);
     }
     next();
-  };
+  });
 }

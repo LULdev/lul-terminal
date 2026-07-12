@@ -4,6 +4,7 @@
  */
 
 import crypto from 'crypto';
+import { sanitizeAvatarUrl } from './auth/safeMediaUrl.mjs';
 import { loadUsersDb, saveUsersDb } from './auth/authStore.mjs';
 import { syncAchievementsOnLoadedUser } from './auth/authService.mjs';
 import { postBotArcadeJackpot, postBotArcadeVictory } from './chatBot.mjs';
@@ -619,7 +620,7 @@ export async function buildLeaderboard(statKey) {
         userId: u.id,
         username: u.username,
         displayName: u.displayName,
-        avatarUrl: u.avatarUrl,
+        avatarUrl: sanitizeAvatarUrl(u.avatarUrl) || '',
         value: Number(u[field]) || 0,
       }));
   return {

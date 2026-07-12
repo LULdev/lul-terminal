@@ -230,8 +230,7 @@ export async function trackEvent(
         type,
         tab: opts.tab,
         meta: opts.meta,
-        guestId: opts.guestId ?? getOrCreateGuestId(),
-        sessionId: getSessionId(),
+
       }),
     });
     if (!res.ok) return { ok: false };

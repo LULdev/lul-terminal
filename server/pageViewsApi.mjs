@@ -8,6 +8,7 @@ import { ensureActivity } from './auth/achievements.mjs';
 import { loadUsersDb, saveUsersDb } from './auth/authStore.mjs';
 import { runCoinTransaction } from './gamesCoinLock.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { getAllPageViews, getPageViews, recordPageView, sanitizePageId } from './pageViewsStore.mjs';
 
 function sendJson(res, status, body) {
@@ -83,12 +84,11 @@ export async function handlePageViewsRequest(req, res) {
 }
 
 export function createPageViewsMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname.startsWith('/api/page-views')) {
-      handlePageViewsRequest(req, res);
-      return;
+      return handlePageViewsRequest(req, res);
     }
     next();
-  };
+  });
 }

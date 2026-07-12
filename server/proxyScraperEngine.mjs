@@ -16,6 +16,7 @@ import {
 import { expandSourceUrls } from './proxyScraperAdapters.mjs';
 import { discoverListUrls } from './proxyScraperDiscover.mjs';
 import { detectContentFormat, parseSourceBody } from './proxyScraperParsers.mjs';
+import { assertSafeFetchUrl, assertSafeFetchUrlAsync } from './assertSafeFetchUrl.mjs';
 
 export {
   parseProxyLine,
@@ -53,6 +54,7 @@ async function fetchUrlTextOnce(url, timeoutMs, attempt = 0) {
       redirect: 'follow',
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    await assertSafeFetchUrlAsync(res.url || url);
     const text = await res.text();
     return { ok: true, text, bytes: text.length, contentType: res.headers.get('content-type') };
   } catch (e) {
@@ -63,6 +65,7 @@ async function fetchUrlTextOnce(url, timeoutMs, attempt = 0) {
 }
 
 async function fetchUrlText(url, timeoutMs = 18000, attempt = 0) {
+  await assertSafeFetchUrlAsync(url);
   const maxAttempts = 3;
   let last = { ok: false, error: 'Fetch failed' };
   for (let i = 0; i < maxAttempts; i++) {

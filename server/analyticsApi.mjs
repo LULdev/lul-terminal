@@ -8,7 +8,7 @@ import { attachAuth, requireAuth } from './auth/authApi.mjs';
 import { requireRole } from './auth/authApi.mjs';
 import { canAccessAdmin } from './auth/permissions.mjs';
 import { wrapAsyncHandler } from './asyncMiddleware.mjs';
-import { recordTabVisitFromAnalytics } from './auth/authService.mjs';
+
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import {
   buildAdminOverview,
@@ -58,14 +58,12 @@ export async function handleAnalyticsRequest(req, res) {
         userId: req.auth?.user?.id ?? null,
         username: req.auth?.user?.username ?? null,
         guestId: derivedGuestId,
-        sessionId: req.auth?.user ? (body.sessionId ?? null) : derivedGuestId,
+        sessionId: req.auth?.user
+          ? (req.auth.token?.slice(0, 16) ?? req.auth.user.id)
+          : derivedGuestId,
         tab: body.tab ?? null,
         meta: body.meta && typeof body.meta === 'object' ? body.meta : {},
       });
-
-      if (eventType === 'tab_visit' && req.auth?.user?.id && body.tab) {
-        recordTabVisitFromAnalytics(req.auth.user.id, body.tab).catch(() => {});
-      }
 
       return sendJson(res, 201, { ok: true, eventId: event?.id ?? null, user: null });
     }
@@ -102,7 +100,7 @@ export async function handleAnalyticsRequest(req, res) {
 
     if (req.method === 'GET' && pathname === '/api/analytics/admin/users') {
       const search = url.searchParams.get('search') ?? '';
-      const limit = Number(url.searchParams.get('limit')) || 100;
+      const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit')) || 100));
       return sendJson(res, 200, await listAdminUserActivity({ search, limit }));
     }
 

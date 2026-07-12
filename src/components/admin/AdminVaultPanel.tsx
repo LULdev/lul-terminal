@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { safeHref } from '../../lib/safeHref';
 import {
   CheckCircle2,
   Copy,
@@ -242,11 +243,11 @@ function DetailModal({ account, onClose, onEdit }: { account: PremiumAccount; on
               {account.vip && <Crown size={14} className="text-amber-400" />}
               <h3 className="text-base font-semibold text-slate-100">{account.service}</h3>
             </div>
-            {account.website && (
+            {account.website && safeHref(account.website.startsWith('http') ? account.website : `https://${account.website}`) && (
               <a
-                href={account.website.startsWith('http') ? account.website : `https://${account.website}`}
+                href={safeHref(account.website.startsWith('http') ? account.website : `https://${account.website}`)!}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="text-[10px] font-mono text-cyan-400/80 hover:text-cyan-300 flex items-center gap-1 mt-1"
               >
                 <Globe size={10} /> {account.website}

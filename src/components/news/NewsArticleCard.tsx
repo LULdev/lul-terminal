@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { usePageVisibility } from '../../context/PageVisibilityContext';
 import type { NewsArticle } from '../../types/news';
 import { formatNewsDate } from '../../lib/news';
+import { safeHref } from '../../lib/safeHref';
 
 type Props = {
   article: NewsArticle;
@@ -35,16 +36,23 @@ function parseTabFromHref(href: string): TabId | null {
 
 function renderBodyText(
   text: string,
-  opts: { isLoggedIn: boolean; requiresLogin: (tab: TabId) => boolean },
+  opts: {
+    isLoggedIn: boolean;
+    requiresLogin: (tab: TabId) => boolean;
+    onLoginGate?: (tab: TabId) => void;
+  },
 ) {
   const parts = text.split(LINK_SPLIT_RE);
   return parts.map((part, i) => {
     if (!part) return null;
     if (LINK_MATCH_RE.test(part)) {
       const clean = stripTrailingPunct(part);
-      const href = clean.startsWith('http') ? clean : clean.startsWith('/') ? clean : `/${clean}`;
-      const suffix = part.slice(clean.length);
       const isExternal = clean.startsWith('http');
+      const href = isExternal
+        ? safeHref(clean)
+        : safeHref(clean.startsWith('/') ? clean : `/${clean}`);
+      if (!href) return <React.Fragment key={i}>{part}</React.Fragment>;
+      const suffix = part.slice(clean.length);
       return (
         <React.Fragment key={`${part}-${i}`}>
           <a
@@ -54,7 +62,15 @@ function renderBodyText(
             onClick={isExternal ? undefined : (e) => {
               e.preventDefault();
               const tab = parseTabFromHref(href);
-              if (tab && !opts.isLoggedIn && opts.requiresLogin(tab)) return;
+              const profileMatch = href.match(/^\/profile\/([a-zA-Z0-9_]+)/);
+              if (profileMatch && !opts.isLoggedIn && opts.requiresLogin('profile')) {
+                opts.onLoginGate?.('profile');
+                return;
+              }
+              if (tab && !opts.isLoggedIn && opts.requiresLogin(tab)) {
+                opts.onLoginGate?.(tab);
+                return;
+              }
               const path = href.startsWith('/') ? href : `/${href}`;
               window.history.pushState(null, '', path);
               window.dispatchEvent(new PopStateEvent('popstate'));
@@ -72,7 +88,7 @@ function renderBodyText(
 }
 
 export function NewsArticleCard({ article, variant = 'standard', views }: Props) {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, openLoginGate } = useAuth();
   const { requiresLogin } = usePageVisibility();
   const [expanded, setExpanded] = useState(false);
   const highlight = Boolean(article.highlight);
@@ -148,7 +164,7 @@ export function NewsArticleCard({ article, variant = 'standard', views }: Props)
             isFeatured ? 'text-[12px] sm:text-[13px]' : isCompact ? 'text-[10px] line-clamp-3' : 'text-[11px]'
           } ${showClamp ? 'line-clamp-4' : ''}`}
         >
-          {renderBodyText(article.body, { isLoggedIn, requiresLogin })}
+          {renderBodyText(article.body, { isLoggedIn, requiresLogin, onLoginGate: openLoginGate })}
         </p>
 
         {showClamp && (

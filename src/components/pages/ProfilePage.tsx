@@ -72,6 +72,7 @@ export function ProfilePage({ routeUsername, onNavigateTab }: ProfilePageProps) 
   const [gamesState, setGamesState] = useState<GamesState | null>(null);
   const [gamesLeaderboard, setGamesLeaderboard] = useState<GamesLeaderboard | null>(null);
   const [gamesLoading, setGamesLoading] = useState(false);
+  const arcadeLoadGenRef = useRef(0);
   const [gamesError, setGamesError] = useState('');
   const [coinFeedTick, setCoinFeedTick] = useState(0);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -396,19 +397,24 @@ export function ProfilePage({ routeUsername, onNavigateTab }: ProfilePageProps) 
                 <button
                   type="button"
                   onClick={() => {
+                    const gen = ++arcadeLoadGenRef.current;
                     setGamesError('');
                     setGamesLoading(true);
                     Promise.all([fetchGamesState(), fetchGamesLeaderboard()])
                       .then(([s, lb]) => {
+                        if (gen !== arcadeLoadGenRef.current) return;
                         setGamesState(s);
                         setGamesLeaderboard(lb);
                       })
                       .catch((e) => {
+                        if (gen !== arcadeLoadGenRef.current) return;
                         setGamesError(e instanceof Error ? e.message : 'Failed to load arcade stats');
                         setGamesState(null);
                         setGamesLeaderboard(null);
                       })
-                      .finally(() => setGamesLoading(false));
+                      .finally(() => {
+                        if (gen === arcadeLoadGenRef.current) setGamesLoading(false);
+                      });
                   }}
                   className="text-[9px] font-mono text-indigo-400 hover:text-indigo-300 underline"
                 >

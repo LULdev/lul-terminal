@@ -27,7 +27,12 @@ export function safeCoverStyle(coverUrl: string | undefined): CSSProperties {
   const v = String(coverUrl ?? '').trim();
   if (!v) return { background: DEFAULT_COVER };
 
-  if (GRADIENT_RE.test(v)) return { background: v };
+  if (GRADIENT_RE.test(v)) {
+    if (/,\s*url\s*\(/i.test(v) || /\burl\s*\(/i.test(v)) {
+      return { background: DEFAULT_COVER };
+    }
+    return { background: v };
+  }
 
   if (v.startsWith('url(')) {
     const inner = v.slice(4, -1).trim();

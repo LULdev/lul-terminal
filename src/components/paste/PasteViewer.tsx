@@ -34,6 +34,7 @@ import {
 import { languageLabel } from '../../data/pasteLanguages';
 import { useAuth } from '../../context/AuthContext';
 import { safeAvatarUrl } from '../../lib/safeAvatarUrl';
+import { safePasteAssetUrl } from '../../lib/safePasteUrl';
 import { PasteCodeView } from './PasteCodeView';
 import { PasteStarRating } from './PasteStarRating';
 
@@ -434,14 +435,16 @@ export function PasteViewer({ id }: Props) {
           >
             Copy link
           </button>
-          <a
-            href={paste.rawUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[9px] font-mono px-3 py-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 transition"
-          >
-            Raw text ↗
-          </a>
+          {safePasteAssetUrl(paste.rawUrl) && (
+            <a
+              href={safePasteAssetUrl(paste.rawUrl)!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[9px] font-mono px-3 py-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 transition"
+            >
+              Raw text ↗
+            </a>
+          )}
           <a href="/" className="text-[9px] font-mono px-3 py-1.5 rounded-lg border border-indigo-500/30 text-indigo-300/80 hover:bg-indigo-500/10 transition">
             LUL Terminal →
           </a>

@@ -52,6 +52,7 @@ async function readJsonBody(req, limit = 600 * 1024) {
     chunks.push(chunk);
   }
   const raw = Buffer.concat(chunks).toString('utf8');
+  if (!raw.trim()) return {};
   return JSON.parse(raw);
 }
 
@@ -476,9 +477,12 @@ export async function handlePasteRequest(req, res) {
         }
         return sendJson(res, 200, toClientPaste(viewResult.meta, content, req, { userId: unlockUid }));
       }
-      return sendJson(res, 200, {
-        ...toClientPaste(meta, content, req, { userId: unlockUid }),
-      });
+      const viewResult = await countPasteViewDeduped(req, meta.id, { consumeBurn: false });
+      const outMeta = viewResult?.meta ?? meta;
+      if (viewResult?.meta?.userId && unlockUid) {
+        await incrementUserPasteViews(viewResult.meta.userId, { viewerId: unlockUid, pasteId: meta.id });
+      }
+      return sendJson(res, 200, toClientPaste(outMeta, content, req, { userId: unlockUid }));
     }
 
     const idMatch = pathname.match(/^\/api\/paste\/([A-Za-z0-9_-]{10,14})$/);

@@ -11,7 +11,7 @@ import { getAcceptedNotWorkingForCreator } from '../premiumAccountsReports.mjs';
 import { saveUserAvatar } from './avatarStore.mjs';
 import { buildUnlockPayload } from '../achievementCoinRewards.mjs';
 import { applyActivityCtx, ensureActivity, grantFirstLogin, normalizeSocialLinks, syncAchievements } from './achievements.mjs';
-import { sanitizeAvatarUrl, sanitizeCoverUrl } from './safeMediaUrl.mjs';
+import { sanitizeAvatarUrl, sanitizeCoverUrl, sanitizeExternalUrl } from './safeMediaUrl.mjs';
 import { countActiveAdmins, enrichUserForClient, isEffectivelyActive, publicProfileView } from './permissions.mjs';
 import {
   loadUsersDb,
@@ -340,7 +340,7 @@ export async function updateProfile(userId, payload, { keepToken = null } = {}) 
 
     if (payload.displayName != null) user.displayName = String(payload.displayName).trim().slice(0, 64);
     if (payload.bio != null) user.bio = String(payload.bio).trim().slice(0, 160);
-    if (payload.website != null) user.website = String(payload.website).trim().slice(0, 256);
+    if (payload.website != null) user.website = sanitizeExternalUrl(payload.website);
     if (payload.socialLinks != null) user.socialLinks = normalizeSocialLinks(payload.socialLinks);
     if (payload.avatarUrl != null) user.avatarUrl = sanitizeAvatarUrl(payload.avatarUrl);
     if (payload.coverUrl != null) user.coverUrl = sanitizeCoverUrl(payload.coverUrl);

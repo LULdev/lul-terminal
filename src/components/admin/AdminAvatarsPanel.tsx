@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { fetchAdminAvatars, type AvatarsAdminData } from '../../lib/adminModules';
 import { formatBytes, formatRelativeEn } from '../../lib/terminalStats';
+import { safeAvatarUrl } from '../../lib/safeAvatarUrl';
 import { ToolCard } from '../pages/PageShell';
 
 export function AdminAvatarsPanel() {
@@ -35,7 +36,7 @@ export function AdminAvatarsPanel() {
             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 max-h-[400px] overflow-y-auto">
               {data.avatars.map((a) => (
                 <div key={a.userId} className="text-center group">
-                  <img src={a.url} alt={a.username ?? a.userId} className="w-12 h-12 rounded-full border border-slate-800 object-cover mx-auto group-hover:border-violet-500/40" loading="lazy" />
+                  <img src={safeAvatarUrl(a.url, a.username ?? a.userId)} alt={a.username ?? a.userId} className="w-12 h-12 rounded-full border border-slate-800 object-cover mx-auto group-hover:border-violet-500/40" loading="lazy" />
                   <div className="text-[6px] font-mono text-slate-600 truncate mt-0.5">@{a.username ?? '?'}</div>
                   <div className="text-[6px] font-mono text-slate-700">{formatRelativeEn(a.updatedAt)}</div>
                 </div>

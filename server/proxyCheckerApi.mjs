@@ -24,6 +24,7 @@ import {
 } from './proxyCheckerStore.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { pruneJobMap } from './jobPrune.mjs';
+import { assertSafeFetchUrl } from './assertSafeFetchUrl.mjs';
 
 const jobs = new Map();
 
@@ -163,8 +164,8 @@ export async function handleProxyCheckerRequest(req, res) {
           const { proxies, before, removed } = dedupeForCheck(rawProxies, { autoDetectType });
           const timeoutMs = normalizeTimeout(body.timeoutMs);
           const concurrency = normalizeConcurrency(body.concurrency);
-          const testUrl = body.testUrl ?? TEST_URL_PRESETS.google;
-          const httpsTestUrl = body.httpsTestUrl ?? 'https://www.google.com/generate_204';
+          const testUrl = assertSafeFetchUrl(body.testUrl ?? TEST_URL_PRESETS.google);
+          const httpsTestUrl = assertSafeFetchUrl(body.httpsTestUrl ?? 'https://www.google.com/generate_204');
           const detectAnonymity = body.detectAnonymity !== false;
           const testHttps = body.testHttps !== false;
           const retries = Math.min(Math.max(Number(body.retries) ?? 1, 0), 3);

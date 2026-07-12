@@ -89,10 +89,8 @@ function readDeepLinkParams() {
   };
 }
 
-function resolveGuestSafeTab(tab: TabId | null | undefined): TabId {
-  if (!tab) return 'changelog';
-  if (tab === 'profile') return tab;
-  if (!DEFAULT_PUBLIC_TABS.has(tab)) return 'changelog';
+function resolveGuestSafeTab(tab: TabId | null | undefined, isPublic: (t: TabId) => boolean): TabId {
+  if (!tab || !isPublic(tab)) return 'changelog';
   return tab;
 }
 
@@ -100,30 +98,34 @@ const initialDeepLink = typeof window !== 'undefined' ? readDeepLinkParams() : {
 
 export default function App() {
   const {
-    user, isLoggedIn, loading: authLoading, openAuth, openLoginGate, syncAchievements, authSuccessTick,
+    user, isLoggedIn, isAdmin, loading: authLoading, openAuth, openLoginGate, syncAchievements, authSuccessTick,
     pendingTabAfterLogin, clearPendingTabAfterLogin, patchUser,
   } = useAuth();
   const { requiresLogin, isPublicTab, loading: visibilityLoading } = usePageVisibility();
   const { newsFeedVersion } = useFeedUnread();
 
-  const canAccessTab = useCallback((tab: TabId, loggedIn: boolean) => {
-    return tab === 'profile' || isPublicTab(tab) || loggedIn;
+  const canAccessTab = useCallback((tab: TabId, loggedIn: boolean, admin: boolean) => {
+    if (tab === 'admin') return admin;
+    if (loggedIn) return true;
+    return isPublicTab(tab);
   }, [isPublicTab]);
 
   // Navigation active tab matching the design HTML options
-  const [activeTab, setActiveTab] = useState<TabId>(() =>
-    resolveGuestSafeTab(initialProfileRoute?.tab ?? initialDeepLink.tab ?? 'changelog'),
-  );
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    const initial = initialProfileRoute?.tab ?? initialDeepLink.tab ?? 'changelog';
+    if (initial === 'profile' && initialProfileRoute?.username) return 'profile';
+    return initial;
+  });
   const [profileUsername, setProfileUsername] = useState<string | null>(initialProfileRoute?.username ?? null);
   const [premiumDeepLink, setPremiumDeepLink] = useState(initialDeepLink);
 
   /** Safe tab for render — avoids blank pane between session loss and redirect effect. */
   const renderTab = useMemo(() => {
-    if (authLoading || visibilityLoading) return activeTab;
-    if (!canAccessTab(activeTab, isLoggedIn)) return resolveGuestSafeTab(null);
-    if (!isLoggedIn && requiresLogin(activeTab)) return resolveGuestSafeTab(null);
+    if (authLoading || visibilityLoading) return resolveGuestSafeTab(activeTab, isPublicTab);
+    if (!canAccessTab(activeTab, isLoggedIn, isAdmin)) return resolveGuestSafeTab(null, isPublicTab);
+    if (!isLoggedIn && requiresLogin(activeTab)) return resolveGuestSafeTab(null, isPublicTab);
     return activeTab;
-  }, [authLoading, visibilityLoading, activeTab, isLoggedIn, canAccessTab, requiresLogin]);
+  }, [authLoading, visibilityLoading, activeTab, isLoggedIn, isAdmin, canAccessTab, requiresLogin, isPublicTab]);
 
   useEffect(() => {
     captureReferralFromUrl();
@@ -320,23 +322,30 @@ export default function App() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!canAccessTab(activeTab, isLoggedIn)) {
-      const safe = resolveGuestSafeTab(null);
+    if (!canAccessTab(activeTab, isLoggedIn, isAdmin)) {
+      const safe = resolveGuestSafeTab(null, isPublicTab);
       setActiveTab(safe);
       setProfileUsername(null);
       syncUrlForTab(safe);
     }
-  }, [authLoading, isLoggedIn, activeTab, canAccessTab]);
+  }, [authLoading, isLoggedIn, isAdmin, activeTab, canAccessTab, isPublicTab]);
 
   useEffect(() => {
     if (authLoading || visibilityLoading) return;
+    if (!canAccessTab(activeTab, isLoggedIn, isAdmin)) {
+      const safe = resolveGuestSafeTab(null, isPublicTab);
+      setActiveTab(safe);
+      setProfileUsername(null);
+      syncUrlForTab(safe);
+      return;
+    }
     if (!isLoggedIn && requiresLogin(activeTab)) {
-      const safe = resolveGuestSafeTab(null);
+      const safe = resolveGuestSafeTab(null, isPublicTab);
       setActiveTab(safe);
       setProfileUsername(null);
       syncUrlForTab(safe);
     }
-  }, [authLoading, visibilityLoading, isLoggedIn, activeTab, requiresLogin]);
+  }, [authLoading, visibilityLoading, isLoggedIn, isAdmin, activeTab, requiresLogin, canAccessTab, isPublicTab]);
 
   useEffect(() => {
     if (activeTab !== 'premiumaccounts') return;
@@ -406,7 +415,7 @@ export default function App() {
     }, 1000);
 
     return () => clearTimeout(cdTimer);
-  }, [selfDestructCountdown]);
+  }, [selfDestructCountdown, playBeep]);
 
   const handleLowBattery = useCallback((level: number) => {
     terminalAppend(
@@ -472,36 +481,63 @@ export default function App() {
     }, 8000);
   };
 
+  const pendingPopRef = useRef(false);
+
+  const applyPopstateNavigation = useCallback(() => {
+    const route = parseProfileRoute();
+    if (route) {
+      if (!isLoggedIn && !isPublicTab('profile')) {
+        openLoginGate('profile', { profileUsername: route.username });
+        setActiveTab('changelog');
+        setProfileUsername(null);
+        syncUrlForTab('changelog');
+        return;
+      }
+      setActiveTab('profile');
+      setProfileUsername(route.username);
+      syncUrlForTab('profile', route.username);
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab') as TabId | null;
+    if (tab && ALL_TAB_IDS.has(tab)) {
+      if (tab === 'admin' && !isAdmin) {
+        setActiveTab(isLoggedIn ? 'dashboard' : 'changelog');
+        syncUrlForTab(isLoggedIn ? 'dashboard' : 'changelog');
+      } else if (!isLoggedIn && (requiresLogin(tab) || !isPublicTab(tab))) {
+        openLoginGate(tab);
+        setActiveTab('changelog');
+      } else {
+        setActiveTab(tab);
+        syncUrlForTab(tab);
+      }
+      setProfileUsername(null);
+      return;
+    }
+    const fallback = isLoggedIn ? 'dashboard' : 'changelog';
+    setActiveTab(fallback);
+    setProfileUsername(null);
+    syncUrlForTab(fallback);
+  }, [isLoggedIn, isAdmin, isPublicTab, openLoginGate, requiresLogin]);
+
   useEffect(() => {
     const onPop = () => {
-      const route = parseProfileRoute();
-      if (route) {
-        setActiveTab('profile');
-        setProfileUsername(route.username);
-        syncUrlForTab('profile', route.username);
+      if (visibilityLoading) {
+        pendingPopRef.current = true;
         return;
       }
-      const params = new URLSearchParams(window.location.search);
-      const tab = params.get('tab') as TabId | null;
-      if (tab && ALL_TAB_IDS.has(tab)) {
-        if (!isLoggedIn && requiresLogin(tab)) {
-          openLoginGate(tab);
-          setActiveTab('changelog');
-        } else {
-          setActiveTab(tab);
-          syncUrlForTab(tab);
-        }
-        setProfileUsername(null);
-        return;
-      }
-      const fallback = isLoggedIn ? 'dashboard' : 'changelog';
-      setActiveTab(fallback);
-      setProfileUsername(null);
-      syncUrlForTab(fallback);
+      pendingPopRef.current = false;
+      applyPopstateNavigation();
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, [isLoggedIn, openLoginGate, requiresLogin]);
+  }, [visibilityLoading, applyPopstateNavigation]);
+
+  useEffect(() => {
+    if (visibilityLoading || !pendingPopRef.current) return;
+    pendingPopRef.current = false;
+    applyPopstateNavigation();
+  }, [visibilityLoading, applyPopstateNavigation]);
 
   const didBootstrapAuthTab = useRef(false);
   useEffect(() => {
@@ -516,6 +552,13 @@ export default function App() {
     if (authSuccessTick < 1) return;
     if (pendingTabAfterLogin) {
       const { tab, profileUsername: pun } = pendingTabAfterLogin;
+      clearPendingTabAfterLogin();
+      if (!canAccessTab(tab, true, isAdmin)) {
+        setActiveTab('dashboard');
+        setProfileUsername(null);
+        syncUrlForTab('dashboard');
+        return;
+      }
       setActiveTab(tab);
       if (tab === 'profile' && pun) {
         setProfileUsername(pun);
@@ -524,26 +567,29 @@ export default function App() {
         setProfileUsername(null);
         syncUrlForTab(tab);
       }
-      clearPendingTabAfterLogin();
       return;
     }
     setActiveTab('dashboard');
     setProfileUsername(null);
     syncUrlForTab('dashboard');
-  }, [authSuccessTick, pendingTabAfterLogin, clearPendingTabAfterLogin]);
+  }, [authSuccessTick, pendingTabAfterLogin, clearPendingTabAfterLogin, canAccessTab, isAdmin]);
 
   useEffect(() => {
-    if (authLoading || isLoggedIn) return;
+    if (authLoading || visibilityLoading || isLoggedIn) return;
     const deepTab = initialDeepLink.tab;
     if (deepTab && requiresLogin(deepTab)) {
       openLoginGate(deepTab);
     }
-  }, [authLoading, isLoggedIn, openLoginGate, requiresLogin]);
+  }, [authLoading, visibilityLoading, isLoggedIn, openLoginGate, requiresLogin]);
 
   const lastSyncedTabRef = useRef<TabId | null>(null);
 
   const handleTabClick = useCallback((tab: TabId, opts?: { profileUsername?: string }) => {
-    if (!isLoggedIn && requiresLogin(tab)) {
+    if (tab === 'admin' && !isAdmin) {
+      playBeep(520, 0.06, 'sine');
+      return;
+    }
+    if (!isLoggedIn && (requiresLogin(tab) || !isPublicTab(tab))) {
       openLoginGate(tab, opts);
       playBeep(520, 0.06, 'sine');
       return;
@@ -562,7 +608,7 @@ export default function App() {
       lastSyncedTabRef.current = tab;
     }
     playBeep(740, 0.08, 'sine');
-  }, [activeTab, isLoggedIn, requiresLogin, openLoginGate, profileUsername, playBeep]);
+  }, [activeTab, isLoggedIn, isAdmin, isPublicTab, requiresLogin, openLoginGate, profileUsername, playBeep]);
 
 
   return (

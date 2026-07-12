@@ -4,6 +4,7 @@
  */
 
 import { attachAuth } from './auth/authApi.mjs';
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { requireMemberTab } from './tabAccessGuard.mjs';
 import { getGameHandler, GAME_IDS } from './gameRegistry.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
@@ -64,14 +65,14 @@ export async function handleGamesRequest(req, res) {
 
     if (req.method === 'GET' && pathname === '/api/games/history') {
       checkRateLimit(`games-history:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
-      const limit = Number(url.searchParams.get('limit')) || 20;
+      const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 20));
       return sendJson(res, 200, { matches: await getRecentHistory(limit) });
     }
 
     if (req.method === 'GET' && pathname === '/api/games/coin-feed') {
       const u = requireUser(req);
       checkRateLimit(`games-feed:${u.id}`, { max: 60, windowMs: 60_000 });
-      const limit = Number(url.searchParams.get('limit')) || 40;
+      const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 40));
       return sendJson(res, 200, await getCoinFeed(u.id, limit));
     }
 
@@ -149,17 +150,11 @@ export async function handleGamesRequest(req, res) {
 }
 
 export function createGamesMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname.startsWith('/api/games')) {
-      handleGamesRequest(req, res).catch((e) => {
-        if (!res.headersSent) {
-          const msg = e instanceof Error ? e.message : 'Server error';
-          sendJson(res, 500, { error: msg });
-        }
-      });
-      return;
+      return handleGamesRequest(req, res);
     }
     next();
-  };
+  });
 }

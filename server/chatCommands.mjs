@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { sanitizeAvatarUrl } from './auth/safeMediaUrl.mjs';
 import {
   LOBBY_ID,
   newMessageId,
@@ -75,7 +76,7 @@ async function pushChatMessage(user, { text, kind = 'chat', segments = null }) {
       displayName: String(user.displayName ?? user.username).trim().slice(0, 64) || user.username,
       role: user.role ?? 'user',
       verified: Boolean(user.verified),
-      avatarUrl: String(user.avatarUrl ?? '').trim().slice(0, 512) || null,
+      avatarUrl: sanitizeAvatarUrl(user.avatarUrl) || null,
       kind,
       text: trimmed,
       segments: resolvedSegments,
@@ -293,21 +294,7 @@ export async function executeChatCommand(user, rawText) {
 
   const runCmd = async (fn) => {
     await reserveChatRateLimit(user.id);
-    const result = await fn();
-    await runCoinTransaction(async () => {
-      const db = await loadUsersDb();
-      const fresh = db.users.find((u) => u.id === user.id);
-      if (!fresh) return;
-      const act = ensureActivity(fresh);
-      const now = Date.now();
-      const lastAt = getActivityFlag(act, 'lastTerminalCommandAt');
-      if (now - lastAt < 2000) return;
-      setActivityFlag(act, 'lastTerminalCommandAt', now);
-      await syncAchievementsOnLoadedUser(fresh, db, { incrementCommands: true });
-      fresh.updatedAt = Date.now();
-      await saveUsersDb(db);
-    });
-    return result;
+    return fn();
   };
 
   switch (cmd) {

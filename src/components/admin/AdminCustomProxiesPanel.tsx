@@ -5,6 +5,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { ArrowRight, Plus, Trash2 } from 'lucide-react';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
 import {
   addCustomProxies,
   clearCustomProxies,
@@ -35,11 +36,19 @@ export function AdminCustomProxiesPanel({ onAdded, onGoToChecker }: AdminCustomP
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [search, setSearch] = useState('');
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   const load = useCallback(async () => {
-    const data = await fetchCustomProxies();
-    setProxies(data.proxies ?? []);
-  }, []);
+    const gen = ++loadGenRef.current;
+    try {
+      const data = await fetchCustomProxies();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setProxies(data.proxies ?? []);
+    } catch {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setProxies([]);
+    }
+  }, [loadGenRef, mountedRef]);
 
   useEffect(() => {
     load();

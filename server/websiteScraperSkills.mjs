@@ -6,6 +6,7 @@
  * and modern crawl techniques (SPA hydration, feeds, script mining, retries).
  */
 
+import { assertSafeFetchUrl, assertSafeFetchUrlAsync } from './assertSafeFetchUrl.mjs';
 import { valueMatchesPattern } from './xmlLinkScraperEngine.mjs';
 
 export const USER_AGENTS = [
@@ -71,7 +72,7 @@ export function normalizeCrawlUrl(raw, base, stripTracking = true) {
       u.pathname = u.pathname.replace(/\/+$/, '') || '/';
     }
     const href = stripTracking ? stripTrackingParams(u.href) : u.href;
-    return href;
+    return assertSafeFetchUrl(href);
   } catch {
     return null;
   }
@@ -322,20 +323,23 @@ export async function fetchPageWithRetry(url, { timeoutMs = 12000, signal, maxAt
     if (attempt > 0) await new Promise((r) => setTimeout(r, 400 * attempt));
 
     try {
+      await assertSafeFetchUrlAsync(url);
       const res = await fetch(url, {
         signal: ctrl.signal,
         headers: fetchHeaders(attempt),
         redirect: 'follow',
       });
-      const text = await res.text();
       clearTimeout(t);
       signal?.removeEventListener('abort', onAbort);
+      const finalUrl = res.url || url;
+      await assertSafeFetchUrlAsync(finalUrl);
+      const text = await res.text();
       return {
         ok: res.ok,
         status: res.status,
         text,
         contentType: res.headers.get('content-type') ?? '',
-        finalUrl: res.url || url,
+        finalUrl,
         bytes: text.length,
       };
     } catch (e) {

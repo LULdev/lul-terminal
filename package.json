@@ -1,7 +1,7 @@
 {
   "name": "lul-terminal",
   "private": true,
-  "version": "3.36.79",
+  "version": "3.36.81",
   "description": "Community arcade, profiles, tools & terminal hub",
   "repository": {
     "type": "git",
@@ -39,6 +39,7 @@
     "https-proxy-agent": "^9.1.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "qrcode": "^1.5.4",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "recharts": "^3.9.1",
@@ -48,6 +49,7 @@
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
+    "@types/qrcode": "^1.5.6",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",

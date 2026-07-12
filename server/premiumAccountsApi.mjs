@@ -32,6 +32,7 @@ import {
   rejectReport,
   reportAccountNotWorking,
 } from './premiumAccountsReports.mjs';
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 
 function sendJson(res, status, body) {
@@ -165,11 +166,17 @@ export async function handlePremiumAccountsRequest(req, res) {
           if (!account) throw new Error('Account not found');
           return { views: account.views ?? 0, deduped: true };
         }
-        const incResult = await incrementAccountView(accountId);
         act.flags[flagKey] = true;
         viewer.updatedAt = Date.now();
         await saveUsersDb(db);
-        return incResult;
+        try {
+          return await incrementAccountView(accountId);
+        } catch (e) {
+          delete act.flags[flagKey];
+          viewer.updatedAt = Date.now();
+          await saveUsersDb(db);
+          throw e;
+        }
       });
       return sendJson(res, 200, result);
     }
@@ -248,12 +255,11 @@ export async function handlePremiumAccountsRequest(req, res) {
 }
 
 export function createPremiumAccountsMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname.startsWith('/api/premium-accounts')) {
-      handlePremiumAccountsRequest(req, res);
-      return;
+      return handlePremiumAccountsRequest(req, res);
     }
     next();
-  };
+  });
 }

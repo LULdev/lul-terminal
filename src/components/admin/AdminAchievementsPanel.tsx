@@ -5,17 +5,28 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
 import { fetchAdminAchievements, type AchievementsAdminData } from '../../lib/adminModules';
 import { ToolCard } from '../pages/PageShell';
 
 export function AdminAchievementsPanel() {
   const [data, setData] = useState<AchievementsAdminData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   const load = useCallback(async () => {
-    try { setData(await fetchAdminAchievements()); } catch { setData(null); }
-    finally { setLoading(false); }
-  }, []);
+    const gen = ++loadGenRef.current;
+    try {
+      const result = await fetchAdminAchievements();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(result);
+    } catch {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(null);
+    } finally {
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
+    }
+  }, [loadGenRef, mountedRef]);
 
   useEffect(() => { void load(); }, [load]);
 

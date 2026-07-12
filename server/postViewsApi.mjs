@@ -8,6 +8,7 @@ import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { ensureActivity } from './auth/achievements.mjs';
 import { loadUsersDb, saveUsersDb } from './auth/authStore.mjs';
 import { runCoinTransaction } from './gamesCoinLock.mjs';
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { getAllPostViews, recordPostView, sanitizePostId } from './postViewsStore.mjs';
 
 function sendJson(res, status, body) {
@@ -98,12 +99,11 @@ export async function handlePostViewsRequest(req, res) {
 }
 
 export function createPostViewsMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname.startsWith('/api/post-views')) {
-      handlePostViewsRequest(req, res);
-      return;
+      return handlePostViewsRequest(req, res);
     }
     next();
-  };
+  });
 }

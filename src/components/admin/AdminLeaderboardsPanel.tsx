@@ -5,6 +5,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Crown, RefreshCw, Trophy } from 'lucide-react';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
 import {
   fetchLeaderboards,
   type LeaderboardsResponse,
@@ -17,19 +18,24 @@ export function AdminLeaderboardsPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
     setLoading(true);
     try {
-      setData(await fetchLeaderboards());
+      const result = await fetchLeaderboards();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(result);
     } catch (err) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Load failed');
       setData(null);
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
-  }, []);
+  }, [loadGenRef, mountedRef]);
 
   useEffect(() => {
     void load();

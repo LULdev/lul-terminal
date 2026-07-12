@@ -61,10 +61,14 @@ export async function handleProxyDatabaseRequest(req, res) {
       const adminKey = req.auth?.user?.id ?? clientIp(req);
       checkRateLimit(`proxy-db-check:${adminKey}`, { max: 10, windowMs: 60_000 });
       const body = await readJsonBody(req).catch(() => ({}));
+      const rawConcurrency = Number(body.concurrency);
+      const concurrency = Number.isFinite(rawConcurrency)
+        ? Math.min(Math.max(Math.round(rawConcurrency), 1), 500)
+        : undefined;
       const result = await runDailyCheck({
         force: Boolean(body.force),
         timeoutMs: body.timeoutMs,
-        concurrency: body.concurrency,
+        concurrency,
       });
       return sendJson(res, 200, result);
     }

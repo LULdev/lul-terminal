@@ -13,6 +13,7 @@ import {
 } from '../arcadeMeta.mjs';
 import { getLatestChangelogVersion } from '../changelogMeta.mjs';
 import { getLatestNewsVersion } from '../newsMeta.mjs';
+import { sanitizeExternalUrl } from './safeMediaUrl.mjs';
 
 const ADMIN_AWARDS = ['owner', 'administrator', 'site_architect', 'member_of_month'];
 const BOT_AWARDS = ['bot_supreme_nerd'];
@@ -332,7 +333,7 @@ export function normalizeSocialLinks(raw) {
   return raw
     .map((l) => ({
       platform: String(l.platform ?? '').trim().slice(0, 24),
-      url: String(l.url ?? '').trim().slice(0, 256),
+      url: sanitizeExternalUrl(l.url),
     }))
     .filter((l) => l.platform && l.url);
 }

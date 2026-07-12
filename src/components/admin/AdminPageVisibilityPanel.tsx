@@ -27,6 +27,7 @@ import {
   type AdminAccessControl,
   type PageVisibility,
 } from '../../lib/pageVisibility';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
 import { usePageVisibility } from '../../context/PageVisibilityContext';
 import { ToolCard } from '../pages/PageShell';
 
@@ -70,19 +71,23 @@ export function AdminPageVisibilityPanel() {
   const [err, setErr] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'public' | 'members'>('all');
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setErr('');
     try {
       const res = await fetchAdminPageVisibility();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setData(res);
       setDraft(res.pages);
     } catch (e) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setErr(e instanceof Error ? e.message : 'Failed to load');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
-  }, []);
+  }, [loadGenRef, mountedRef]);
 
   useEffect(() => { load(); }, [load]);
 

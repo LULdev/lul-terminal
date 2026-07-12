@@ -203,7 +203,7 @@ function buildTop3(users, def, ctx = {}) {
       userId: u.id,
       username: u.username,
       displayName: u.displayName,
-      avatarUrl: u.avatarUrl,
+      avatarUrl: sanitizeAvatarUrl(u.avatarUrl) || '',
       role: u.role,
       verified: Boolean(u.verified),
       value: def.getValue(u, ctx),

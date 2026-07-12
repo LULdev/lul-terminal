@@ -17,6 +17,8 @@ import { loadUsersDb } from './auth/authStore.mjs';
 import { canAccessAdmin } from './auth/permissions.mjs';
 import { assertCanModerateShoutboxTarget } from './chatGuards.mjs';
 
+import { sanitizeAvatarUrl } from './auth/safeMediaUrl.mjs';
+
 function avatarFallback(username) {
   return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username ?? 'user')}`;
 }
@@ -25,10 +27,7 @@ const EMOTE_TOKEN_RE = /:[A-Za-z][A-Za-z0-9_]*:/;
 
 async function publicMessage(msg, userById, userByName) {
   const hit = userById?.get(msg.userId) ?? userByName?.get(msg.username);
-  let avatarUrl = msg.avatarUrl ?? null;
-  if (!avatarUrl) {
-    avatarUrl = hit?.avatarUrl ?? avatarFallback(msg.username);
-  }
+  let avatarUrl = sanitizeAvatarUrl(msg.avatarUrl ?? hit?.avatarUrl) || avatarFallback(msg.username);
   const verified = msg.verified != null ? Boolean(msg.verified) : Boolean(hit?.verified);
   let segments = msg.segments ?? null;
   if (!segments && EMOTE_TOKEN_RE.test(String(msg.text ?? ''))) {

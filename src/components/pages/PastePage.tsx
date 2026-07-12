@@ -27,6 +27,7 @@ import {
   type PasteMeta,
   type PasteRecord,
 } from '../../lib/paste';
+import { safePasteAssetUrl, safePastePageUrl } from '../../lib/safePasteUrl';
 import { useAuth } from '../../context/AuthContext';
 import { MyPasteGallery } from '../paste/MyPasteGallery';
 import { PasteCodeView } from '../paste/PasteCodeView';
@@ -194,7 +195,8 @@ export function PastePage() {
   };
 
   const bytes = new TextEncoder().encode(content).length;
-  const viewUrl = result ? (result.viewUrl ?? buildPasteUrl(result.id)) : '';
+  const viewUrl = result ? (safePastePageUrl(result.viewUrl, result.id) ?? buildPasteUrl(result.id)) : '';
+  const rawUrl = result ? safePasteAssetUrl(result.rawUrl) : null;
 
   return (
     <PageShell
@@ -411,7 +413,7 @@ export function PastePage() {
 
             <div className="flex flex-col gap-3 p-1">
               <CopyField label="Share link (public · view counter)" value={viewUrl} />
-              <CopyField label="Raw text URL" value={result.rawUrl} />
+              {rawUrl && <CopyField label="Raw text URL" value={rawUrl} />}
               <PasteQrCode url={viewUrl} label="Scan to open paste" />
             </div>
 
@@ -424,14 +426,16 @@ export function PastePage() {
               >
                 Open preview ↗
               </a>
-              <a
-                href={result.rawUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-[10px] font-mono px-4 py-2 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200"
-              >
-                <Link2 size={12} /> Raw text ↗
-              </a>
+              {rawUrl && (
+                <a
+                  href={rawUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[10px] font-mono px-4 py-2 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200"
+                >
+                  <Link2 size={12} /> Raw text ↗
+                </a>
+              )}
               {result.content && (
                 <button
                   type="button"

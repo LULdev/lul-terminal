@@ -5,6 +5,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { useMountedLoad } from '../../hooks/useMountedLoad';
 import { fetchAdminReports, type ReportsDeskData } from '../../lib/adminModules';
 import { formatRelativeEn } from '../../lib/terminalStats';
 import { ToolCard } from '../pages/PageShell';
@@ -19,11 +20,21 @@ export function AdminReportsPanel() {
   const [data, setData] = useState<ReportsDeskData | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const { mountedRef, loadGenRef } = useMountedLoad();
 
   const load = useCallback(async () => {
-    try { setData(await fetchAdminReports()); } catch { setData(null); }
-    finally { setLoading(false); }
-  }, []);
+    const gen = ++loadGenRef.current;
+    try {
+      const result = await fetchAdminReports();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(result);
+    } catch {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(null);
+    } finally {
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
+    }
+  }, [loadGenRef, mountedRef]);
 
   useEffect(() => { void load(); }, [load]);
 
