@@ -76,8 +76,11 @@ export async function handlePageViewsRequest(req, res) {
       const id = sanitizePageId(idMatch[1]);
       if (!id) return sendJson(res, 400, { error: 'Invalid page id' });
       await attachAuth(req);
+      requireAuth(req);
       if (ALL_MANAGEABLE_TAB_IDS.includes(id)) {
         await requireMemberTab(req, id);
+      } else {
+        await requireMemberTab(req, 'stats');
       }
       return sendJson(res, 200, { pageId: id, views: await getPageViews(id) });
     }

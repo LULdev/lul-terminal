@@ -12,7 +12,11 @@ import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { ALL_MANAGEABLE_TAB_IDS } from './accessControlStore.mjs';
 import { recordTabVisitFromAnalytics } from './auth/authService.mjs';
-import { markTabDwellIntegrity, tryClaimTabVisitCredit } from './analyticsTabIntegrity.mjs';
+import {
+  markTabDwellIntegrity,
+  rollbackTabVisitCredit,
+  tryClaimTabVisitCredit,
+} from './analyticsTabIntegrity.mjs';
 import { requireMemberTab } from './tabAccessGuard.mjs';
 import {
   buildAdminOverview,
@@ -114,8 +118,8 @@ export async function handleAnalyticsRequest(req, res) {
           const forceRemint = Boolean(body.meta?.forceRemint)
             && sessionCreated > 0
             && (Date.now() - sessionCreated) < 120_000;
-          const integrityOk = await tryClaimTabVisitCredit(req.auth.token, persistTab, { forceRemint });
-          if (!integrityOk) {
+          const claim = await tryClaimTabVisitCredit(req.auth.token, persistTab, { forceRemint });
+          if (!claim.claimed) {
             return sendJson(res, 201, {
               ok: true,
               eventId: event?.id ?? null,
@@ -123,9 +127,16 @@ export async function handleAnalyticsRequest(req, res) {
               proof: null,
             });
           }
-          const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, persistTab, { forceRemint });
-          userPayload = visitResult?.user ?? null;
-          proofPayload = visitResult?.proof ?? null;
+          try {
+            const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, persistTab, { forceRemint });
+            userPayload = visitResult?.user ?? null;
+            proofPayload = visitResult?.proof ?? null;
+          } catch (sideErr) {
+            if (claim.snapshot) {
+              await rollbackTabVisitCredit(req.auth.token, claim.snapshot);
+            }
+            throw sideErr;
+          }
         } catch (e) {
           const msg = e instanceof Error ? e.message : '';
           if (!isRateLimitError(e) && msg !== 'Permission denied') {

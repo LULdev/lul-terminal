@@ -33,10 +33,12 @@ import * as authApi from '../../lib/auth';
 import { useAuth } from '../../context/AuthContext';
 import type { SyncAchievementsOpts } from '../../lib/auth';
 import { trackEvent } from '../../lib/analytics';
+import type { TabId } from '../../config/menuItems';
 
 export type ThemeColor = 'indigo' | 'emerald' | 'amber' | 'cyan' | 'rose';
 
 export type TerminalDiagnosticsPaneProps = {
+  renderTab: TabId;
   themeColor: ThemeColor;
   setThemeColor: (color: ThemeColor) => void;
   isLoggedIn: boolean;
@@ -95,6 +97,7 @@ const THEME_HEX: Record<ThemeColor, string> = {
 };
 
 export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
+  renderTab,
   themeColor,
   setThemeColor,
   isLoggedIn,
@@ -115,10 +118,14 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
   onChangeSynthTheme,
   onNavigateProfile,
 }: TerminalDiagnosticsPaneProps) {
-  const { handleUnlocks, user, patchUser } = useAuth();
+  const { handleUnlocks, refresh, patchUser } = useAuth();
 
   const recordTerminalAchievement = useCallback((command: string) => {
     if (!isLoggedIn) return;
+    if (renderTab !== 'dashboard') {
+      appendLogRef.current('⚠️ Terminal achievements require the Dashboard tab.', 'warn');
+      return;
+    }
     const proof = peekAchievementProof('dashboard');
     if (!proof) {
       appendLogRef.current('⚠️ Achievement proof expired — switch tabs to refresh proof.', 'warn');
@@ -138,7 +145,7 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
           'warn',
         );
       });
-  }, [isLoggedIn, handleUnlocks, patchUser]);
+  }, [isLoggedIn, renderTab, handleUnlocks, patchUser]);
 
   const [commandInput, setCommandInput] = useState('');
   const [commandLogs, setCommandLogs] = useState<LogLine[]>(() => getCompactCommandHintLogs('08:14:04'));
@@ -158,6 +165,7 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
     setCommandInput('');
     setTempInput('');
     setCommandLogs(getCompactCommandHintLogs());
+    postedAutoCatalog.current = false;
   }, [isLoggedIn]);
 
   const appendLogRef = useRef<(msg: string, type?: LogLine['type'], commandToRun?: string) => void>(() => {});
@@ -677,17 +685,13 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
                 isMatrixOverlayActive={isMatrixOverlayActive}
                 onCloseMatrix={() => setIsMatrixOverlayActive(false)}
                 isMuted={isMuted}
-                pollEnabled={expandedPanels.terminal}
+                pollEnabled={expandedPanels.terminal && renderTab === 'fun'}
                 onSendChatReady={handleSendChatReady}
                 onOpenProfile={onNavigateProfile}
                 onChatUnlocks={(ids, rewards, coinsTotal) => {
                   handleUnlocks(ids, rewards);
-                  if (coinsTotal) {
-                    patchUser((prev) => (
-                      prev ? { ...prev, lulCoins: (Number(prev.lulCoins) || 0) + coinsTotal } : prev
-                    ));
-                  } else if (ids.length) {
-                    void syncAchievements();
+                  if (coinsTotal || ids.length) {
+                    void refresh();
                   }
                 }}
               />

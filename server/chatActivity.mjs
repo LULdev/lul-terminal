@@ -29,6 +29,7 @@ export async function handleChatActivity(user, body) {
 
       const flagKey = `meme_announced_${memeImageId}`;
       let reserved = false;
+      let prevMemeBotAt = 0;
       try {
         await runCoinTransaction(async () => {
           const db = await loadUsersDb();
@@ -44,6 +45,7 @@ export async function handleChatActivity(user, body) {
           if (now - lastBot < MEME_BOT_COOLDOWN_MS) {
             throw new Error('Please wait before posting another meme announcement');
           }
+          prevMemeBotAt = lastBot;
           act.flags[flagKey] = true;
           act.flags.lastMemeBotAt = now;
           fresh.updatedAt = now;
@@ -73,6 +75,11 @@ export async function handleChatActivity(user, body) {
             if (!fresh) return;
             const act = ensureActivity(fresh);
             delete act.flags[flagKey];
+            if (prevMemeBotAt > 0) {
+              act.flags.lastMemeBotAt = prevMemeBotAt;
+            } else {
+              delete act.flags.lastMemeBotAt;
+            }
             fresh.updatedAt = Date.now();
             await saveUsersDb(db);
           });

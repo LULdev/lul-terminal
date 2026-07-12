@@ -23,6 +23,25 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.92',
+    title: 'Extreme deep audit — round 31 (server/client/chat/news/paste)',
+    date: 'Jul 12, 2026 - 18:00',
+    highlight: true,
+    items: [
+      { priority: 'P0', text: 'P0 — canAccessAdmin import fix in authService (admin tab_visit no longer crashes integrity chain).' },
+      { priority: 'P1', text: 'P1 — Profile view returns credited flag + client retry; session dedup only on credited views.' },
+      { priority: 'P1', text: 'P1 — Server terminal-command: catalog aliases skip proof; achievement cmds require analyticsLastTab dashboard.' },
+      { priority: 'P2', text: 'P2 — Dwell integrity requires 2s since last visit (analyticsLastVisitAt); tab-visit rollback on side-effect failure.' },
+      { priority: 'P2', text: 'P2 — notifyFeedRead only after successful trackEvent; removed optimistic feed patch effect.' },
+      { priority: 'P3', text: 'P3 — Shoutbox polls only on fun tab; profile_view analytics only when credited.' },
+      { priority: 'P3', text: 'P3 — Chat unlock coins use refresh(); meme bot cooldown restored on rollback.' },
+      { priority: 'P4', text: 'P4 — GET page-views/:id requires auth+stats; paste views skip deduped; visitor visitCount server-derived.' },
+      { priority: 'P4', text: 'P4 — Terminal achievements gated on dashboard tab; AdminNewsPanel toggle disabled while in-flight.' },
+      { priority: 'P7', text: 'P7 — Auto-console catalog reposts after re-login; tab-tracking effect no longer depends on user object.' },
+      { priority: 'P9', text: 'P9 — Round 31 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.91',
     title: 'Extreme deep audit — round 30 (server/client/chat/news/paste)',
     date: 'Jul 12, 2026 - 17:00',

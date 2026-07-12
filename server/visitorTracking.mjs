@@ -101,7 +101,7 @@ export async function upsertVisitorProfile(event) {
 
   profile.lastSeenAt = now;
   profile.sessionCount += 1;
-  profile.visitCount = Math.max(profile.visitCount, Number(m.visitCount) || profile.sessionCount);
+  profile.visitCount = profile.sessionCount;
   profile.username = event.username ?? profile.username;
   profile.userId = event.userId ?? profile.userId;
   profile.guestId = event.guestId ?? profile.guestId;

@@ -19,7 +19,7 @@ import {
 } from './achievementProof.mjs';
 import { applyActivityCtx, ensureActivity, grantFirstLogin, normalizeSocialLinks, syncAchievements } from './achievements.mjs';
 import { sanitizeAvatarUrl, sanitizeCoverUrl, sanitizeExternalUrl } from './safeMediaUrl.mjs';
-import { countActiveAdmins, enrichUserForClient, isEffectivelyActive, publicProfileView } from './permissions.mjs';
+import { canAccessAdmin, countActiveAdmins, enrichUserForClient, isEffectivelyActive, publicProfileView } from './permissions.mjs';
 import {
   loadUsersDb,
   saveUsersDb,
@@ -528,12 +528,14 @@ export async function recordAchievementEvent(userId, event, proofNonce) {
   });
 }
 
+const TERMINAL_CATALOG_COMMANDS = new Set(['help', 'commands', 'cmds', 'befehle', 'liste']);
+const TERMINAL_ACHIEVEMENT_COMMANDS = new Set(['matrix', 'self-destruct', 'reboot self-destruct']);
 const RECOGNIZED_TERMINAL_COMMANDS = new Set([
-  'help', 'commands', 'cmds', 'befehle', 'liste',
-  'matrix', 'self-destruct', 'reboot self-destruct',
+  ...TERMINAL_CATALOG_COMMANDS,
+  ...TERMINAL_ACHIEVEMENT_COMMANDS,
 ]);
 
-export async function recordTerminalCommand(userId, command, proofNonce) {
+export async function recordTerminalCommand(userId, command, proofNonce, sessionTab = null) {
   const cmd = String(command ?? '').trim().toLowerCase().slice(0, 48);
   if (!cmd) throw new Error('Command required');
   if (!RECOGNIZED_TERMINAL_COMMANDS.has(cmd)) throw new Error('Unrecognized command');
@@ -541,6 +543,16 @@ export async function recordTerminalCommand(userId, command, proofNonce) {
     const db = await loadUsersDb();
     const user = db.users.find((u) => u.id === userId);
     if (!user) throw new Error('User not found');
+    if (TERMINAL_CATALOG_COMMANDS.has(cmd)) {
+      const { accountsSubmitted, reportedNotWorkingAccounts, profileStats } = await profileExtrasForUser(user);
+      return {
+        user: enrichUserForClient(user, accountsSubmitted, reportedNotWorkingAccounts, profileStats),
+        ...buildUnlockPayload([]),
+      };
+    }
+    if (String(sessionTab ?? '') !== 'dashboard') {
+      throw new Error('Achievement proof invalid for this action');
+    }
     const act = ensureActivity(user);
     const now = Date.now();
     const lastAt = Number(act.flags?.lastTerminalCommandAt) || 0;
@@ -600,10 +612,14 @@ export async function incrementProfileView(username, { viewer = null, sessionTab
     const viewerUname = viewer?.username ? normalizeUsername(viewer.username) : null;
     if (viewerUname && viewerUname === uname) {
       const { accountsSubmitted, reportedNotWorkingAccounts, profileStats } = await profileExtrasForUser(user);
-      return publicProfileView(user, accountsSubmitted, reportedNotWorkingAccounts, profileStats);
+      return {
+        user: publicProfileView(user, accountsSubmitted, reportedNotWorkingAccounts, profileStats),
+        credited: false,
+      };
     }
 
     let dirty = false;
+    let credited = false;
     if (viewer && viewer.id && viewer.role !== 'bot') {
       const viewerUser = db.users.find((u) => u.id === viewer.id);
       const onProfileTab = String(sessionTab ?? '') === 'profile';
@@ -614,6 +630,7 @@ export async function incrementProfileView(username, { viewer = null, sessionTab
           user.profileViews = (Number(user.profileViews) || 0) + 1;
           user.updatedAt = Date.now();
           dirty = true;
+          credited = true;
           syncAchievements(user, { accountsSubmitted: await countAccountsByCreator(user.id) });
           const ctx = { visitedProfile: uname };
           if (user.role === 'admin') ctx.flag = 'visited_admin_profile';
@@ -628,7 +645,10 @@ export async function incrementProfileView(username, { viewer = null, sessionTab
     const { accountsSubmitted, reportedNotWorkingAccounts, profileStats } = await profileExtrasForUser(user);
 
     if (dirty) await saveUsersDb(db);
-    return publicProfileView(user, accountsSubmitted, reportedNotWorkingAccounts, profileStats);
+    return {
+      user: publicProfileView(user, accountsSubmitted, reportedNotWorkingAccounts, profileStats),
+      credited,
+    };
   });
 }
 

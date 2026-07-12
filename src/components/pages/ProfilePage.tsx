@@ -127,10 +127,12 @@ export function ProfilePage({ routeUsername, onNavigateTab }: ProfilePageProps) 
     setPublicLoading(true);
     setPublicError('');
     authApi.recordProfileView(routeUsername)
-      .then((profile) => {
+      .then(({ user: profile, credited }) => {
         if (!cancelled) {
           setPublicProfile(profile);
-          trackEvent('profile_view', { meta: { target: routeUsername } }).catch(() => {});
+          if (credited) {
+            trackEvent('profile_view', { meta: { target: routeUsername } }).catch(() => {});
+          }
         }
       })
       .catch((e) => {

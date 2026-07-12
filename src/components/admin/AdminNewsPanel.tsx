@@ -43,6 +43,7 @@ export function AdminNewsPanel() {
   const [success, setSuccess] = useState('');
   const [form, setForm] = useState<FormState>(emptyForm());
   const [saving, setSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const loadGenRef = useRef(0);
   const actionGenRef = useRef(0);
   const mountedRef = useRef(true);
@@ -135,6 +136,7 @@ export function AdminNewsPanel() {
 
   const togglePublish = async (a: NewsArticle) => {
     const gen = ++actionGenRef.current;
+    setTogglingId(a.id);
     setError('');
     try {
       await updateNewsArticle(a.id, { active: !a.active });
@@ -143,6 +145,8 @@ export function AdminNewsPanel() {
     } catch (e) {
       if (gen !== actionGenRef.current || !mountedRef.current) return;
       setError(e instanceof Error ? e.message : 'Update failed');
+    } finally {
+      if (gen === actionGenRef.current && mountedRef.current) setTogglingId(null);
     }
   };
 
@@ -351,7 +355,8 @@ export function AdminNewsPanel() {
                   <button
                     type="button"
                     onClick={() => togglePublish(a)}
-                    className="p-1.5 rounded border border-slate-800 text-slate-500 hover:text-emerald-300"
+                    disabled={togglingId === a.id || saving}
+                    className="p-1.5 rounded border border-slate-800 text-slate-500 hover:text-emerald-300 disabled:opacity-40"
                     title={a.active ? 'Set as draft' : 'Publish'}
                   >
                     {a.active ? <EyeOff size={12} /> : <Eye size={12} />}

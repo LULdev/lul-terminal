@@ -199,10 +199,6 @@ export default function App() {
 
       const type = trackedTab === 'faq' ? 'faq_visit' : 'tab_visit';
       const baseMeta = visitorCtxRef.current ? visitorContextToMeta(visitorCtxRef.current) : {};
-      if (trackedTab === 'news' || trackedTab === 'changelog') {
-        notifyFeedRead(trackedTab);
-      }
-
       try {
         const r = await trackEvent(type, {
           tab: trackedTab,
@@ -222,12 +218,14 @@ export default function App() {
           patchUser(r.user);
           if (trackedTab === 'changelog' && r.user.changelogLastReadVersion === APP_VERSION) {
             markLocalChangelogRead();
+            notifyFeedRead('changelog');
           } else if (
             trackedTab === 'news'
             && newsFeedVersion !== '0.0.0'
             && r.user.newsLastReadVersion === newsFeedVersion
           ) {
             markLocalNewsRead(newsFeedVersion);
+            notifyFeedRead('news');
           }
         }
       } catch {
@@ -238,7 +236,7 @@ export default function App() {
         }
       }
     })();
-  }, [activeTab, renderTab, authLoading, visibilityLoading, pendingTabAfterLogin, patchUser, isLoggedIn, user, newsFeedVersion]);
+  }, [activeTab, renderTab, authLoading, visibilityLoading, pendingTabAfterLogin, patchUser, isLoggedIn, newsFeedVersion]);
 
   useEffect(() => {
     if (authSuccessTick < 1 || !isLoggedIn) return;
@@ -875,6 +873,7 @@ export default function App() {
             </section>
 
             <TerminalDiagnosticsPane
+              renderTab={renderTab}
               themeColor={themeColor}
               setThemeColor={setThemeColor}
               isLoggedIn={isLoggedIn}

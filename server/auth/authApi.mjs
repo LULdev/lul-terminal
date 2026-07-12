@@ -223,7 +223,12 @@ export async function handleAuthRequest(req, res) {
       await requireMemberTab(req, 'dashboard');
       checkRateLimit(`ach-cmd:${user.id}`, { max: 40, windowMs: 60_000 });
       const body = await readJsonBody(req);
-      const result = await recordTerminalCommand(user.id, String(body.command ?? ''), body.proof);
+      const result = await recordTerminalCommand(
+        user.id,
+        String(body.command ?? ''),
+        body.proof,
+        req.auth?.session?.analyticsLastTab ?? null,
+      );
       return sendJson(res, 200, { user: result.user, newUnlocks: result.newUnlocks ?? [] });
     }
 
@@ -265,11 +270,11 @@ export async function handleAuthRequest(req, res) {
       await requireMemberTab(req, 'profile');
       const viewerId = req.auth?.user?.id ?? clientIp(req);
       checkRateLimit(`profile-view:${viewerId}`, { max: 40, windowMs: 60_000 });
-      const profile = await incrementProfileView(profileViewMatch[1], {
+      const result = await incrementProfileView(profileViewMatch[1], {
         viewer: req.auth?.user ?? null,
         sessionTab: req.auth?.session?.analyticsLastTab ?? null,
       });
-      return sendJson(res, 200, { user: profile });
+      return sendJson(res, 200, { user: result.user, credited: result.credited });
     }
 
     if (pathname.startsWith('/api/auth/admin')) {

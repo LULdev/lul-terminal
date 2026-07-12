@@ -369,7 +369,7 @@ export async function handlePasteRequest(req, res) {
         return;
       }
       const viewResult = await countPasteViewDeduped(req, meta.id, { consumeBurn: meta.burnAfterRead });
-      if (viewResult?.meta?.userId && req.auth?.user?.id) {
+      if (viewResult?.meta?.userId && req.auth?.user?.id && !viewResult.deduped) {
         await incrementUserPasteViews(viewResult.meta.userId, {
           viewerId: req.auth.user.id,
           pasteId: viewResult.meta.id,
@@ -405,7 +405,7 @@ export async function handlePasteRequest(req, res) {
       const payload = await countPasteViewDeduped(req, pasteId, { consumeBurn: meta.burnAfterRead });
       if (!payload) return sendJson(res, 404, { error: 'Not found' });
       const viewerId = req.auth?.user?.id ?? null;
-      if (payload.meta?.userId && viewerId) {
+      if (payload.meta?.userId && viewerId && !payload.deduped) {
         await incrementUserPasteViews(payload.meta.userId, {
           viewerId,
           pasteId: payload.meta.id,
@@ -473,14 +473,14 @@ export async function handlePasteRequest(req, res) {
       if (meta.burnAfterRead) {
         const viewResult = await countPasteViewDeduped(req, meta.id, { consumeBurn: true });
         if (!viewResult) return sendJson(res, 404, { error: 'Not found' });
-        if (viewResult.meta?.userId && unlockUid) {
+        if (viewResult.meta?.userId && unlockUid && !viewResult.deduped) {
           await incrementUserPasteViews(viewResult.meta.userId, { viewerId: unlockUid, pasteId: meta.id });
         }
         return sendJson(res, 200, toClientPaste(viewResult.meta, content, req, { userId: unlockUid }));
       }
       const viewResult = await countPasteViewDeduped(req, meta.id, { consumeBurn: false });
       const outMeta = viewResult?.meta ?? meta;
-      if (viewResult?.meta?.userId && unlockUid) {
+      if (viewResult?.meta?.userId && unlockUid && !viewResult.deduped) {
         await incrementUserPasteViews(viewResult.meta.userId, { viewerId: unlockUid, pasteId: meta.id });
       }
       return sendJson(res, 200, toClientPaste(outMeta, content, req, { userId: unlockUid }));
@@ -518,7 +518,7 @@ export async function handlePasteRequest(req, res) {
         if (!content) return sendJson(res, 404, { error: 'Not found' });
         const viewResult = await countPasteViewDeduped(req, id, { consumeBurn: Boolean(meta.burnAfterRead) });
         if (!viewResult) return sendJson(res, 404, { error: 'Not found' });
-        if (viewResult.meta?.userId && uid) {
+        if (viewResult.meta?.userId && uid && !viewResult.deduped) {
           await incrementUserPasteViews(viewResult.meta.userId, { viewerId: uid, pasteId: id });
         }
         const outMeta = viewResult.meta ?? meta;
