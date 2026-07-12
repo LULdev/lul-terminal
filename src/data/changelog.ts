@@ -23,6 +23,18 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.90',
+    title: 'Extreme deep audit — round 29b (re-audit follow-up)',
+    date: 'Jul 12, 2026 - 16:30',
+    highlight: true,
+    items: [
+      { priority: 'P2', text: 'P2 — Meme images only via /api/images/meme-upload (memegen tab); client source:meme no longer trusted on generic upload.' },
+      { priority: 'P2', text: 'P2 — Server tab_dwell integrity requires dwellSec ≥ 2 before marking dwell-ready.' },
+      { priority: 'P2', text: 'P2 — Profile-view achievements require session analyticsLastTab === profile.' },
+      { priority: 'P9', text: 'P9 — Round 29b re-audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.89',
     title: 'Extreme deep audit — round 29 (server/client/chat/news/paste)',
     date: 'Jul 12, 2026 - 16:00',

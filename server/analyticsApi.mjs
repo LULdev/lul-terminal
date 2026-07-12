@@ -89,7 +89,10 @@ export async function handleAnalyticsRequest(req, res) {
         }
       }
       if (eventType === 'tab_dwell' && persistTab && req.auth?.token) {
-        await markTabDwellIntegrity(req.auth.token, persistTab);
+        const dwellSec = Number(meta.dwellSec) || 0;
+        if (dwellSec >= 2) {
+          await markTabDwellIntegrity(req.auth.token, persistTab);
+        }
       }
       const event = await recordEvent({
         type: eventType,

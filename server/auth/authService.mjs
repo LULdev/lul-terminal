@@ -585,7 +585,7 @@ export async function getPublicProfileByUsername(username) {
   return view;
 }
 
-export async function incrementProfileView(username, { viewer = null } = {}) {
+export async function incrementProfileView(username, { viewer = null, sessionTab = null } = {}) {
   return runCoinTransaction(async () => {
     const db = await loadUsersDb();
     const uname = normalizeUsername(username);
@@ -601,7 +601,8 @@ export async function incrementProfileView(username, { viewer = null } = {}) {
     let dirty = false;
     if (viewer && viewer.id && viewer.role !== 'bot') {
       const viewerUser = db.users.find((u) => u.id === viewer.id);
-      if (viewerUser) {
+      const onProfileTab = !sessionTab || String(sessionTab) === 'profile';
+      if (viewerUser && onProfileTab) {
         const visitKey = `profile_visit_${uname}`;
         const alreadyVisited = Boolean(ensureActivity(viewerUser).flags[visitKey]);
         if (!alreadyVisited) {

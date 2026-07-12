@@ -51,6 +51,26 @@ export async function handleImageHostRequest(req, res) {
   const pathname = url.pathname;
 
   try {
+    if (req.method === 'POST' && pathname === '/api/images/meme-upload') {
+      await requireMemberTab(req, 'memegen');
+      await attachAuth(req);
+      const user = requireAuth(req);
+      checkRateLimit(`image-meme-upload:${user.id}`, { max: 20, windowMs: 60_000 });
+      const body = await readJsonBody(req);
+      const buffer = Buffer.from(body.data ?? '', 'base64');
+      const meta = await saveImage({
+        name: body.name,
+        mime: body.mime,
+        size: body.size ?? buffer.length,
+        width: body.width,
+        height: body.height,
+        buffer,
+        userId: user.id,
+        source: 'meme',
+      });
+      return sendJson(res, 201, toClientMeta(meta, req));
+    }
+
     await requireMemberTab(req, 'imagehost');
 
     if (req.method === 'GET' && pathname === '/api/images/stats') {
@@ -93,9 +113,8 @@ export async function handleImageHostRequest(req, res) {
         height: body.height,
         buffer,
         userId,
-        source: body.source === 'meme' ? 'meme' : undefined,
       });
-      const isMemeExport = body.source === 'meme';
+      const isMemeExport = false;
       if (userId && !isMemeExport) await incrementUserImageUpload(userId);
       const clientMeta = toClientMeta(meta, req);
       const skipBot = isMemeExport || body.skipBotNotify === true;

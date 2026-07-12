@@ -184,7 +184,8 @@ export async function uploadHostedImage(
     };
     xhr.onerror = () => reject(new Error('Server unreachable — run npm run dev'));
     xhr.withCredentials = true;
-    xhr.open('POST', `${API}/upload`);
+    const uploadPath = opts.source === 'meme' ? `${API}/meme-upload` : `${API}/upload`;
+    xhr.open('POST', uploadPath);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.send(JSON.stringify({
       name: file.name,
@@ -192,7 +193,6 @@ export async function uploadHostedImage(
       size: file.size,
       ...dims,
       data,
-      source: opts.source,
     }));
   });
 }

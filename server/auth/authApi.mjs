@@ -267,6 +267,7 @@ export async function handleAuthRequest(req, res) {
       checkRateLimit(`profile-view:${viewerId}`, { max: 40, windowMs: 60_000 });
       const profile = await incrementProfileView(profileViewMatch[1], {
         viewer: req.auth?.user ?? null,
+        sessionTab: req.auth?.session?.analyticsLastTab ?? null,
       });
       return sendJson(res, 200, { user: profile });
     }
