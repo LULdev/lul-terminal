@@ -117,7 +117,7 @@ export function UnifiedTerminalPanel({
   onOpenProfile,
   onChatUnlocks,
 }: UnifiedTerminalPanelProps) {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, refresh } = useAuth();
   const [pinned, setPinned] = useState<PinnedMessage | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -237,6 +237,9 @@ export function UnifiedTerminalPanel({
       if (e instanceof ChatFetchError && e.status === 429) {
         setChatStatus('rate_limited');
         pollBackoffRef.current = Math.min(pollBackoffRef.current * 2, 60_000);
+      } else if (e instanceof ChatAuthRequiredError) {
+        setChatStatus('offline');
+        if (isLoggedIn) void refresh();
       } else if (e instanceof ChatGatedError || (e instanceof ChatFetchError && e.status === 403)) {
         setChatStatus('gated');
       } else {
@@ -246,7 +249,7 @@ export function UnifiedTerminalPanel({
     } finally {
       if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
-  }, [applyDisplayWindow, replaceDisplayWindow]);
+  }, [applyDisplayWindow, replaceDisplayWindow, isLoggedIn, refresh]);
 
   useEffect(() => {
     if (isLoggedIn && pollEnabled) setChatStatus('ok');

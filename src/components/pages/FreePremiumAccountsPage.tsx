@@ -761,11 +761,12 @@ function PremiumAccountsContent({
   }, [refresh, search]);
 
   useVisibilityAwarePoll(() => {
+    if (!isLoggedIn) return;
     const gen = loadGenRef.current;
     fetchPremiumAccountStats()
       .then((s) => { if (gen === loadGenRef.current && mountedRef.current) setStats(s); })
       .catch(() => {});
-  }, 15_000);
+  }, 15_000, isLoggedIn);
 
   useEffect(() => {
     if (!highlightAccountId || loading) return;

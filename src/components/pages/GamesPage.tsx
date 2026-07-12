@@ -389,7 +389,10 @@ export function GamesPage() {
     setWaiting(false);
   }, [isLoggedIn]);
 
-  useVisibilityAwarePoll(() => { void loadMeta(); }, 60_000);
+  useVisibilityAwarePoll(() => {
+    if (!isLoggedIn || authLoading) return;
+    void loadMeta();
+  }, 60_000, isLoggedIn && !authLoading);
 
   useEffect(() => {
     setMsg('');
@@ -456,6 +459,11 @@ export function GamesPage() {
   }, [match?.id, match?.status, celebrateMatchDone]);
 
   useEffect(() => {
+    if (!isLoggedIn || authLoading) {
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = null;
+      return;
+    }
     if (pollRef.current) clearInterval(pollRef.current);
     const anyPvpPlaying = GAME_CATALOG.some((g) => {
       const slice = getGameSlice(state, g.id);
@@ -479,7 +487,7 @@ export function GamesPage() {
       if (pollRef.current) clearInterval(pollRef.current);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [match?.id, match?.status, match?.mode, waiting, pollState, state]);
+  }, [match?.id, match?.status, match?.mode, waiting, pollState, state, isLoggedIn, authLoading]);
 
   const slice = getGameSlice(state, selectedGame);
   const stats = slice?.myStats ?? null;

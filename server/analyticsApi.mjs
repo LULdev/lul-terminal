@@ -12,7 +12,7 @@ import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { applyRateLimitHeaders, checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { ALL_MANAGEABLE_TAB_IDS } from './accessControlStore.mjs';
 import { recordTabVisitFromAnalytics } from './auth/authService.mjs';
-import { loadSessionsDb } from './auth/authStore.mjs';
+import { loadSessionsDb, saveSessionsDb, withSessionsWrite } from './auth/authStore.mjs';
 import {
   markTabDwellIntegrity,
   MIN_DWELL_MS,
@@ -158,7 +158,7 @@ export async function handleAnalyticsRequest(req, res) {
         try {
           await checkRateLimit(`analytics-tab-visit:${req.auth.user.id}`, { max: 24, windowMs: 60_000 });
           const sessionCreated = Number(req.auth.session?.createdAt) || 0;
-          const forceRemint = Boolean(body.meta?.forceRemint)
+          const forceRemint = Boolean(req.auth.session?.analyticsProofRemint)
             && sessionCreated > 0
             && (Date.now() - sessionCreated) < 120_000;
           const claim = await tryClaimTabVisitCredit(req.auth.token, persistTab, { forceRemint });
@@ -174,6 +174,16 @@ export async function handleAnalyticsRequest(req, res) {
             const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, persistTab, { forceRemint });
             userPayload = visitResult?.user ?? null;
             proofPayload = visitResult?.proof ?? null;
+            if (forceRemint && req.auth.token) {
+              await withSessionsWrite(async () => {
+                const db = await loadSessionsDb();
+                const session = db.sessions.find((s) => s.token === req.auth.token);
+                if (session) {
+                  session.analyticsProofRemint = false;
+                  await saveSessionsDb(db);
+                }
+              });
+            }
           } catch (sideErr) {
             if (claim.snapshot) {
               await rollbackTabVisitCredit(req.auth.token, claim.snapshot);

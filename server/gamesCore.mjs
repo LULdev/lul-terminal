@@ -237,7 +237,8 @@ export async function sweepStaleQueueEntries(mm, { gameId, chatLabel }, maxAgeMs
     let swept = 0;
     for (let i = mm.queue.length - 1; i >= 0; i -= 1) {
       const entry = mm.queue[i];
-      if (!entry?.at || now - entry.at < maxAgeMs) continue;
+      const lastSeen = Math.max(Number(entry?.at) || 0, Number(entry?.heartbeatAt) || 0);
+      if (!lastSeen || now - lastSeen < maxAgeMs) continue;
       const user = getUser(db, entry.userId);
       if (!user) {
         const record = db.users.find((u) => u.id === entry.userId);
@@ -473,7 +474,11 @@ export function userInActiveMatch(activeMatches, userId) {
 
 export function touchQueueHeartbeat(queue, userId) {
   const entry = queue.find((q) => q.userId === userId);
-  if (entry) entry.heartbeatAt = Date.now();
+  if (entry) {
+    const now = Date.now();
+    entry.heartbeatAt = now;
+    entry.at = now;
+  }
 }
 
 export function sweepStaleConsumedRooms(consumedRooms, maxAgeMs = ROOM_TOMBSTONE_MS) {

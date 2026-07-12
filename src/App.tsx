@@ -198,10 +198,7 @@ export default function App() {
       try {
         const r = await trackEvent(type, {
           tab: trackedTab,
-          meta: {
-            ...baseMeta,
-            ...(forceTrack ? { forceRemint: true } : {}),
-          },
+          meta: baseMeta,
         });
         if (trackGen !== tabTrackGenRef.current || !isLoggedInRef.current) return;
         if (r?.ok === false) {

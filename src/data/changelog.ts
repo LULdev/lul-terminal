@@ -23,6 +23,25 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.39.0',
+    title: 'Extreme deep audit — round 39 (queue heartbeat + session parity)',
+    date: 'Jul 13, 2026 - 05:00',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — Queue sweep reads heartbeatAt; touchQueueHeartbeat refreshes at (v3.38 regression).' },
+      { priority: 'P1', text: 'P1 — Logout/delete: best-effort arcade cleanup + escrow refund (no session trap).' },
+      { priority: 'P1', text: 'P1 — GamesPage poll + loadMeta gated on isLoggedIn; chat 401 triggers refresh.' },
+      { priority: 'P1', text: 'P1 — forceRemint server-only (session.analyticsProofRemint on login).' },
+      { priority: 'P2', text: 'P2 — activity.flags dedup keys carved out of 512-key eviction.' },
+      { priority: 'P2', text: 'P2 — Analytics admin GET omits email; loadUsersDb runs normalizeActivity.' },
+      { priority: 'P2', text: 'P2 — Guest post/page views enabled; ProfilePage authLoading + fallback skipDwell.' },
+      { priority: 'P2', text: 'P2 — fetchMyActivity/active-today soft fetch; premium stats poll gated.' },
+      { priority: 'P3', text: 'P3 — Paste fork owner check uses String() coercion.' },
+      { priority: 'P8', text: 'P8 — Redis matchmaker, Retry-After remaining TTL, guest dedup fail-closed deferred.' },
+      { priority: 'P9', text: 'P9 — Round 39 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.38.1',
     title: 'Bug sweep — paste burn, ratings, games guard, view counts',
     date: 'Jul 13, 2026 - 04:00',

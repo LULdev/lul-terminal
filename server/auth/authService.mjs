@@ -216,6 +216,7 @@ export async function loginUser({ email, password, remember }) {
       remember: Boolean(remember),
       expiresAt: Date.now() + maxAgeSec * 1000,
       createdAt: Date.now(),
+      analyticsProofRemint: true,
     });
     await saveSessionsDb(sessionsDb);
   });
@@ -316,8 +317,13 @@ export async function logoutUser(token) {
     const { leaveAllGameQueues } = await import('../gamesService.mjs');
     const cleanup = await leaveAllGameQueues(userId);
     if (!cleanup.ok) {
-      console.warn('[auth] logout arcade cleanup incomplete', { userId, errors: cleanup.errors });
-      throw new Error(arcadeCleanupError(cleanup));
+      console.warn('[auth] logout arcade cleanup incomplete — refunding escrows and forcing sign-out', {
+        userId,
+        errors: cleanup.errors,
+      });
+      await refundUserEscrows(userId).catch((e) => {
+        console.warn('[auth] escrow refund on logout failed', userId, e);
+      });
     }
     await withUsersWrite(async () => {
       const db = await loadUsersDb();
@@ -828,8 +834,13 @@ export async function deleteOwnAccount(userId, password) {
     }
     const cleanup = await leaveAllGameQueues(userId);
     if (!cleanup.ok) {
-      console.warn('[auth] delete account arcade cleanup incomplete', { userId, errors: cleanup.errors });
-      throw new Error(`Cannot delete account: arcade cleanup failed (${cleanup.errors.map((e) => e.gameId).join(', ')})`);
+      console.warn('[auth] delete account arcade cleanup incomplete — refunding escrows', {
+        userId,
+        errors: cleanup.errors,
+      });
+      await refundUserEscrows(userId).catch((e) => {
+        console.warn('[auth] escrow refund on delete failed', userId, e);
+      });
     }
     await blockRegistrationSignalsForUser(freshUser);
     freshUser.registrationBlocked = true;

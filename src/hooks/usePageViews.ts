@@ -5,11 +5,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchPageViews, recordPageView } from '../lib/pageViews';
-import { useAuth } from '../context/AuthContext';
 import { useVisibilityAwarePoll } from './useVisibilityAwarePoll';
 
 export function usePageViews(pageId: string | undefined, enabled = true) {
-  const { isLoggedIn } = useAuth();
   const [views, setViews] = useState<number | null>(null);
   const loadGenRef = useRef(0);
   const mountedRef = useRef(true);
@@ -34,16 +32,12 @@ export function usePageViews(pageId: string | undefined, enabled = true) {
       return;
     }
     const gen = ++loadGenRef.current;
-    if (!isLoggedIn) {
-      setViews(null);
-      return;
-    }
     recordPageView(pageId)
       .then((v) => { if (gen === loadGenRef.current && mountedRef.current) setViews(v); })
       .catch(() => { if (gen === loadGenRef.current && mountedRef.current) void refresh(); });
-  }, [pageId, enabled, isLoggedIn, refresh]);
+  }, [pageId, enabled, refresh]);
 
-  useVisibilityAwarePoll(refresh, 10_000, Boolean(pageId && enabled && isLoggedIn));
+  useVisibilityAwarePoll(refresh, 10_000, Boolean(pageId && enabled));
 
   return views;
 }

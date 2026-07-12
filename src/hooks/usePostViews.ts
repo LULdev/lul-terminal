@@ -4,12 +4,10 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { fetchAllPostViews, recordPostView, type PostViewType } from '../lib/postViews';
 
 export function usePostViews(type: PostViewType, opts?: { enabled?: boolean }) {
-  const { isLoggedIn } = useAuth();
-  const enabled = (opts?.enabled ?? true) && isLoggedIn;
+  const enabled = opts?.enabled ?? true;
   const [views, setViews] = useState<Record<string, number>>({});
   const viewsRef = useRef<Record<string, number>>({});
   const inflightRef = useRef(new Set<string>());

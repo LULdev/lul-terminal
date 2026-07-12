@@ -429,7 +429,7 @@ export async function handlePasteRequest(req, res) {
       await checkRateLimit(`paste-fork:${user.id}`, { max: 30, windowMs: 60_000 });
       const meta = await loadAlive(forkMatch[1]);
       if (!meta) return sendJson(res, 404, { error: 'Not found' });
-      if (meta.userId !== user.id) return sendJson(res, 403, { error: 'Not allowed' });
+      if (String(meta.userId) !== String(user.id)) return sendJson(res, 403, { error: 'Not allowed' });
       const content = await getContent(meta.id);
       if (!content) return sendJson(res, 404, { error: 'Not found' });
       return sendJson(res, 200, {

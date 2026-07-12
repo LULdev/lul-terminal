@@ -364,7 +364,14 @@ function pruneActivityFlags(flags) {
       delete out[profileKeys[i]];
     }
   }
-  const keys = Object.keys(out);
+  const isDedupFlag = (key) =>
+    key.startsWith('profile_visit_')
+    || key.startsWith('paste_meta_view_')
+    || key.startsWith('image_meta_view_')
+    || key.startsWith('page_view_')
+    || key.startsWith('post_view_')
+    || key.startsWith('paste_view_');
+  const keys = Object.keys(out).filter((k) => !isDedupFlag(k));
   if (keys.length > MAX_ACTIVITY_FLAG_KEYS) {
     keys.sort();
     for (let i = 0; i < keys.length - MAX_ACTIVITY_FLAG_KEYS; i += 1) {

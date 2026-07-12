@@ -218,7 +218,6 @@ function userActivityRow(user) {
     id: user.id,
     username: user.username,
     displayName: user.displayName,
-    email: user.email ?? null,
     role: user.role,
     active: user.active,
     verified: user.verified,
@@ -404,8 +403,7 @@ export async function listAdminUserActivity({ search, limit = 100 } = {}) {
     list = list.filter(
       (u) =>
         u.username.includes(q) ||
-        (u.displayName ?? '').toLowerCase().includes(q) ||
-        (u.email ?? '').includes(q),
+        (u.displayName ?? '').toLowerCase().includes(q),
     );
   }
   list.sort((a, b) => (b.lastSeenAt ?? 0) - (a.lastSeenAt ?? 0));

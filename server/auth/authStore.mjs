@@ -10,6 +10,7 @@ import crypto from 'crypto';
 import { hashPassword } from './crypto.mjs';
 import { extractPublicGameStats } from '../gameStatsConfig.mjs';
 import { normalizeProfileCustomization } from '../profileCustomization.mjs';
+import { normalizeActivity } from './achievements.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..', '..', 'data', 'auth');
@@ -89,27 +90,7 @@ export async function loadUsersDb() {
       onlineMinutes: Math.max(0, Number(u.onlineMinutes) || 0),
       lastSeenAt: u.lastSeenAt ? Number(u.lastSeenAt) : null,
       profileCustomization: normalizeProfileCustomization(u.profileCustomization),
-      activity: u.activity && typeof u.activity === 'object'
-        ? {
-            loginCount: Math.max(0, Number(u.activity.loginCount) || 0),
-            commandsRun: Math.max(0, Number(u.activity.commandsRun) || 0),
-            pageVisits: Math.max(0, Number(u.activity.pageVisits) || 0),
-            profileVisits: Math.max(0, Number(u.activity.profileVisits) || 0),
-            shoutboxSent: Math.max(0, Number(u.activity.shoutboxSent) || 0),
-            changelogReads: Math.max(0, Number(u.activity.changelogReads) || 0),
-            changelogLastReadVersion: u.activity.changelogLastReadVersion
-              ? String(u.activity.changelogLastReadVersion).trim().slice(0, 32)
-              : null,
-            newsReads: Math.max(0, Number(u.activity.newsReads) || 0),
-            newsLastReadVersion: u.activity.newsLastReadVersion
-              ? String(u.activity.newsLastReadVersion).trim().slice(0, 32)
-              : null,
-            tabsVisited: Array.isArray(u.activity.tabsVisited)
-              ? u.activity.tabsVisited.map((t) => String(t).slice(0, 24))
-              : [],
-            flags: u.activity.flags && typeof u.activity.flags === 'object' ? u.activity.flags : {},
-          }
-        : { loginCount: 0, commandsRun: 0, pageVisits: 0, profileVisits: 0, shoutboxSent: 0, changelogReads: 0, changelogLastReadVersion: null, newsReads: 0, newsLastReadVersion: null, tabsVisited: [], flags: {} },
+      activity: normalizeActivity(u.activity),
     }));
     return { ...EMPTY_USERS, ...data, users };
   } catch (err) {
