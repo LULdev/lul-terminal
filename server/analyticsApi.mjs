@@ -10,6 +10,7 @@ import { canAccessAdmin } from './auth/permissions.mjs';
 import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
+import { ALL_MANAGEABLE_TAB_IDS } from './accessControlStore.mjs';
 import { recordTabVisitFromAnalytics } from './auth/authService.mjs';
 import { requireMemberTab } from './tabAccessGuard.mjs';
 import {
@@ -57,10 +58,16 @@ export async function handleAnalyticsRequest(req, res) {
       });
 
       const eventType = String(body.type ?? '').slice(0, 48);
+      const rawTab = eventType === 'faq_visit'
+        ? 'faq'
+        : String(body.tab ?? '').slice(0, 24);
+      const safeTab = ALL_MANAGEABLE_TAB_IDS.includes(rawTab) ? rawTab : null;
       const ip = clientIp(req);
       const derivedGuestId = req.auth?.user
         ? null
         : crypto.createHash('sha256').update(`guest:${ip}`).digest('hex').slice(0, 16);
+      const meta = body.meta && typeof body.meta === 'object' ? { ...body.meta } : {};
+      delete meta.forceRemint;
       const event = await recordEvent({
         type: eventType,
         userId: req.auth?.user?.id ?? null,
@@ -69,19 +76,21 @@ export async function handleAnalyticsRequest(req, res) {
         sessionId: req.auth?.user
           ? (req.auth.token?.slice(0, 16) ?? req.auth.user.id)
           : derivedGuestId,
-        tab: body.tab ?? null,
-        meta: body.meta && typeof body.meta === 'object' ? body.meta : {},
+        tab: safeTab,
+        meta,
       });
 
       let userPayload = null;
       let proofPayload = null;
-      if (req.auth?.user?.id && (eventType === 'tab_visit' || eventType === 'faq_visit')) {
-        const tab = eventType === 'faq_visit' ? 'faq' : String(body.tab ?? '').slice(0, 24);
+      if (req.auth?.user?.id && safeTab && (eventType === 'tab_visit' || eventType === 'faq_visit')) {
         try {
-          await requireMemberTab(req, tab);
+          await requireMemberTab(req, safeTab);
           checkRateLimit(`analytics-tab-visit:${req.auth.user.id}`, { max: 24, windowMs: 60_000 });
-          const forceRemint = Boolean(body.meta?.forceRemint);
-          const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, tab, { forceRemint });
+          const sessionCreated = Number(req.auth.session?.createdAt) || 0;
+          const forceRemint = Boolean(body.meta?.forceRemint)
+            && sessionCreated > 0
+            && (Date.now() - sessionCreated) < 120_000;
+          const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, safeTab, { forceRemint });
           userPayload = visitResult?.user ?? null;
           proofPayload = visitResult?.proof ?? null;
         } catch (e) {
@@ -103,6 +112,7 @@ export async function handleAnalyticsRequest(req, res) {
     if (req.method === 'GET' && pathname === '/api/analytics/me') {
       await attachAuth(req);
       const user = requireAuth(req);
+      await requireMemberTab(req, 'activity');
       checkRateLimit(`analytics-me:${user.id}`, { max: 60, windowMs: 60_000 });
       const summary = await buildUserActivitySummary(user.id);
       if (!summary) return sendJson(res, 404, { error: 'Not found' });

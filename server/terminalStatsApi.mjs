@@ -4,6 +4,7 @@
  */
 
 import { wrapAsyncHandler } from './asyncMiddleware.mjs';
+import { requireMemberTab } from './tabAccessGuard.mjs';
 import { attachAuth } from './auth/authApi.mjs';
 import { canAccessAdmin } from './auth/permissions.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
@@ -25,13 +26,15 @@ export async function handleTerminalStatsRequest(req, res) {
   }
   try {
     checkRateLimit(`terminal-stats:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+    await requireMemberTab(req, 'stats');
     await attachAuth(req);
     const includeSensitive = Boolean(req.auth?.user && canAccessAdmin(req.auth.user));
     sendJson(res, 200, await buildTerminalStats({ includeSensitive }));
   } catch (e) {
     if (isRateLimitError(e)) return sendJson(res, 429, { error: 'Too many requests' });
     const msg = e instanceof Error ? e.message : 'Server error';
-    sendJson(res, 500, { error: msg });
+    const status = msg === 'Permission denied' ? 403 : 500;
+    sendJson(res, status, { error: msg });
   }
 }
 

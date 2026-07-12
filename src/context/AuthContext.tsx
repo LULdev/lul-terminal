@@ -10,6 +10,7 @@ import type { AuthPermissions, AuthUser } from '../types/auth';
 import { AchievementNotification } from '../components/auth/AchievementNotification';
 import { clearStoredReferralCode } from '../lib/referral';
 import { clearAchievementProofs } from '../lib/achievementProof';
+import { closeChatAudioContext } from '../lib/chat';
 import { trackEvent } from '../lib/analytics';
 import { onSessionInvalidated } from '../lib/sessionEvents';
 import type { TabId } from '../config/menuItems';
@@ -150,6 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     return onSessionInvalidated(() => {
       clearAchievementProofs();
+      closeChatAudioContext();
       setUser(null);
       setPermissions(defaultPermissions);
       setAccountsSubmitted(0);
@@ -227,6 +229,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       /* clear local session even when server logout fails for other reasons */
     }
     clearAchievementProofs();
+    closeChatAudioContext();
     setUser(null);
     setPermissions(defaultPermissions);
     setAccountsSubmitted(0);

@@ -16,6 +16,7 @@ import {
   consumeAchievementProof,
   hasValidAchievementProof,
   mintAchievementProof,
+  TERMINAL_PROOF_ELIGIBLE_TABS,
 } from './achievementProof.mjs';
 import { applyActivityCtx, ensureActivity, grantFirstLogin, normalizeSocialLinks, syncAchievements } from './achievements.mjs';
 import { sanitizeAvatarUrl, sanitizeCoverUrl, sanitizeExternalUrl } from './safeMediaUrl.mjs';
@@ -540,6 +541,7 @@ export async function recordTerminalCommand(userId, command, proofNonce) {
     consumeAchievementProof(user, {
       nonce: proofNonce,
       excludedTabs: ACHIEVEMENT_PROOF_INELIGIBLE_TABS,
+      eligibleTabs: TERMINAL_PROOF_ELIGIBLE_TABS,
     });
     const act = ensureActivity(user);
     const now = Date.now();

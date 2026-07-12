@@ -141,6 +141,13 @@ export async function sendLobbyMessage(text: string): Promise<SendLobbyMessageRe
   };
 }
 
+export function closeChatAudioContext() {
+  if (chatAudioCtx && chatAudioCtx.state !== 'closed') {
+    void chatAudioCtx.close();
+  }
+  chatAudioCtx = null;
+}
+
 export function playChatNotification(muted = false) {
   if (muted) return;
   try {
@@ -150,6 +157,7 @@ export function playChatNotification(muted = false) {
       chatAudioCtx = new AudioCtx();
     }
     const ctx = chatAudioCtx;
+    if (ctx.state === 'suspended') void ctx.resume();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';

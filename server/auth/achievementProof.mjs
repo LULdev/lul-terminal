@@ -11,6 +11,13 @@ const PROOF_TTL_MS = 120_000;
 /** Read-only / milestone tabs must not mint claw/terminal proof (faq → terminal farm). */
 export const ACHIEVEMENT_PROOF_INELIGIBLE_TABS = new Set(['faq', 'changelog', 'news']);
 
+/** Terminal commands require proof minted on an interactive tab (not stats/status/leaderboard intel). */
+export const TERMINAL_PROOF_ELIGIBLE_TABS = new Set([
+  'fun', 'dashboard', 'games', 'invite', 'memegen', 'imagehost', 'paste',
+  'proxydatabase', 'premiumaccounts', 'tools', 'identity', 'textlab', 'colorlab',
+  'meme', 'toolvault', 'profile', 'activity',
+]);
+
 function safeCompareNonce(a, b) {
   const left = Buffer.from(String(a ?? ''), 'utf8');
   const right = Buffer.from(String(b ?? ''), 'utf8');
@@ -51,7 +58,12 @@ export function mintAchievementProof(user, tab) {
 }
 
 /** Validate and consume a proof nonce (one command / one claw per tab visit). */
-export function consumeAchievementProof(user, { nonce, requiredTab = null, excludedTabs = null } = {}) {
+export function consumeAchievementProof(user, {
+  nonce,
+  requiredTab = null,
+  excludedTabs = null,
+  eligibleTabs = null,
+} = {}) {
   const act = ensureActivity(user);
   const now = Date.now();
   const stored = String(act.flags?.achProofNonce ?? '');
@@ -67,6 +79,9 @@ export function consumeAchievementProof(user, { nonce, requiredTab = null, exclu
     throw new Error('Achievement proof invalid for this action');
   }
   if (excludedTabs?.has(tab)) {
+    throw new Error('Achievement proof invalid for this action');
+  }
+  if (eligibleTabs && !eligibleTabs.has(tab)) {
     throw new Error('Achievement proof invalid for this action');
   }
 

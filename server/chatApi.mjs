@@ -72,6 +72,7 @@ export async function handleChatRequest(req, res) {
       if (!req.auth?.user) {
         throw new Error('You must be logged in with a registered account to post messages');
       }
+      await requireMemberTab(req, 'fun');
       checkRateLimit(`chat-send:${req.auth.user.id}`, { max: 40, windowMs: 60_000 });
       const body = await readJsonBody(req, 2048);
       if (typeof body.text !== 'string') throw new Error('Message text required');
@@ -90,6 +91,7 @@ export async function handleChatRequest(req, res) {
       if (!req.auth?.user) {
         throw new Error('You must be logged in to report activity');
       }
+      await requireMemberTab(req, 'fun');
       checkRateLimit(`chat-activity:${req.auth.user.id}`, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const message = await handleChatActivity(req.auth.user, body);
@@ -104,7 +106,7 @@ export async function handleChatRequest(req, res) {
       : e instanceof SyntaxError ? 400
       : msg.includes('logged in') || msg === 'Not logged in'
         ? 401
-        : msg.includes('banned') || msg.includes('muted')
+        : msg === 'Permission denied' || msg.includes('banned') || msg.includes('muted')
           ? 403
           : msg.includes('wait') || msg.includes('empty') || msg.includes('long')
             || msg.includes('must start') || msg.includes('Usage:') || msg.includes('Unknown')

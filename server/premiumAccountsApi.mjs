@@ -90,6 +90,7 @@ export async function handlePremiumAccountsRequest(req, res) {
 
     if (req.method === 'GET' && pathname === '/api/premium-accounts/stats') {
       requirePremiumView(req);
+      await requireMemberTab(req, 'premiumaccounts');
       checkRateLimit(`premium-read:${req.auth.user.id}`, { max: 60, windowMs: 60_000 });
       const stats = await getStats({ isAdmin });
       return sendJson(res, 200, stats);
@@ -97,6 +98,7 @@ export async function handlePremiumAccountsRequest(req, res) {
 
     if (req.method === 'GET' && pathname === '/api/premium-accounts/accounts') {
       requirePremiumView(req);
+      await requireMemberTab(req, 'premiumaccounts');
       checkRateLimit(`premium-read:${req.auth.user.id}`, { max: 60, windowMs: 60_000 });
       const data = await listAccounts({
         category: url.searchParams.get('category') ?? undefined,
@@ -119,6 +121,7 @@ export async function handlePremiumAccountsRequest(req, res) {
 
     if (req.method === 'POST' && pathname === '/api/premium-accounts/accounts') {
       requirePremiumSubmit(req);
+      await requireMemberTab(req, 'premiumaccounts');
       checkRateLimit(`premium-submit:${req.auth.user.id}`, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const result = await addAccount(body, req.auth.user);
@@ -150,6 +153,7 @@ export async function handlePremiumAccountsRequest(req, res) {
     const viewMatch = pathname.match(/^\/api\/premium-accounts\/accounts\/([a-f0-9]+)\/view$/);
     if (viewMatch && req.method === 'POST') {
       requirePremiumView(req);
+      await requireMemberTab(req, 'premiumaccounts');
       checkRateLimit(`premium-view:${req.auth.user.id}`, { max: 60, windowMs: 60_000 });
       const accountId = viewMatch[1];
       const viewerId = req.auth.user.id;
@@ -204,6 +208,7 @@ export async function handlePremiumAccountsRequest(req, res) {
       if (!req.auth?.user) {
         throw new Error('You must be logged in with a registered account to report an entry');
       }
+      await requireMemberTab(req, 'premiumaccounts');
       checkRateLimit(`premium-report:${req.auth.user.id}`, { max: 10, windowMs: 60_000 });
       const reporter = req.auth.user;
       const body = await readJsonBody(req);

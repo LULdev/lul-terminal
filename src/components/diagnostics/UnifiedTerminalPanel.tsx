@@ -244,7 +244,7 @@ export function UnifiedTerminalPanel({
   }, [applyDisplayWindow, replaceDisplayWindow]);
 
   useEffect(() => {
-    if (!pollEnabled) return;
+    if (!pollEnabled || !isLoggedIn) return;
     initialDoneRef.current = false;
     lobbyUpdatedAtRef.current = null;
     void loadMessages(true);
@@ -265,7 +265,7 @@ export function UnifiedTerminalPanel({
       if (poll) clearTimeout(poll);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [loadMessages, pollEnabled]);
+  }, [loadMessages, pollEnabled, isLoggedIn]);
 
   const sendChat = useCallback(async (text: string): Promise<SendChatResult> => {
     try {

@@ -9,44 +9,34 @@ export type AchievementProof = {
   exp: number;
 };
 
-const cache = new Map<string, AchievementProof>();
+/** Server stores one proof at a time — client mirrors with a single slot. */
+let cached: AchievementProof | null = null;
+
+function pruneExpired() {
+  if (cached && Date.now() > cached.exp) cached = null;
+}
 
 export function setAchievementProof(proof: AchievementProof | null | undefined) {
   if (!proof?.nonce || !proof.exp || !proof.tab) {
     return;
   }
-  cache.set(proof.tab, proof);
+  cached = proof;
 }
 
 /** Read proof nonce without consuming it. */
 export function peekAchievementProof(requiredTab?: string): string | null {
-  const now = Date.now();
-  if (requiredTab) {
-    const entry = cache.get(requiredTab);
-    if (!entry || now > entry.exp) return null;
-    return entry.nonce;
-  }
-  for (const [, entry] of cache) {
-    if (now <= entry.exp) return entry.nonce;
-  }
-  return null;
+  pruneExpired();
+  if (!cached) return null;
+  if (requiredTab && cached.tab !== requiredTab) return null;
+  return cached.nonce;
 }
 
-/** Consume a previously peeked proof after a successful API call. */
+/** Consume proof after a successful API call. */
 export function commitAchievementProof(requiredTab?: string) {
-  const now = Date.now();
-  if (requiredTab) {
-    const entry = cache.get(requiredTab);
-    if (entry && now <= entry.exp) cache.delete(requiredTab);
-    return;
-  }
-  for (const [tab, entry] of cache) {
-    if (now <= entry.exp) {
-      cache.delete(tab);
-      return;
-    }
-    cache.delete(tab);
-  }
+  pruneExpired();
+  if (!cached) return;
+  if (requiredTab && cached.tab !== requiredTab) return;
+  cached = null;
 }
 
 /** Take proof for an action; optionally require it was minted on a specific tab. */
@@ -58,5 +48,5 @@ export function takeAchievementProof(requiredTab?: string): string | null {
 }
 
 export function clearAchievementProofs() {
-  cache.clear();
+  cached = null;
 }

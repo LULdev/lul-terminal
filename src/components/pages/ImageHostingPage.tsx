@@ -104,6 +104,10 @@ export function ImageHostingPage() {
       const meta = await uploadHostedImage(file, setProgress);
       setResult(meta);
       setPhase('success');
+      setPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
       setGalleryRefresh((k) => k + 1);
       if (isLoggedIn) {
         syncAchievements().catch(() => {});

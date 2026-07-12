@@ -8,6 +8,7 @@ import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { ensureActivity } from './auth/achievements.mjs';
 import { loadUsersDb, saveUsersDb } from './auth/authStore.mjs';
 import { runCoinTransaction } from './gamesCoinLock.mjs';
+import { requireMemberTab } from './tabAccessGuard.mjs';
 import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { getAllPostViews, recordPostView, sanitizePostId } from './postViewsStore.mjs';
 
@@ -36,6 +37,8 @@ export async function handlePostViewsRequest(req, res) {
   try {
     if (req.method === 'GET' && pathname === '/api/post-views') {
       checkRateLimit(`post-views-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await attachAuth(req);
+      requireAuth(req);
       return sendJson(res, 200, await getAllPostViews());
     }
 
@@ -51,6 +54,7 @@ export async function handlePostViewsRequest(req, res) {
       await attachAuth(req);
       const viewer = requireAuth(req);
       const bucket = type === 'news' ? 'news' : 'changelog';
+      await requireMemberTab(req, bucket);
       const flagKey = `post_view_${bucket}_${id.slice(0, 32)}`;
 
       const result = await runCoinTransaction(async () => {
@@ -93,7 +97,9 @@ export async function handlePostViewsRequest(req, res) {
         ? 400
         : err?.message === 'Not logged in'
           ? 401
-          : 500;
+          : err?.message === 'Permission denied'
+            ? 403
+            : 500;
     return sendJson(res, status, { error: err.message || 'Server error' });
   }
 }

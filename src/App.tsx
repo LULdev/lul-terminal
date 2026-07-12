@@ -342,16 +342,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!canAccessTab(activeTab, isLoggedIn, isAdmin)) {
-      const safe = resolveGuestSafeTab(null, isPublicTab);
-      setActiveTab(safe);
-      setProfileUsername(null);
-      syncUrlForTab(safe);
-    }
-  }, [authLoading, isLoggedIn, isAdmin, activeTab, canAccessTab, isPublicTab]);
-
-  useEffect(() => {
     if (authLoading || visibilityLoading) return;
     if (!canAccessTab(activeTab, isLoggedIn, isAdmin)) {
       const safe = resolveGuestSafeTab(null, isPublicTab);
@@ -367,6 +357,12 @@ export default function App() {
       syncUrlForTab(safe);
     }
   }, [authLoading, visibilityLoading, isLoggedIn, isAdmin, activeTab, requiresLogin, canAccessTab, isPublicTab]);
+
+  useEffect(() => {
+    if (isLoggedIn) return;
+    lastTrackedTabRef.current = null;
+    changelogVisitSynced.current = false;
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (activeTab !== 'premiumaccounts') return;
@@ -449,12 +445,12 @@ export default function App() {
     terminalAppend(message, type);
   }, []);
 
-  const handleCursorGrabbed = () => {
+  const handleCursorGrabbed = useCallback(() => {
     if (cursorGrabbed || gameOver) return;
 
     setCursorGrabbed(true);
     recordCatch();
-    if (isLoggedIn) {
+    if (isLoggedInRef.current) {
       const proof = peekAchievementProof('fun');
       if (proof) {
         authApi.recordAchievementEvent('claw_victim', proof)
@@ -478,7 +474,7 @@ export default function App() {
       terminalAppend('💨 Brief quantum leakage detected — claw re-arming...', 'warn');
       playBeep(600, 0.25, 'sine');
     }, GRAB_HOLD_MS);
-  };
+  }, [cursorGrabbed, gameOver, recordCatch, handleUnlocks, patchUser, playBeep]);
 
   useEffect(() => {
     if (renderTab !== 'fun') {
@@ -493,7 +489,7 @@ export default function App() {
       const regrabTimer = setTimeout(() => handleCursorGrabbed(), 1000);
       return () => clearTimeout(regrabTimer);
     }
-  }, [cursorGrabbed, clawThreatLevel, renderTab, gameOver]);
+  }, [cursorGrabbed, clawThreatLevel, renderTab, gameOver, handleCursorGrabbed]);
 
   useEffect(() => {
     return () => {

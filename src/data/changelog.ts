@@ -23,6 +23,24 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.87',
+    title: 'Extreme deep audit — round 27 (server/client/chat/news/paste)',
+    date: 'Jul 12, 2026 - 14:00',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — Client proof cache single-slot (matches server); terminal proof requires interactive tabs only.' },
+      { priority: 'P1', text: 'P1 — stats/status/activity/pageViews/postViews/premiumAccounts APIs gated with requireMemberTab.' },
+      { priority: 'P2', text: 'P2 — Logout resets tab tracking refs; shoutbox poll gated on isLoggedIn (no guest spam).' },
+      { priority: 'P2', text: 'P2 — forceRemint only within 120s of session create; invalid analytics tabs stripped before persist.' },
+      { priority: 'P3', text: 'P3 — Chat POST routes gated (fun tab); closeChatAudioContext on logout + ctx.resume() for notifications.' },
+      { priority: 'P3', text: 'P3 — wrapAsyncHandler passes next + maps 401/403; duplicate App redirect effects merged.' },
+      { priority: 'P3', text: 'P3 — handleCursorGrabbed useCallback with isLoggedInRef; claw regrab deps fixed.' },
+      { priority: 'P4', text: 'P4 — resolvePublicOrigin sanitizes proto (http/https) and host; AVIF/BMP already enforced in 3.36.86.' },
+      { priority: 'P4', text: 'P4 — ImageHosting preview blob revoked on upload success.' },
+      { priority: 'P9', text: 'P9 — Round 27 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.86',
     title: 'Extreme deep audit — round 26 (server/client/chat/news/paste)',
     date: 'Jul 12, 2026 - 13:00',

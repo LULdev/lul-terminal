@@ -8,6 +8,8 @@ import { ensureActivity } from './auth/achievements.mjs';
 import { loadUsersDb, saveUsersDb } from './auth/authStore.mjs';
 import { runCoinTransaction } from './gamesCoinLock.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
+import { ALL_MANAGEABLE_TAB_IDS } from './accessControlStore.mjs';
+import { requireMemberTab } from './tabAccessGuard.mjs';
 import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { getAllPageViews, getPageViews, recordPageView, sanitizePageId } from './pageViewsStore.mjs';
 
@@ -24,6 +26,8 @@ export async function handlePageViewsRequest(req, res) {
   try {
     if (req.method === 'GET' && pathname === '/api/page-views') {
       checkRateLimit(`page-views-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      await attachAuth(req);
+      requireAuth(req);
       return sendJson(res, 200, await getAllPageViews());
     }
 
@@ -34,6 +38,9 @@ export async function handlePageViewsRequest(req, res) {
       const viewer = requireAuth(req);
       const pageId = sanitizePageId(viewMatch[1]);
       if (!pageId) return sendJson(res, 400, { error: 'Invalid page id' });
+      if (ALL_MANAGEABLE_TAB_IDS.includes(pageId)) {
+        await requireMemberTab(req, pageId);
+      }
       const flagKey = `page_view_${pageId}`;
 
       const result = await runCoinTransaction(async () => {
@@ -67,6 +74,10 @@ export async function handlePageViewsRequest(req, res) {
       checkRateLimit(`page-views-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       const id = sanitizePageId(idMatch[1]);
       if (!id) return sendJson(res, 400, { error: 'Invalid page id' });
+      await attachAuth(req);
+      if (ALL_MANAGEABLE_TAB_IDS.includes(id)) {
+        await requireMemberTab(req, id);
+      }
       return sendJson(res, 200, { pageId: id, views: await getPageViews(id) });
     }
 
@@ -78,7 +89,9 @@ export async function handlePageViewsRequest(req, res) {
         ? 400
         : err?.message === 'Not logged in'
           ? 401
-          : 500;
+          : err?.message === 'Permission denied'
+            ? 403
+            : 500;
     return sendJson(res, status, { error: err.message || 'Server error' });
   }
 }
