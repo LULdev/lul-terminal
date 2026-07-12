@@ -134,11 +134,14 @@ export function AdminNewsPanel() {
   };
 
   const togglePublish = async (a: NewsArticle) => {
+    const gen = ++actionGenRef.current;
     setError('');
     try {
       await updateNewsArticle(a.id, { active: !a.active });
+      if (gen !== actionGenRef.current || !mountedRef.current) return;
       await load();
     } catch (e) {
+      if (gen !== actionGenRef.current || !mountedRef.current) return;
       setError(e instanceof Error ? e.message : 'Update failed');
     }
   };

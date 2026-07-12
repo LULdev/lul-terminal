@@ -29,6 +29,33 @@ export async function markTabDwellIntegrity(token, tab) {
   });
 }
 
+/**
+ * Atomically check dwell chain and commit tab visit (prevents parallel tab_visit farm).
+ * Returns true when achievement side effects may run.
+ */
+export async function tryClaimTabVisitCredit(token, tab, { forceRemint = false } = {}) {
+  if (!token || !tab) return false;
+  return withSessionsWrite(async () => {
+    const db = await loadSessionsDb();
+    const session = db.sessions.find((s) => s.token === token);
+    if (!session || session.expiresAt <= Date.now()) return false;
+
+    const last = session.analyticsLastTab ?? null;
+    let canCredit = false;
+    if (last === null) canCredit = true;
+    else if (tab === last) canCredit = true;
+    else if (!forceRemint && session.analyticsDwellReady) canCredit = true;
+
+    if (!canCredit) return false;
+
+    session.analyticsLastTab = tab;
+    session.analyticsDwellReady = false;
+    await saveSessionsDb(db);
+    return true;
+  });
+}
+
+/** @deprecated Use tryClaimTabVisitCredit — kept for tests/readers */
 export async function commitTabVisitIntegrity(token, tab) {
   if (!token || !tab) return;
   await withSessionsWrite(async () => {

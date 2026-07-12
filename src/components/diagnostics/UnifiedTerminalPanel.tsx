@@ -343,7 +343,9 @@ export function UnifiedTerminalPanel({
           {chatStatus === 'rate_limited'
             ? 'Shoutbox poll rate-limited — retrying…'
             : chatStatus === 'gated'
-              ? 'Shoutbox members-only — sign in to view chat'
+              ? (isLoggedIn
+                ? 'Shoutbox unavailable — check tab access or permissions'
+                : 'Shoutbox members-only — sign in to view chat')
               : 'Shoutbox offline — logs still work, retrying…'}
         </p>
       )}

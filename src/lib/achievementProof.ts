@@ -63,4 +63,5 @@ export function takeAchievementProof(requiredTab?: string): string | null {
 
 export function clearAchievementProofs() {
   cached = null;
+  remintRequestCount = 0;
 }

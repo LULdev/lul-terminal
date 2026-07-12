@@ -28,6 +28,7 @@ export async function handlePageViewsRequest(req, res) {
       checkRateLimit(`page-views-read:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       await attachAuth(req);
       requireAuth(req);
+      await requireMemberTab(req, 'stats');
       return sendJson(res, 200, await getAllPageViews());
     }
 

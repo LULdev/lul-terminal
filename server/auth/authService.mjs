@@ -493,20 +493,25 @@ export async function recordAchievementEvent(userId, event, proofNonce) {
     const db = await loadUsersDb();
     const user = db.users.find((u) => u.id === userId);
     if (!user) throw new Error('User not found');
-    consumeAchievementProof(user, {
-      nonce: proofNonce,
-      requiredTab: flag === 'claw_victim' ? 'fun' : null,
-    });
     const act = ensureActivity(user);
     const now = Date.now();
     const lastAt = Number(act.flags?.lastAchievementEventAt) || 0;
     if (now - lastAt < 3000) throw new Error('Please wait before triggering another event');
-    act.flags = { ...(act.flags ?? {}), lastAchievementEventAt: now };
     if (flag === 'claw_victim') {
       const dayKey = new Date(now).toISOString().slice(0, 10);
       const clawKey = `claw_victim_${dayKey}`;
       const daily = Number(act.flags[clawKey]) || 0;
       if (daily >= 20) throw new Error('Daily claw event limit reached');
+    }
+    consumeAchievementProof(user, {
+      nonce: proofNonce,
+      requiredTab: flag === 'claw_victim' ? 'fun' : null,
+    });
+    act.flags = { ...(act.flags ?? {}), lastAchievementEventAt: now };
+    if (flag === 'claw_victim') {
+      const dayKey = new Date(now).toISOString().slice(0, 10);
+      const clawKey = `claw_victim_${dayKey}`;
+      const daily = Number(act.flags[clawKey]) || 0;
       act.flags[clawKey] = daily + 1;
     }
     const { accountsSubmitted, reportedNotWorkingAccounts, profileStats } = await profileExtrasForUser(user);
@@ -536,11 +541,6 @@ export async function recordTerminalCommand(userId, command, proofNonce) {
     const db = await loadUsersDb();
     const user = db.users.find((u) => u.id === userId);
     if (!user) throw new Error('User not found');
-    consumeAchievementProof(user, {
-      nonce: proofNonce,
-      excludedTabs: ACHIEVEMENT_PROOF_INELIGIBLE_TABS,
-      eligibleTabs: TERMINAL_PROOF_ELIGIBLE_TABS,
-    });
     const act = ensureActivity(user);
     const now = Date.now();
     const lastAt = Number(act.flags?.lastTerminalCommandAt) || 0;
@@ -549,6 +549,11 @@ export async function recordTerminalCommand(userId, command, proofNonce) {
     const dailyKey = `terminal_cmds_${dayKey}`;
     const dailyCount = Number(act.flags[dailyKey]) || 0;
     if (dailyCount >= 120) throw new Error('Daily command limit reached');
+    consumeAchievementProof(user, {
+      nonce: proofNonce,
+      excludedTabs: ACHIEVEMENT_PROOF_INELIGIBLE_TABS,
+      eligibleTabs: TERMINAL_PROOF_ELIGIBLE_TABS,
+    });
     act.flags[dailyKey] = dailyCount + 1;
     act.flags.lastTerminalCommandAt = now;
     const flag = cmd === 'matrix'
@@ -601,7 +606,7 @@ export async function incrementProfileView(username, { viewer = null, sessionTab
     let dirty = false;
     if (viewer && viewer.id && viewer.role !== 'bot') {
       const viewerUser = db.users.find((u) => u.id === viewer.id);
-      const onProfileTab = !sessionTab || String(sessionTab) === 'profile';
+      const onProfileTab = String(sessionTab ?? '') === 'profile';
       if (viewerUser && onProfileTab) {
         const visitKey = `profile_visit_${uname}`;
         const alreadyVisited = Boolean(ensureActivity(viewerUser).flags[visitKey]);

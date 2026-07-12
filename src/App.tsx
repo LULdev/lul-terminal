@@ -60,6 +60,7 @@ import {
   commitAchievementProof,
   peekAchievementProof,
   setAchievementProof,
+  clearAchievementProofs,
   requestAchievementProofRemint,
   takeAchievementProofRemintRequest,
 } from './lib/achievementProof';
@@ -172,6 +173,7 @@ export default function App() {
   isLoggedInRef.current = isLoggedIn;
   useEffect(() => {
     if (authLoading || visibilityLoading) return;
+    if (pendingTabAfterLogin) return;
     if (activeTab !== renderTab) return;
     const trackedTab = renderTab;
     const trackGen = ++tabTrackGenRef.current;
@@ -199,19 +201,6 @@ export default function App() {
       const baseMeta = visitorCtxRef.current ? visitorContextToMeta(visitorCtxRef.current) : {};
       if (trackedTab === 'news' || trackedTab === 'changelog') {
         notifyFeedRead(trackedTab);
-        if (isLoggedIn && user) {
-          if (trackedTab === 'changelog' && user.changelogLastReadVersion !== APP_VERSION) {
-            markLocalChangelogRead();
-            patchUser((prev) => (prev ? { ...prev, changelogLastReadVersion: APP_VERSION } : prev));
-          } else if (
-            trackedTab === 'news'
-            && newsFeedVersion !== '0.0.0'
-            && user.newsLastReadVersion !== newsFeedVersion
-          ) {
-            markLocalNewsRead(newsFeedVersion);
-            patchUser((prev) => (prev ? { ...prev, newsLastReadVersion: newsFeedVersion } : prev));
-          }
-        }
       }
 
       try {
@@ -229,7 +218,18 @@ export default function App() {
           tabEnteredAtRef.current = Date.now();
         }
         if (r?.proof && r.proof.tab === trackedTab) setAchievementProof(r.proof);
-        if (r?.user && (r.proof?.tab === trackedTab || forceTrack)) patchUser(r.user);
+        if (r?.user) {
+          patchUser(r.user);
+          if (trackedTab === 'changelog' && r.user.changelogLastReadVersion === APP_VERSION) {
+            markLocalChangelogRead();
+          } else if (
+            trackedTab === 'news'
+            && newsFeedVersion !== '0.0.0'
+            && r.user.newsLastReadVersion === newsFeedVersion
+          ) {
+            markLocalNewsRead(newsFeedVersion);
+          }
+        }
       } catch {
         if (trackGen !== tabTrackGenRef.current || !isLoggedInRef.current) return;
         if (forceTrack) {
@@ -238,21 +238,13 @@ export default function App() {
         }
       }
     })();
-  }, [activeTab, renderTab, authLoading, visibilityLoading, patchUser, isLoggedIn, user, newsFeedVersion]);
+  }, [activeTab, renderTab, authLoading, visibilityLoading, pendingTabAfterLogin, patchUser, isLoggedIn, user, newsFeedVersion]);
 
   useEffect(() => {
     if (authSuccessTick < 1 || !isLoggedIn) return;
     tabTrackForceRef.current = true;
     lastTrackedTabRef.current = null;
   }, [authSuccessTick, isLoggedIn]);
-
-  useEffect(() => {
-    if (!isLoggedIn || !user || renderTab !== 'news') return;
-    if (newsFeedVersion === '0.0.0') return;
-    if (user.newsLastReadVersion === newsFeedVersion) return;
-    markLocalNewsRead(newsFeedVersion);
-    patchUser((prev) => (prev ? { ...prev, newsLastReadVersion: newsFeedVersion } : prev));
-  }, [renderTab, isLoggedIn, user, newsFeedVersion, patchUser]);
 
   const changelogVisitSynced = useRef(false);
   useEffect(() => {
@@ -486,7 +478,14 @@ export default function App() {
             handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
             if (data.user) patchUser(data.user);
           })
-          .catch(() => {});
+          .catch((e) => {
+            clearAchievementProofs();
+            requestAchievementProofRemint();
+            terminalAppend(
+              e instanceof Error ? `⚠️ Claw achievement failed: ${e.message}` : '⚠️ Claw achievement failed',
+              'warn',
+            );
+          });
       } else {
         terminalAppend('⚠️ Achievement proof expired — revisit Fun tab to earn claw credit.', 'warn');
       }

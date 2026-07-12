@@ -7,7 +7,7 @@ const PREFIXES = [
   'lul_page_view_',
   'lul_post_view_',
   'lul_paste_view_',
-  'lul_image_view_',
+  'lul_img_view_',
   'lul_profile_view_',
 ];
 

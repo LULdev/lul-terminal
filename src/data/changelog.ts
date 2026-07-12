@@ -23,6 +23,26 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.91',
+    title: 'Extreme deep audit — round 30 (server/client/chat/news/paste)',
+    date: 'Jul 12, 2026 - 17:00',
+    highlight: true,
+    items: [
+      { priority: 'P0', text: 'P0 — Atomic tryClaimTabVisitCredit under withSessionsWrite closes parallel tab_visit achievement farm.' },
+      { priority: 'P1', text: 'P1 — Profile-view achievements require strict session analyticsLastTab === profile (null rejected).' },
+      { priority: 'P1', text: 'P1 — Achievement proof consumed after cooldown/daily-cap checks (no griefing on rate-limit errors).' },
+      { priority: 'P1', text: 'P1 — Login pending-tab race: skip tab tracking until pending navigation applied.' },
+      { priority: 'P1', text: 'P1 — Claw/terminal achievement failures clear proof and request remint.' },
+      { priority: 'P2', text: 'P2 — remintRequestCount cleared on logout; lul_img_view_ dedup prefix aligned.' },
+      { priority: 'P2', text: 'P2 — Feed read markers applied only from successful trackEvent user payload.' },
+      { priority: 'P3', text: 'P3 — Guest tab_dwell not persisted server-side; gated chat message for logged-in members.' },
+      { priority: 'P3', text: 'P3 — commandLogs cleared on logout; recordPageView per-page inflight guard.' },
+      { priority: 'P4', text: 'P4 — GET /api/page-views list gated on stats tab; AdminNewsPanel togglePublish race guard.' },
+      { priority: 'P4', text: 'P4 — help/commands aliases no longer burn dashboard achievement proof.' },
+      { priority: 'P9', text: 'P9 — Round 30 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.90',
     title: 'Extreme deep audit — round 29b (re-audit follow-up)',
     date: 'Jul 12, 2026 - 16:30',

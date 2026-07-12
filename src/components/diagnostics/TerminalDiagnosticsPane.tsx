@@ -15,7 +15,12 @@ import { formatTerminalCommand, isTerminalCommand, parseTerminalCommand } from '
 import { registerShoutboxDraft } from '../../lib/shoutboxDraft';
 import { registerShoutboxSend } from '../../lib/shoutboxSend';
 import { registerTerminalAppend } from '../../lib/terminalLogBridge';
-import { commitAchievementProof, peekAchievementProof } from '../../lib/achievementProof';
+import {
+  clearAchievementProofs,
+  commitAchievementProof,
+  peekAchievementProof,
+  requestAchievementProofRemint,
+} from '../../lib/achievementProof';
 import { getLiveStats } from '../../lib/liveStatsStore';
 import {
   ALL_COMMANDS_ALIASES,
@@ -126,6 +131,8 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
         if (data.user) patchUser(data.user);
       })
       .catch((e) => {
+        clearAchievementProofs();
+        requestAchievementProofRemint();
         appendLogRef.current(
           e instanceof Error ? `⚠️ Achievement claim failed: ${e.message}` : '⚠️ Achievement claim failed',
           'warn',
@@ -150,6 +157,7 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
     setHistoryIndex(-1);
     setCommandInput('');
     setTempInput('');
+    setCommandLogs(getCompactCommandHintLogs());
   }, [isLoggedIn]);
 
   const appendLogRef = useRef<(msg: string, type?: LogLine['type'], commandToRun?: string) => void>(() => {});
@@ -324,7 +332,6 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
       setTempInput('');
 
       if (ALL_COMMANDS_ALIASES.has(query)) {
-        recordTerminalAchievement(query);
         printCompactCommandReference(appendLog);
       } else if (query === 'stats') {
         const stats = getLiveStats();
