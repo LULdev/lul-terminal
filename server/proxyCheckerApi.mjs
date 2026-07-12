@@ -24,7 +24,8 @@ import {
 } from './proxyCheckerStore.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { pruneJobMap } from './jobPrune.mjs';
-import { assertSafeFetchUrl } from './assertSafeFetchUrl.mjs';
+import { assertSafeFetchUrlAsync } from './assertSafeFetchUrl.mjs';
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 
 const jobs = new Map();
 
@@ -164,8 +165,8 @@ export async function handleProxyCheckerRequest(req, res) {
           const { proxies, before, removed } = dedupeForCheck(rawProxies, { autoDetectType });
           const timeoutMs = normalizeTimeout(body.timeoutMs);
           const concurrency = normalizeConcurrency(body.concurrency);
-          const testUrl = assertSafeFetchUrl(body.testUrl ?? TEST_URL_PRESETS.google);
-          const httpsTestUrl = assertSafeFetchUrl(body.httpsTestUrl ?? 'https://www.google.com/generate_204');
+          const testUrl = await assertSafeFetchUrlAsync(body.testUrl ?? TEST_URL_PRESETS.google);
+          const httpsTestUrl = await assertSafeFetchUrlAsync(body.httpsTestUrl ?? 'https://www.google.com/generate_204');
           const detectAnonymity = body.detectAnonymity !== false;
           const testHttps = body.testHttps !== false;
           const retries = Math.min(Math.max(Number(body.retries) ?? 1, 0), 3);
@@ -293,12 +294,11 @@ export async function handleProxyCheckerRequest(req, res) {
 }
 
 export function createProxyCheckerMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname.startsWith('/api/proxy-checker')) {
-      handleProxyCheckerRequest(req, res);
-      return;
+      return handleProxyCheckerRequest(req, res);
     }
     next();
-  };
+  });
 }

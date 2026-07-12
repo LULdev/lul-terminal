@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { attachAuth, requireAuth } from './auth/authApi.mjs';
 import { requireRole } from './auth/authApi.mjs';
 import { canAccessAdmin } from './auth/permissions.mjs';
@@ -97,12 +98,11 @@ export async function handleAccessControlRequest(req, res) {
 }
 
 export function createAccessControlMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname.startsWith('/api/access-control')) {
-      handleAccessControlRequest(req, res);
-      return;
+      return handleAccessControlRequest(req, res);
     }
     next();
-  };
+  });
 }

@@ -42,6 +42,7 @@ async function readJsonBody(req, limit = 14 * 1024 * 1024) {
     chunks.push(chunk);
   }
   const raw = Buffer.concat(chunks).toString('utf8');
+  if (!raw.trim()) return {};
   return JSON.parse(raw);
 }
 

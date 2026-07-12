@@ -661,6 +661,7 @@ export async function incrementUserPasteCount(userId) {
 
 export async function incrementUserPasteViews(userId, { viewerId, pasteId } = {}) {
   if (!userId || !viewerId || !pasteId) return [];
+  if (String(viewerId) === String(userId)) return [];
   return runCoinTransaction(async () => {
     const db = await loadUsersDb();
     const viewer = db.users.find((u) => u.id === viewerId);

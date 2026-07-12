@@ -358,8 +358,8 @@ export async function handlePasteRequest(req, res) {
           res.end('Not found');
           return;
         }
-        res.statusCode = access.requiresLogin ? 401 : 403;
-        res.end(access.requiresLogin ? 'Sign in required' : 'Password required');
+        res.statusCode = access.requiresLogin ? 401 : 404;
+        res.end(access.requiresLogin ? 'Sign in required' : 'Not found');
         return;
       }
       const content = await getContent(meta.id);
@@ -443,6 +443,7 @@ export async function handlePasteRequest(req, res) {
       checkRateLimit(`paste-rate:${user.id}`, { max: 20, windowMs: 60_000 });
       const meta = await loadAlive(rateMatch[1]);
       if (!meta) return sendJson(res, 404, { error: 'Not found' });
+      if (meta.userId === user.id) return sendJson(res, 403, { error: 'Cannot rate own paste' });
       const access = await resolvePasteAccess(req, meta, '');
       if (!access.allowed) {
         if (access.notFound) return sendJson(res, 404, { error: 'Not found' });
@@ -459,12 +460,12 @@ export async function handlePasteRequest(req, res) {
       const meta = await loadAlive(unlockMatch[1]);
       if (!meta) return sendJson(res, 404, { error: 'Not found' });
       if (meta.visibility !== 'protected') {
-        return sendJson(res, 400, { error: 'Paste is not password protected' });
+        return sendJson(res, 404, { error: 'Not found' });
       }
       const body = await readJsonBody(req, 8 * 1024);
       const access = await resolvePasteAccess(req, meta, body.password ?? '');
       if (!access.allowed) {
-        return sendJson(res, 403, { error: 'Invalid password' });
+        return sendJson(res, 404, { error: 'Not found' });
       }
       const content = await getContent(meta.id);
       if (!content) return sendJson(res, 404, { error: 'Not found' });

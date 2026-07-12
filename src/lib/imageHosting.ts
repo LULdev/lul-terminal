@@ -60,11 +60,25 @@ export type HostingStats = {
   imageViewsTotal: number;
 };
 
+const HOSTED_ID_RE = /^[a-f0-9]{16}$/;
+
 export function parseImageViewerId(): string | null {
   const hash = window.location.hash.replace(/^#/, '');
-  if (hash.startsWith('i/')) return hash.slice(2).split(/[?#]/)[0] || null;
+  if (hash.startsWith('i/')) {
+    const id = hash.slice(2).split(/[?#]/)[0] || null;
+    return id && HOSTED_ID_RE.test(id) ? id : null;
+  }
   const match = window.location.pathname.match(/^\/i\/([^/]+)\/?$/);
-  return match?.[1] ?? null;
+  const id = match?.[1] ?? null;
+  return id && HOSTED_ID_RE.test(id) ? id : null;
+}
+
+function escapeHtmlAttr(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 export function buildViewUrl(id: string): string {
@@ -76,7 +90,8 @@ export function buildDirectUrl(id: string): string {
 }
 
 export function buildMarkdown(name: string, url: string): string {
-  return `![${name}](${url})`;
+  const safeName = name.replace(/[\]\\]/g, '\\$&');
+  return `![${safeName}](${url})`;
 }
 
 export function buildBbcode(url: string): string {
@@ -84,7 +99,7 @@ export function buildBbcode(url: string): string {
 }
 
 export function buildHtml(url: string, alt: string): string {
-  return `<img src="${url}" alt="${alt.replace(/"/g, '&quot;')}" />`;
+  return `<img src="${escapeHtmlAttr(url)}" alt="${escapeHtmlAttr(alt)}" />`;
 }
 
 async function readImageDimensions(file: File): Promise<{ width?: number; height?: number }> {

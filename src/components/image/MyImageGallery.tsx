@@ -34,6 +34,7 @@ import {
   type HostedImageMeta,
   type MyGalleryStats,
 } from '../../lib/imageHosting';
+import { safeHostedImageUrl, safeHostedViewUrl } from '../../lib/safeHostedImageUrl';
 import { useVisibilityAwarePoll } from '../../hooks/useVisibilityAwarePoll';
 
 type MyImageGalleryProps = {
@@ -164,7 +165,7 @@ export function MyImageGallery({ refreshKey = 0, onSelectImage }: MyImageGallery
   };
 
   const handleBulkCopy = async () => {
-    const urls = filtered.filter((i) => selected.has(i.id)).map((i) => i.viewUrl ?? buildViewUrl(i.id));
+    const urls = filtered.filter((i) => selected.has(i.id)).map((i) => safeHostedViewUrl(i.viewUrl, i.id) ?? buildViewUrl(i.id));
     if (!urls.length) return;
     try {
       await navigator.clipboard.writeText(urls.join('\n'));
@@ -401,7 +402,7 @@ function GalleryCard({
       }`}
     >
       <button type="button" onClick={bulkMode ? onToggleSelect : onOpen} className="absolute inset-0 w-full h-full">
-        <img src={img.url} alt={img.name} className="w-full h-full object-cover" loading="lazy" />
+        <img src={safeHostedImageUrl(img.url, img.id) ?? ''} alt={img.name} className="w-full h-full object-cover" loading="lazy" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       </button>
 
@@ -470,7 +471,7 @@ function GalleryListRow({
         </button>
       )}
       <button type="button" onClick={onOpen} className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-slate-800">
-        <img src={img.url} alt={img.name} className="w-full h-full object-cover" loading="lazy" />
+        <img src={safeHostedImageUrl(img.url, img.id) ?? ''} alt={img.name} className="w-full h-full object-cover" loading="lazy" />
       </button>
       <button type="button" onClick={onOpen} className="flex-1 min-w-0 text-left">
         <p className="text-[10px] font-mono text-slate-200 truncate flex items-center gap-1">
@@ -517,7 +518,8 @@ function ImageDetailModal({
     setTags(img.tags ?? []);
   }, [img]);
 
-  const viewUrl = img.viewUrl ?? buildViewUrl(img.id);
+  const directUrl = safeHostedImageUrl(img.url, img.id) ?? '';
+  const viewUrl = safeHostedViewUrl(img.viewUrl, img.id) ?? buildViewUrl(img.id);
 
   const addTag = () => {
     const t = tagInput.trim().toLowerCase();
@@ -548,7 +550,7 @@ function ImageDetailModal({
 
         <div className="p-4 space-y-4">
           <div className="rounded-xl border border-slate-800 bg-black/50 flex items-center justify-center p-4 min-h-[180px]">
-            <img src={img.url} alt={img.name} className="max-h-[320px] max-w-full object-contain rounded-lg" />
+            {directUrl && <img src={directUrl} alt={img.name} className="max-h-[320px] max-w-full object-contain rounded-lg" />}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
@@ -591,10 +593,10 @@ function ImageDetailModal({
 
           <div className="space-y-2">
             <CopyRow label="Share-URL" value={viewUrl} />
-            <CopyRow label="Direkt" value={img.url} />
-            <CopyRow label="Markdown" value={buildMarkdown(img.name, img.url)} />
-            <CopyRow label="BBCode" value={buildBbcode(img.url)} />
-            <CopyRow label="HTML" value={buildHtml(img.url, img.name)} />
+            <CopyRow label="Direkt" value={directUrl} />
+            <CopyRow label="Markdown" value={buildMarkdown(img.name, directUrl)} />
+            <CopyRow label="BBCode" value={buildBbcode(directUrl)} />
+            <CopyRow label="HTML" value={buildHtml(directUrl, img.name)} />
           </div>
 
           <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800">

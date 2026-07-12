@@ -585,6 +585,7 @@ export default function App() {
   const lastSyncedTabRef = useRef<TabId | null>(null);
 
   const handleTabClick = useCallback((tab: TabId, opts?: { profileUsername?: string }) => {
+    if (visibilityLoading) return;
     if (tab === 'admin' && !isAdmin) {
       playBeep(520, 0.06, 'sine');
       return;
@@ -608,7 +609,7 @@ export default function App() {
       lastSyncedTabRef.current = tab;
     }
     playBeep(740, 0.08, 'sine');
-  }, [activeTab, isLoggedIn, isAdmin, isPublicTab, requiresLogin, openLoginGate, profileUsername, playBeep]);
+  }, [activeTab, isLoggedIn, isAdmin, isPublicTab, requiresLogin, openLoginGate, profileUsername, playBeep, visibilityLoading]);
 
 
   return (

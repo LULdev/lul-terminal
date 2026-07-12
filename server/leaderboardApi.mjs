@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { getLeaderboardsWithSync } from './leaderboardService.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 
@@ -32,12 +33,11 @@ export async function handleLeaderboardRequest(req, res) {
 }
 
 export function createLeaderboardMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname === '/api/leaderboards') {
-      handleLeaderboardRequest(req, res);
-      return;
+      return handleLeaderboardRequest(req, res);
     }
     next();
-  };
+  });
 }

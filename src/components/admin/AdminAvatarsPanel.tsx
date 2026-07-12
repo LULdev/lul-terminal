@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { fetchAdminAvatars, type AvatarsAdminData } from '../../lib/adminModules';
 import { formatBytes, formatRelativeEn } from '../../lib/terminalStats';
@@ -13,10 +13,26 @@ import { ToolCard } from '../pages/PageShell';
 export function AdminAvatarsPanel() {
   const [data, setData] = useState<AvatarsAdminData | null>(null);
   const [loading, setLoading] = useState(true);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
-    try { setData(await fetchAdminAvatars()); } catch { setData(null); }
-    finally { setLoading(false); }
+    const gen = ++loadGenRef.current;
+    try {
+      const result = await fetchAdminAvatars();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(result);
+    } catch {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(null);
+    } finally {
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
+    }
   }, []);
 
   useEffect(() => { void load(); }, [load]);

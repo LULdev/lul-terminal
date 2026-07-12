@@ -20,6 +20,7 @@ import {
   validateImageFile,
   type HostedImageMeta,
 } from '../../lib/imageHosting';
+import { safeHostedImageUrl, safeHostedViewUrl } from '../../lib/safeHostedImageUrl';
 import { useAuth } from '../../context/AuthContext';
 import { ActionButton, PageShell } from './PageShell';
 
@@ -121,7 +122,7 @@ export function ImageHostingPage() {
 
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
-      if (hostTab !== 'upload') return;
+      if (hostTab !== 'upload' || phase !== 'idle') return;
       const file = Array.from(e.clipboardData?.items ?? [])
         .find((i) => i.type.startsWith('image/'))
         ?.getAsFile();
@@ -129,10 +130,10 @@ export function ImageHostingPage() {
     };
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
-  }, [onFiles, hostTab]);
+  }, [onFiles, hostTab, phase]);
 
-  const viewUrl = result ? (result.viewUrl ?? buildViewUrl(result.id)) : '';
-  const directUrl = result?.url ?? '';
+  const viewUrl = result ? (safeHostedViewUrl(result.viewUrl, result.id) ?? buildViewUrl(result.id)) : '';
+  const directUrl = result ? (safeHostedImageUrl(result.url, result.id) ?? '') : '';
 
   const openGalleryImage = (img: HostedImageMeta) => {
     setResult(img);
@@ -273,7 +274,7 @@ export function ImageHostingPage() {
 
                 <div className="rounded-2xl border border-slate-800 bg-[#12151c] overflow-hidden">
                   <div className="bg-black/50 flex items-center justify-center p-6 min-h-[160px]">
-                    <img src={result.url} alt={result.name} className="max-h-[280px] max-w-full object-contain rounded-lg" />
+                    {directUrl && <img src={directUrl} alt={result.name} className="max-h-[280px] max-w-full object-contain rounded-lg" />}
                   </div>
                 </div>
 

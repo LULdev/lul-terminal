@@ -5,6 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { fetchHostedImage, pollImageMeta, recordImageView, type HostedImageMeta } from '../../lib/imageHosting';
+import { safeHostedImageUrl } from '../../lib/safeHostedImageUrl';
 
 type Props = { id: string };
 
@@ -72,7 +73,9 @@ export function ImageHostViewer({ id }: Props) {
     );
   }
 
-  if (error || !meta) {
+  const imageSrc = meta ? safeHostedImageUrl(meta.url, meta.id) : null;
+
+  if (error || !meta || !imageSrc) {
     return (
       <div className="min-h-screen bg-[#07080c] flex flex-col items-center justify-center gap-3 p-6">
         <p className="text-4xl opacity-40">🖼️</p>
@@ -88,7 +91,7 @@ export function ImageHostViewer({ id }: Props) {
       <div className="max-w-[min(100%,1200px)] w-full flex flex-col items-center gap-5 relative z-10">
         <div className="relative group w-full flex justify-center">
           <img
-            src={meta.url}
+            src={imageSrc}
             alt={meta.name}
             className="max-w-full max-h-[82vh] object-contain rounded-xl shadow-2xl shadow-black/60 ring-1 ring-white/5"
           />

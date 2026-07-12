@@ -4,6 +4,7 @@
  */
 
 import { buildArcadeWinsLeaderboards } from './arcadeMeta.mjs';
+import { sanitizeAvatarUrl } from './auth/safeMediaUrl.mjs';
 import { loadUsersDb, saveUsersDb } from './auth/authStore.mjs';
 import { normalizeProfileCustomization } from './profileCustomization.mjs';
 import { ensureActivity, tryGrantAchievement, userAchievementIds } from './auth/achievements.mjs';

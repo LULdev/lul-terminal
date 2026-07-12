@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { buildSystemStatus } from './statusService.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 
@@ -31,12 +32,11 @@ export async function handleStatusRequest(req, res) {
 }
 
 export function createStatusMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname === '/api/status') {
-      handleStatusRequest(req, res);
-      return;
+      return handleStatusRequest(req, res);
     }
     next();
-  };
+  });
 }

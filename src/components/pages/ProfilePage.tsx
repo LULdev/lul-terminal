@@ -161,38 +161,34 @@ export function ProfilePage({ routeUsername, onNavigateTab }: ProfilePageProps) 
 
   React.useEffect(() => {
     if (!isOwnProfile || !isLoggedIn || activeTab !== 'arcade' || !customization.privacy.showActivityStats) return;
-    let cancelled = false;
+    const gen = ++arcadeLoadGenRef.current;
     setGamesLoading(true);
     setGamesError('');
     Promise.all([fetchGamesState(), fetchGamesLeaderboard()])
       .then(([s, lb]) => {
-        if (!cancelled) {
-          setGamesState(s);
-          setGamesLeaderboard(lb);
-          if (customization.privacy.showCoins) setDailyBonus(s.dailyBonus);
-        }
+        if (gen !== arcadeLoadGenRef.current) return;
+        setGamesState(s);
+        setGamesLeaderboard(lb);
+        if (customization.privacy.showCoins) setDailyBonus(s.dailyBonus);
       })
       .catch((e) => {
-        if (!cancelled) {
-          setGamesError(e instanceof Error ? e.message : 'Failed to load arcade stats');
-          setGamesState(null);
-          setGamesLeaderboard(null);
-        }
+        if (gen !== arcadeLoadGenRef.current) return;
+        setGamesError(e instanceof Error ? e.message : 'Failed to load arcade stats');
+        setGamesState(null);
+        setGamesLeaderboard(null);
       })
       .finally(() => {
-        if (!cancelled) setGamesLoading(false);
+        if (gen === arcadeLoadGenRef.current) setGamesLoading(false);
       });
-    return () => { cancelled = true; };
-  }, [isOwnProfile, isLoggedIn, activeTab, customization.privacy.showActivityStats]);
+  }, [isOwnProfile, isLoggedIn, activeTab, customization.privacy.showActivityStats, customization.privacy.showCoins]);
 
   React.useEffect(() => {
     if (!isOwnProfile || !isLoggedIn || activeTab !== 'arcade' || !customization.privacy.showActivityStats) return;
     if (coinFeedTick === 0) return;
-    let cancelled = false;
+    const gen = ++arcadeLoadGenRef.current;
     fetchGamesState()
-      .then((s) => { if (!cancelled) setGamesState(s); })
-      .catch(() => { if (!cancelled) setGamesState(null); });
-    return () => { cancelled = true; };
+      .then((s) => { if (gen === arcadeLoadGenRef.current) setGamesState(s); })
+      .catch(() => { if (gen === arcadeLoadGenRef.current) setGamesState(null); });
   }, [coinFeedTick, isOwnProfile, isLoggedIn, activeTab, customization.privacy.showActivityStats]);
 
   if (!routeUsername) {

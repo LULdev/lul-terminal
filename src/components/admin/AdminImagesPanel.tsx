@@ -13,6 +13,7 @@ import {
   type AdminImagesData,
 } from '../../lib/adminModules';
 import { formatBytes } from '../../lib/terminalStats';
+import { safeHostedImageUrl, safeHostedViewUrl } from '../../lib/safeHostedImageUrl';
 import { ToolCard } from '../pages/PageShell';
 
 type Sort = 'newest' | 'oldest' | 'views' | 'size';
@@ -137,7 +138,7 @@ export function AdminImagesPanel() {
                   preview?.id === img.id ? 'border-violet-500/50 ring-1 ring-violet-500/30' : 'border-slate-800/80 hover:border-slate-600'
                 }`}
               >
-                <img src={img.url} alt={img.name} className="w-full h-full object-cover" loading="lazy" />
+                <img src={safeHostedImageUrl(img.url, img.id) ?? ''} alt={img.name} className="w-full h-full object-cover" loading="lazy" />
                 <div className="absolute inset-x-0 bottom-0 bg-black/70 px-1 py-0.5 text-[6px] font-mono text-slate-400 truncate">
                   {img.views} views
                 </div>
@@ -152,7 +153,10 @@ export function AdminImagesPanel() {
           </div>
         </ToolCard>
 
-        {preview && (
+        {preview && (() => {
+          const previewDirect = safeHostedImageUrl(preview.url, preview.id) ?? '';
+          const previewView = safeHostedViewUrl(undefined, preview.id) ?? previewDirect;
+          return (
           <div className="lg:col-span-2 rounded-2xl border border-slate-800/80 bg-black/30 p-4 space-y-3">
             <div className="flex items-start justify-between gap-2">
               <div>
@@ -160,14 +164,16 @@ export function AdminImagesPanel() {
                 <p className="text-[8px] font-mono text-slate-600">{preview.id} · {preview.mime}</p>
               </div>
               <div className="flex gap-1">
-                <a
-                  href={preview.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-1.5 rounded border border-slate-700 text-slate-400 hover:text-cyan-300"
-                >
-                  <ExternalLink size={12} />
-                </a>
+                {previewView && (
+                  <a
+                    href={previewView}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-1.5 rounded border border-slate-700 text-slate-400 hover:text-cyan-300"
+                  >
+                    <ExternalLink size={12} />
+                  </a>
+                )}
                 <button
                   type="button"
                   disabled={acting === preview.id}
@@ -178,7 +184,7 @@ export function AdminImagesPanel() {
                 </button>
               </div>
             </div>
-            <img src={preview.url} alt={preview.name} className="max-h-48 rounded-lg border border-slate-800 object-contain mx-auto" />
+            {previewDirect && <img src={previewDirect} alt={preview.name} className="max-h-48 rounded-lg border border-slate-800 object-contain mx-auto" />}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[8px] font-mono">
               <div><span className="text-slate-600">Size</span><br /><span className="text-slate-300">{formatBytes(preview.size)}</span></div>
               <div><span className="text-slate-600">Dims</span><br /><span className="text-slate-300">{preview.width ?? '?'}×{preview.height ?? '?'}</span></div>
@@ -186,7 +192,8 @@ export function AdminImagesPanel() {
               <div><span className="text-slate-600">User</span><br /><span className="text-violet-300 truncate">{preview.userId ?? 'guest'}</span></div>
             </div>
           </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

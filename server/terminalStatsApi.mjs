@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { attachAuth } from './auth/authApi.mjs';
 import { canAccessAdmin } from './auth/permissions.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
@@ -35,12 +36,11 @@ export async function handleTerminalStatsRequest(req, res) {
 }
 
 export function createTerminalStatsMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname === '/api/terminal-stats') {
-      handleTerminalStatsRequest(req, res);
-      return;
+      return handleTerminalStatsRequest(req, res);
     }
     next();
-  };
+  });
 }

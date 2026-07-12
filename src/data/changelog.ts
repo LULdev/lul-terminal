@@ -23,6 +23,24 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.82',
+    title: 'Extreme deep audit — round 23 (server/client/chat/news/paste)',
+    date: 'Jul 12, 2026 - 08:30',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — Leaderboard crash fixed: missing sanitizeAvatarUrl import in leaderboardService (500 on /api/leaderboards).' },
+      { priority: 'P2', text: 'P2 — safeHostedImageUrl/safeHostedViewUrl sweep: ImageHostingPage, ImageHostViewer, MyImageGallery, AdminImagesPanel.' },
+      { priority: 'P2', text: 'P2 — buildHtml/buildMarkdown escape hardening; safeCoverStyle mirrors server anchored regex rules.' },
+      { priority: 'P2', text: 'P2 — Self-paste-view achievement farm closed; owners cannot rate own pastes; paste enumeration normalized to 404.' },
+      { priority: 'P3', text: 'P3 — memeMediaUrl allowlist (imgflip/blob only); proxy checker uses assertSafeFetchUrlAsync.' },
+      { priority: 'P3', text: 'P3 — imageHostApi empty JSON body returns 400 not 500; parseImageViewerId validates hex id format.' },
+      { priority: 'P4', text: 'P4 — wrapAsyncHandler on leaderboardApi, statusApi, terminalStatsApi, accessControlApi, proxyCheckerApi.' },
+      { priority: 'P4', text: 'P4 — ProfilePage arcadeLoadGenRef wired; App handleTabClick blocks during visibilityLoading.' },
+      { priority: 'P4', text: 'P4 — AdminAvatarsPanel race guard; ImageHostingPage paste handler gated on idle phase.' },
+      { priority: 'P9', text: 'P9 — Round 23 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.81',
     title: 'Extreme deep audit — round 22 (server/client/chat/news/paste)',
     date: 'Jul 12, 2026 - 07:00',
