@@ -17,8 +17,11 @@ export type AuthUnlockResponse = {
 };
 
 import { invalidateSession } from './sessionEvents';
+import { validateImageFileMagic } from './imageMime';
 import { parseRetryAfterMs } from './retryAfter';
 import { sessionFetch } from './sessionFetch';
+
+const AVATAR_ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 const API = '/api/auth';
 
@@ -192,6 +195,11 @@ export async function updateProfile(input: Partial<{
 
 export async function uploadAvatar(file: File): Promise<AuthUnlockResponse> {
   if (file.size > MAX_AVATAR_BYTES) throw new Error('Avatar max. 2 MB');
+  if (!AVATAR_ALLOWED_MIME.has(file.type)) {
+    throw new Error('Only JPEG, PNG, GIF or WebP allowed.');
+  }
+  const magicErr = await validateImageFileMagic(file, AVATAR_ALLOWED_MIME);
+  if (magicErr) throw new Error(magicErr);
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
@@ -230,8 +238,11 @@ export async function recordTerminalCommand(command: string, proof: string) {
   });
 }
 
-export async function deleteAccount() {
-  return api<{ ok: boolean }>('/account', { method: 'DELETE' });
+export async function deleteAccount(password: string) {
+  return api<{ ok: boolean }>('/account', {
+    method: 'DELETE',
+    body: JSON.stringify({ password }),
+  });
 }
 
 export async function adminListUsers(opts: { search?: string; role?: UserRole | ''; active?: string } = {}) {

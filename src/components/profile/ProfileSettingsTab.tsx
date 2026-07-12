@@ -64,11 +64,15 @@ type Props = {
   onCustomization: (c: ProfileCustomization) => void;
   onUploadAvatar: (f: File) => void;
   onSave: () => void;
-  onDeleteAccount: () => void;
+  onDeleteAccount: (password: string) => Promise<void>;
 };
 
 export function ProfileSettingsTab(props: Props) {
   const [openSection, setOpenSection] = useState<string>('identity');
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const c = props.customization;
   const setC = (patch: Partial<ProfileCustomization>) => props.onCustomization({ ...c, ...patch });
   const setPrivacy = (patch: Partial<ProfileCustomization['privacy']>) =>
@@ -300,12 +304,72 @@ export function ProfileSettingsTab(props: Props) {
             <h4 className="text-[10px] font-mono font-bold uppercase text-rose-300/90 flex items-center gap-1.5">
               <Trash2 size={11} /> Danger zone
             </h4>
-            <p className="mt-1 text-[9px] font-mono text-slate-500">Permanently delete account and all sessions.</p>
+            <p className="mt-1 text-[9px] font-mono text-slate-500">
+              Permanently delete account and all sessions. Current password required.
+            </p>
           </div>
-          <button type="button" onClick={props.onDeleteAccount} className="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-300 text-[10px] font-mono hover:bg-rose-500/20 transition">
-            <Trash2 size={12} /> Delete account
-          </button>
+          {!deleteOpen ? (
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteOpen(true);
+                setDeletePassword('');
+                setDeleteError(null);
+              }}
+              className="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-300 text-[10px] font-mono hover:bg-rose-500/20 transition"
+            >
+              <Trash2 size={12} /> Delete account
+            </button>
+          ) : null}
         </div>
+        {deleteOpen && (
+          <div className="mt-4 pt-4 border-t border-rose-500/10 space-y-3">
+            <label className="block text-[9px] font-mono text-slate-500 uppercase tracking-wider">
+              Confirm with password
+            </label>
+            <input
+              type="password"
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              className={inputClass}
+              placeholder="Current password"
+              autoComplete="current-password"
+            />
+            {deleteError && <p className="text-[9px] font-mono text-rose-400">{deleteError}</p>}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={deleteBusy || !deletePassword}
+                onClick={async () => {
+                  setDeleteBusy(true);
+                  setDeleteError(null);
+                  try {
+                    await props.onDeleteAccount(deletePassword);
+                  } catch (e) {
+                    setDeleteError(e instanceof Error ? e.message : 'Account deletion failed');
+                  } finally {
+                    setDeleteBusy(false);
+                  }
+                }}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-rose-500/40 bg-rose-500/20 text-rose-200 text-[10px] font-mono hover:bg-rose-500/30 transition disabled:opacity-50"
+              >
+                <Trash2 size={12} /> {deleteBusy ? 'Deleting…' : 'Confirm delete'}
+              </button>
+              <button
+                type="button"
+                disabled={deleteBusy}
+                onClick={() => {
+                  setDeleteOpen(false);
+                  setDeletePassword('');
+                  setDeleteError(null);
+                }}
+                className="px-3 py-2 rounded-lg border border-slate-700 text-slate-400 text-[10px] font-mono hover:bg-slate-800/50 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

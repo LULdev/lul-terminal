@@ -10,5 +10,8 @@ coverage/
 
 .vercel
 data/image-host/
+data/analytics/guest-views.json
+data/rate-limits/
+data/locks/
 data/proxy-scraper/state.json
 data/proxy-scraper/last-results.json

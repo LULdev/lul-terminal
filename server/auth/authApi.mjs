@@ -269,7 +269,10 @@ export async function handleAuthRequest(req, res) {
     if (req.method === 'DELETE' && pathname === '/api/auth/account') {
       const user = requireAuth(req);
       await checkRateLimit(`account-delete:${user.id}`, { max: 3, windowMs: 3600_000 });
-      await deleteOwnAccount(user.id);
+      const body = await readJsonBody(req, 4096);
+      const password = String(body.password ?? '');
+      if (!password) return sendJson(res, 400, { error: 'Password required to delete account' });
+      await deleteOwnAccount(user.id, password);
       clearSessionCookie(res);
       return sendJson(res, 200, { ok: true });
     }
@@ -350,6 +353,8 @@ export async function handleAuthRequest(req, res) {
             || msg === 'Achievement proof required'
             || msg === 'Achievement proof expired'
             || msg === 'Achievement proof invalid for this action'
+            || msg === 'Invalid password'
+            || msg === 'Password required to delete account'
             ? 400
             : 500;
     return sendJson(res, status, { error: msg });

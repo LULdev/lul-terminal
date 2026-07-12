@@ -806,15 +806,24 @@ export async function incrementUserMemeCreated(userId, memeImageId = '') {
   });
 }
 
-export async function deleteOwnAccount(userId) {
+export async function deleteOwnAccount(userId, password) {
   const { leaveAllGameQueues } = await import('../gamesService.mjs');
   const { blockRegistrationSignalsForUser } = await import('./registrationRegistry.mjs');
 
+  const db = await loadUsersDb();
+  const user = db.users.find((u) => u.id === userId);
+  if (!user) throw new Error('User not found');
+  const pwd = String(password ?? '');
+  if (!pwd) throw new Error('Password required to delete account');
+  if (!(await verifyPassword(pwd, user.passwordHash))) {
+    throw new Error('Invalid password');
+  }
+
   await withUsersWrite(async () => {
-    const db = await loadUsersDb();
-    const user = db.users.find((u) => u.id === userId);
-    if (!user) throw new Error('User not found');
-    if (user.role === 'admin' && countActiveAdmins(db.users) <= 1) {
+    const freshDb = await loadUsersDb();
+    const freshUser = freshDb.users.find((u) => u.id === userId);
+    if (!freshUser) throw new Error('User not found');
+    if (freshUser.role === 'admin' && countActiveAdmins(freshDb.users) <= 1) {
       throw new Error('Last admin cannot be deleted');
     }
     const cleanup = await leaveAllGameQueues(userId);
@@ -822,10 +831,10 @@ export async function deleteOwnAccount(userId) {
       console.warn('[auth] delete account arcade cleanup incomplete', { userId, errors: cleanup.errors });
       throw new Error(`Cannot delete account: arcade cleanup failed (${cleanup.errors.map((e) => e.gameId).join(', ')})`);
     }
-    await blockRegistrationSignalsForUser(user);
-    user.registrationBlocked = true;
-    db.users = db.users.filter((u) => u.id !== userId);
-    await saveUsersDb(db);
+    await blockRegistrationSignalsForUser(freshUser);
+    freshUser.registrationBlocked = true;
+    freshDb.users = freshDb.users.filter((u) => u.id !== userId);
+    await saveUsersDb(freshDb);
   });
 
   await withSessionsWrite(async () => {

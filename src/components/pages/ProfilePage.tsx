@@ -503,15 +503,10 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
                 onCustomization={setCustomization}
                 onUploadAvatar={uploadAvatar}
                 onSave={save}
-                onDeleteAccount={async () => {
-                  if (!confirm('Really delete account? This cannot be undone.')) return;
-                  try {
-                    await authApi.deleteAccount();
-                    const ok = await logout();
-                    if (!ok) setError(LOGOUT_ARCADE_BLOCKED);
-                  } catch (e) {
-                    setError(e instanceof Error ? e.message : 'Account deletion failed');
-                  }
+                onDeleteAccount={async (password) => {
+                  await authApi.deleteAccount(password);
+                  const ok = await logout();
+                  if (!ok) setError(LOGOUT_ARCADE_BLOCKED);
                 }}
               />
             )}

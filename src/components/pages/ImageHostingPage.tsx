@@ -17,7 +17,7 @@ import {
   buildViewUrl,
   formatImageBytes,
   uploadHostedImage,
-  validateImageFile,
+  validateImageFileAsync,
   type HostedImageMeta,
 } from '../../lib/imageHosting';
 import { safeHostedImageUrl, safeHostedViewUrl } from '../../lib/safeHostedImageUrl';
@@ -86,7 +86,7 @@ export function ImageHostingPage() {
   }, [preview]);
 
   const startUpload = useCallback(async (file: File) => {
-    const validation = validateImageFile(file);
+    const validation = await validateImageFileAsync(file);
     if (validation) {
       setError(validation);
       setPhase('error');

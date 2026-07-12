@@ -8,6 +8,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { withCrossProcessLock } from './fileLock.mjs';
+import { getSharedRedisClient } from './redisClient.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FILE_STORE = path.join(__dirname, '..', 'data', 'rate-limits', 'buckets.json');
@@ -18,8 +20,18 @@ let fileWriteChain = Promise.resolve();
 let fileLoadedAt = 0;
 const FILE_RELOAD_MS = 250;
 
-let redisClient = null;
-let redisInit = null;
+const INCR_PEXPIRE_LUA = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+else
+  local ttl = redis.call('PTTL', KEYS[1])
+  if ttl < 0 then
+    redis.call('PEXPIRE', KEYS[1], ARGV[1])
+  end
+end
+return count
+`;
 
 function resolveBackend() {
   const explicit = String(process.env.RATE_LIMIT_BACKEND ?? 'auto').toLowerCase();
@@ -99,52 +111,26 @@ function withFileWrite(task) {
   return run;
 }
 
-async function getRedisClient() {
-  if (!process.env.REDIS_URL) return null;
-  if (redisClient?.isOpen) return redisClient;
-  if (!redisInit) {
-    redisInit = (async () => {
-      try {
-        const { createClient } = await import('redis');
-        const client = createClient({ url: process.env.REDIS_URL });
-        client.on('error', (err) => console.error('[rate-limit] redis error', err));
-        await client.connect();
-        redisClient = client;
-        console.info('[rate-limit] Redis backend active');
-        return client;
-      } catch (err) {
-        console.error('[rate-limit] Redis unavailable — falling back to memory', err);
-        redisInit = null;
-        return null;
-      }
-    })();
-  }
-  return redisInit;
-}
-
 async function incrementRedis(key, max, windowMs) {
-  const client = await getRedisClient();
+  const client = await getSharedRedisClient();
   if (!client) return incrementLocal(memoryBuckets, key, max, windowMs, Date.now());
-  const now = Date.now();
   const bucketKey = `rl:${key}`;
-  const count = await client.incr(bucketKey);
-  if (count === 1) {
-    await client.pExpire(bucketKey, windowMs);
-  }
-  const ttl = await client.pTTL(bucketKey);
-  if (ttl < 0) await client.pExpire(bucketKey, windowMs);
-  return count <= max;
+  const count = await client.eval(INCR_PEXPIRE_LUA, {
+    keys: [bucketKey],
+    arguments: [String(windowMs)],
+  });
+  return Number(count) <= max;
 }
 
 async function incrementFile(key, max, windowMs) {
   const now = Date.now();
-  return withFileWrite(async () => {
+  return withFileWrite(async () => withCrossProcessLock('rate-limits-buckets', async () => {
     await loadFileBuckets(true);
     const ok = incrementLocal(fileCache, key, max, windowMs, now);
     await persistFileBuckets();
     incrementLocal(memoryBuckets, key, max, windowMs, now);
     return ok;
-  });
+  }));
 }
 
 /** Returns true when request is within limit. */

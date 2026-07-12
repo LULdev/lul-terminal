@@ -23,6 +23,23 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.99',
+    title: 'Deferred hardening — rate limits, guest dedup Redis, delete confirm, magic bytes',
+    date: 'Jul 13, 2026 - 01:00',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — File rate limits: cross-process lock (wx) on buckets.json RMW.' },
+      { priority: 'P1', text: 'P1 — Redis rate limits: atomic INCR+PEXPIRE Lua (no TTL leak window).' },
+      { priority: 'P1', text: 'P1 — Guest view dedup: Redis SET NX backend (auto when REDIS_URL set).' },
+      { priority: 'P2', text: 'P2 — Guest dedup file mode: cross-process lock + disk reload per claim.' },
+      { priority: 'P2', text: 'P2 — Account delete requires current password (server verify + UI prompt).' },
+      { priority: 'P3', text: 'P3 — Client magic-byte validation before image/avatar upload (imageMime.ts).' },
+      { priority: 'P3', text: 'P3 — Client image hosting MIME list aligned with server (SVG removed).' },
+      { priority: 'P4', text: 'P4 — Shared redisClient.mjs + fileLock.mjs; GUEST_VIEW_DEDUP_BACKEND env.' },
+      { priority: 'P9', text: 'P9 — Deferred hardening: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.98',
     title: 'Extreme deep audit — round 36 (analytics integrity + client dedup)',
     date: 'Jul 13, 2026 - 00:00',

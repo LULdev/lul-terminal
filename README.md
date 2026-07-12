@@ -1,6 +1,6 @@
 # LUL Terminal
 
-[![Version](https://img.shields.io/badge/version-3.36.98-blue)](package.json)
+[![Version](https://img.shields.io/badge/version-3.36.99-blue)](package.json)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-green)](package.json)
 [![License](https://img.shields.io/badge/license-Apache--2.0-orange)](LICENSE)
 
@@ -89,6 +89,7 @@ Bearbeite `.env` — mindestens für **Produktion**:
 | `RATE_LIMIT_BACKEND` | Nein | `auto` \| `memory` \| `file` \| `redis` — siehe [Rate Limits](#rate-limits--multi-process) |
 | `RATE_LIMIT_SHARED` | Nein | `1` = File-Backend für mehrere Node-Prozesse auf demselben Host |
 | `REDIS_URL` | Nein | Redis für geteilte Rate-Limits (Multi-Instance) |
+| `GUEST_VIEW_DEDUP_BACKEND` | Nein | `auto` \| `file` \| `redis` — Guest-View-Dedup (auto: Redis wenn `REDIS_URL`) |
 | `GUEST_VIEW_DEDUP_FAIL_OPEN` | Nein | `1` (Standard) = bei Store-Fehler View zählen; `0` = fail-closed |
 
 > **Wichtig hinter Reverse-Proxy:** Ohne `TRUST_PROXY=1` greifen Rate-Limits auf die Proxy-IP statt auf die echte Client-IP. `X-Forwarded-Host` / `X-Forwarded-Proto` werden nur von IPs in `TRUSTED_PROXY_IPS` akzeptiert (Phishing-Schutz für Share-Links).
@@ -271,7 +272,7 @@ npm run build && npm start
 
 ## Sicherheit & Härtung (v3.36.x)
 
-Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Aktuelle Version: **3.36.98**. Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
+Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Aktuelle Version: **3.36.99**. Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
 
 ### Wichtige Sicherheitsmaßnahmen
 
@@ -284,7 +285,8 @@ Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client).
 | **View-Dedup** | Flag-first mit Rollback (Paste, Image, Post, Page, Vault, Profile) |
 | **Guest View-Dedup** | Anonyme Paste/Image-Views pro IP+Resource (`data/analytics/guest-views.json`); fail-open/fail-closed per Env |
 | **Achievements** | Server-minted Proof (120s TTL, Single-Slot); Tab-Integrity-Kette |
-| **Avatare / Cover** | Server-Allowlist + 2 MB Cap; Client `safeAvatarUrl` / `safeCoverStyle` |
+| **Avatare / Cover** | Server-Allowlist + 2 MB Cap + Magic-Bytes; Client `imageMime.ts` pre-check |
+| **Account löschen** | Passwort-Bestätigung serverseitig (`verifyPassword`) + UI-Prompt |
 | **Analytics** | `guestId` serverseitig; `profile_view` / `command_run` / `login` / `logout` nur serverseitig; `tab_visit` atomisch; denied `tab_visit` → `ok:false` |
 | **Chat / Shoutbox** | **Immer Login + `assertCanChat`** — auch wenn Fun-Tab öffentlich ist |
 | **Registrierung** | Challenge + Signal-Registry; fail-closed bei unbekannter IP (Prod) |
@@ -302,6 +304,10 @@ Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client).
 | **explizit** | Override | `RATE_LIMIT_BACKEND=memory\|file\|redis` |
 
 Priorität bei `auto`: Redis wenn `REDIS_URL` gesetzt, sonst File wenn `RATE_LIMIT_SHARED=1`, sonst Memory.
+
+**File-Backend (v3.36.99+):** Cross-Process-Lock unter `data/locks/` serialisiert RMW auf `buckets.json` — kein Lost-Update mehr bei PM2-Cluster auf einem Host.
+
+**Redis-Backend:** Atomisches `INCR` + `PEXPIRE` per Lua-Script (kein TTL-Leak-Fenster).
 
 ```env
 # Beispiel: PM2 mit 4 Workern auf einem VPS
@@ -353,6 +359,13 @@ Anonyme Views auf Paste/Image werden in `data/analytics/guest-views.json` dedupl
 | `0` | View nicht zählen (fail-closed) |
 
 Paste- und Image-**Owner-Self-Views** zählen nicht (Dedup wie bei Image Host seit v3.36.98).
+
+| Backend | Wann | Env |
+|---------|------|-----|
+| **file** | Ein Host, mehrere Worker (Cross-Process-Lock) | Standard ohne `REDIS_URL` |
+| **redis** | Multi-Instance / Load Balancer | `REDIS_URL` oder `GUEST_VIEW_DEDUP_BACKEND=redis` |
+
+Redis nutzt `SET gv:{scope}:{ip}:{id} NX EX` (90-Tage-TTL). File-Mode lädt `guest-views.json` pro Claim unter Lock neu.
 
 ### Analytics-Integrität
 
@@ -425,6 +438,7 @@ See [`.env.example`](.env.example) for the full template.
 | `RATE_LIMIT_BACKEND` | `auto` (default), `memory`, `file`, or `redis` |
 | `RATE_LIMIT_SHARED` | `1` — file-backed rate limits for multi-process same host |
 | `REDIS_URL` | Redis connection for shared rate limits (multi-instance) |
+| `GUEST_VIEW_DEDUP_BACKEND` | `auto` (default), `file`, or `redis` for anonymous view dedup |
 | `GUEST_VIEW_DEDUP_FAIL_OPEN` | `1` (default) fail-open on dedup store errors; `0` fail-closed |
 | `SEED_ADMIN_PASSWORD` | Initial admin password (required in prod on empty DB) |
 | `SEED_VIP_PASSWORD` | Initial VIP demo password (required in prod on empty DB) |

@@ -4,6 +4,7 @@
  */
 
 import { invalidateSession } from './sessionEvents';
+import { validateImageFileMagic } from './imageMime';
 import { SessionExpiredError, sessionFetch } from './sessionFetch';
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -14,7 +15,6 @@ export const ALLOWED_MIME = new Set([
   'image/webp',
   'image/avif',
   'image/bmp',
-  'image/svg+xml',
 ]);
 
 const API = '/api/images';
@@ -134,12 +134,18 @@ function fileToBase64(file: File): Promise<string> {
 
 export function validateImageFile(file: File): string | null {
   if (!ALLOWED_MIME.has(file.type)) {
-    return 'Only images (JPG, PNG, GIF, WebP, AVIF, BMP, SVG) allowed.';
+    return 'Only images (JPG, PNG, GIF, WebP, AVIF, BMP) allowed.';
   }
   if (file.size > MAX_IMAGE_BYTES) {
     return `Maximum ${(MAX_IMAGE_BYTES / 1024 / 1024).toFixed(0)} MB per image.`;
   }
   return null;
+}
+
+export async function validateImageFileAsync(file: File): Promise<string | null> {
+  const err = validateImageFile(file);
+  if (err) return err;
+  return validateImageFileMagic(file, ALLOWED_MIME);
 }
 
 export async function fetchHostingStats(): Promise<HostingStats> {
@@ -158,7 +164,7 @@ export async function uploadHostedImage(
   onProgress: (percent: number) => void,
   opts: UploadHostedImageOptions = {},
 ): Promise<HostedImageMeta> {
-  const err = validateImageFile(file);
+  const err = await validateImageFileAsync(file);
   if (err) throw new Error(err);
 
   const dims = await readImageDimensions(file);

@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * Guest view dedup — persisted JSON store + in-memory cache.
+ * Guest view dedup — file (cross-process lock) or Redis (multi-instance).
  * GUEST_VIEW_DEDUP_FAIL_OPEN=1 (default): store errors allow first view (no under-count).
  * GUEST_VIEW_DEDUP_FAIL_OPEN=0: store errors block counting (fail-closed).
  */
@@ -10,12 +10,15 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { withCrossProcessLock } from './fileLock.mjs';
+import { getSharedRedisClient } from './redisClient.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const GUEST_VIEWS_FILE = path.join(__dirname, '..', 'data', 'analytics', 'guest-views.json');
 
 const PRUNE_INTERVAL_MS = 5 * 60_000;
 const ENTRY_TTL_MS = 90 * 24 * 60 * 60_000;
+const REDIS_ENTRY_TTL_SEC = Math.ceil(ENTRY_TTL_MS / 1000);
 
 const guestViews = new Map();
 let lastPruneAt = Date.now();
@@ -25,6 +28,14 @@ let loaded = false;
 function guestViewDedupFailOpen() {
   const raw = String(process.env.GUEST_VIEW_DEDUP_FAIL_OPEN ?? '1').toLowerCase();
   return raw !== '0' && raw !== 'false';
+}
+
+function resolveBackend() {
+  const explicit = String(process.env.GUEST_VIEW_DEDUP_BACKEND ?? 'auto').toLowerCase();
+  if (explicit === 'file') return 'file';
+  if (explicit === 'redis') return 'redis';
+  if (process.env.REDIS_URL) return 'redis';
+  return 'file';
 }
 
 async function ensureGuestViewsStore() {
@@ -38,13 +49,13 @@ async function ensureGuestViewsStore() {
   }
 }
 
-async function loadGuestViews() {
-  if (loaded) return;
+async function loadGuestViewsFromDisk() {
   await ensureGuestViewsStore();
   try {
     const raw = await fs.readFile(GUEST_VIEWS_FILE, 'utf8');
     const data = JSON.parse(raw);
     const entries = data.entries && typeof data.entries === 'object' ? data.entries : {};
+    guestViews.clear();
     for (const [key, seenAt] of Object.entries(entries)) {
       guestViews.set(key, Number(seenAt) || Date.now());
     }
@@ -52,6 +63,11 @@ async function loadGuestViews() {
     console.error('[view-dedup] guest-views.json unreadable — starting empty store', err);
     guestViews.clear();
   }
+}
+
+async function loadGuestViews() {
+  if (loaded) return;
+  await loadGuestViewsFromDisk();
   loaded = true;
 }
 
@@ -82,25 +98,45 @@ function withGuestViewWrite(task) {
   return run;
 }
 
+async function claimGuestViewFile(key) {
+  await guestViewsReady;
+  pruneStale();
+  return withGuestViewWrite(async () => withCrossProcessLock('guest-views', async () => {
+    await loadGuestViewsFromDisk();
+    pruneStale();
+    if (guestViews.has(key)) return false;
+    guestViews.set(key, Date.now());
+    pruneStale();
+    await persistGuestViews();
+    return true;
+  }));
+}
+
+async function claimGuestViewRedis(key) {
+  const client = await getSharedRedisClient();
+  if (!client) return claimGuestViewFile(key);
+  const redisKey = `gv:${key}`;
+  const result = await client.set(redisKey, '1', { NX: true, EX: REDIS_ENTRY_TTL_SEC });
+  return result === 'OK';
+}
+
 /**
  * Returns true when this IP has not yet viewed the resource (caller should count the view).
  * On persistence failure: fail-open (default) returns true; fail-closed returns false.
  */
 export async function claimGuestView(scope, ip, resourceId) {
-  await guestViewsReady;
   if (!ip || !resourceId) return true;
-  pruneStale();
   const key = `${scope}:${ip}:${resourceId}`;
+  const backend = resolveBackend();
   try {
-    return await withGuestViewWrite(async () => {
-      if (guestViews.has(key)) return false;
-      guestViews.set(key, Date.now());
-      pruneStale();
-      await persistGuestViews();
-      return true;
-    });
+    if (backend === 'redis') return await claimGuestViewRedis(key);
+    return await claimGuestViewFile(key);
   } catch (err) {
     console.error('[view-dedup] claim persist failed', err);
     return guestViewDedupFailOpen();
   }
+}
+
+export function getGuestViewDedupBackend() {
+  return resolveBackend();
 }
