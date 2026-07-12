@@ -52,7 +52,6 @@ export async function handleAnalyticsRequest(req, res) {
 
   try {
     if (req.method === 'POST' && pathname === '/api/analytics/track') {
-      const body = await readJsonBody(req);
       await attachAuth(req);
       const rateKey = req.auth?.user?.id
         ? `analytics:${req.auth.user.id}`
@@ -61,6 +60,7 @@ export async function handleAnalyticsRequest(req, res) {
         max: req.auth?.user?.id ? 90 : 30,
         windowMs: 60_000,
       });
+      const body = await readJsonBody(req);
 
       const eventType = String(body.type ?? '').slice(0, 48);
       const rawTab = eventType === 'faq_visit'
@@ -134,6 +134,10 @@ export async function handleAnalyticsRequest(req, res) {
             && (Date.now() - sessionCreated) < 120_000;
           const claim = await tryClaimTabVisitCredit(req.auth.token, persistTab, { forceRemint });
           if (!claim.claimed) {
+            return sendJson(res, 201, { ok: false, eventId: null, user: null, proof: null });
+          }
+          const sameTabRevisit = claim.snapshot?.analyticsLastTab === persistTab && !forceRemint;
+          if (sameTabRevisit) {
             return sendJson(res, 201, { ok: true, eventId: null, user: null, proof: null });
           }
           try {

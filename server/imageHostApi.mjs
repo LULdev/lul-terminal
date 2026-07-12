@@ -33,6 +33,15 @@ function sendJson(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+function decodeImageUploadData(data) {
+  const b64 = String(data ?? '');
+  const estBytes = Math.floor((b64.length * 3) / 4);
+  if (estBytes > MAX_IMAGE_BYTES) throw new Error('File too large (max 10 MB)');
+  return Buffer.from(b64, 'base64');
+}
+
 async function readJsonBody(req, limit = 14 * 1024 * 1024) {
   const chunks = [];
   let size = 0;
@@ -57,7 +66,7 @@ export async function handleImageHostRequest(req, res) {
       const user = requireAuth(req);
       await checkRateLimit(`image-meme-upload:${user.id}`, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
-      const buffer = Buffer.from(body.data ?? '', 'base64');
+      const buffer = decodeImageUploadData(body.data);
       const meta = await saveImage({
         name: body.name,
         mime: body.mime,
@@ -103,7 +112,7 @@ export async function handleImageHostRequest(req, res) {
       const user = requireAuth(req);
       await checkRateLimit(`image-upload:${user.id}`, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
-      const buffer = Buffer.from(body.data ?? '', 'base64');
+      const buffer = decodeImageUploadData(body.data);
       const userId = user.id;
       const meta = await saveImage({
         name: body.name,

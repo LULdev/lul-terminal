@@ -23,6 +23,24 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.97',
+    title: 'Extreme deep audit — round 35 (tab tracking + API hardening)',
+    date: 'Jul 12, 2026 - 23:00',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — Tab refs updated only after successful trackEvent; ok:false rollback.' },
+      { priority: 'P1', text: 'P1 — profileTabReadyTick on successful profile tab_visit (re-entry view POST).' },
+      { priority: 'P2', text: 'P2 — Same-tab tab_visit API skips recordEvent (no aggregate spam).' },
+      { priority: 'P2', text: 'P2 — Image upload base64 pre-decode 10 MB cap; games state requires login.' },
+      { priority: 'P3', text: 'P3 — Guest view dedup TOCTOU fixed; dwell requires prior tab_visit.' },
+      { priority: 'P3', text: 'P3 — Profile view POST requires auth; analytics rate-limit before body read.' },
+      { priority: 'P3', text: 'P3 — Shoutbox gated recovery on login/terminal expand; shared Retry-After parser.' },
+      { priority: 'P4', text: 'P4 — recordProfileView skipDwell when tab_visit confirmed; pageViews deduped parity.' },
+      { priority: 'P8', text: 'P8 — Terminal ascii/cowsay args capped at 200 chars.' },
+      { priority: 'P9', text: 'P9 — Round 35 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.96',
     title: 'Extreme deep audit — round 34 (analytics ordering + profile dwell sync)',
     date: 'Jul 12, 2026 - 22:00',

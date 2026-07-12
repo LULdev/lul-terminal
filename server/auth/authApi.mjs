@@ -270,9 +270,9 @@ export async function handleAuthRequest(req, res) {
     const profileViewMatch = pathname.match(/^\/api\/auth\/users\/([a-z0-9_]+)\/view$/);
     if (profileViewMatch && req.method === 'POST') {
       await attachAuth(req);
+      const viewer = requireAuth(req);
       await requireMemberTab(req, 'profile');
-      const viewerId = req.auth?.user?.id ?? clientIp(req);
-      await checkRateLimit(`profile-view:${viewerId}`, { max: 40, windowMs: 60_000 });
+      await checkRateLimit(`profile-view:${viewer.id}`, { max: 40, windowMs: 60_000 });
       const result = await incrementProfileView(profileViewMatch[1], {
         viewer: req.auth?.user ?? null,
         sessionTab: req.auth?.session?.analyticsLastTab ?? null,

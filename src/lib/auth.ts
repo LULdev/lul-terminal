@@ -17,6 +17,7 @@ export type AuthUnlockResponse = {
 };
 
 import { invalidateSession } from './sessionEvents';
+import { parseRetryAfterMs } from './retryAfter';
 import { sessionFetch } from './sessionFetch';
 
 const API = '/api/auth';
@@ -77,7 +78,10 @@ export type ProfileViewResult = {
   credited: boolean;
 };
 
-export async function recordProfileView(username: string): Promise<ProfileViewResult> {
+export async function recordProfileView(
+  username: string,
+  opts: { skipDwell?: boolean } = {},
+): Promise<ProfileViewResult> {
   const uname = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
   const pending = profileViewInflight.get(uname);
   if (pending) return pending;
@@ -85,17 +89,14 @@ export async function recordProfileView(username: string): Promise<ProfileViewRe
   const run = (async (): Promise<ProfileViewResult> => {
     const sessionKey = `${PROFILE_VIEW_PREFIX}${uname}`;
     if (!sessionStorage.getItem(sessionKey)) {
-      await waitForProfileDwell();
+      if (!opts.skipDwell) await waitForProfileDwell();
       for (let attempt = 0; attempt < 5; attempt++) {
         try {
           const res = await sessionFetch(`${API}/users/${encodeURIComponent(uname)}/view`, {
             method: 'POST',
           });
           if (res.status === 429) {
-            const retryAfter = res.headers.get('Retry-After');
-            const waitMs = retryAfter && Number.isFinite(Number(retryAfter))
-              ? Math.min(Number(retryAfter) * 1000, 30_000)
-              : 2000;
+            const waitMs = Math.min(parseRetryAfterMs(res.headers.get('Retry-After'), 2000), 30_000);
             await new Promise((r) => setTimeout(r, waitMs));
             continue;
           }

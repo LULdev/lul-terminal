@@ -190,11 +190,6 @@ export default function App() {
       const forceTrack = tabTrackForceRef.current || takeAchievementProofRemintRequest();
       if (tabTrackForceRef.current) tabTrackForceRef.current = false;
       if (!forceTrack && lastTrackedTabRef.current === trackedTab) return;
-      const prevTrackedTab = lastTrackedTabRef.current;
-      if (!forceTrack) {
-        lastTrackedTabRef.current = trackedTab;
-        tabEnteredAtRef.current = Date.now();
-      }
 
       const type = trackedTab === 'faq' ? 'faq_visit' : 'tab_visit';
       const baseMeta = visitorCtxRef.current ? visitorContextToMeta(visitorCtxRef.current) : {};
@@ -203,17 +198,18 @@ export default function App() {
           tab: trackedTab,
           meta: {
             ...baseMeta,
-            visitCount: visitorCtxRef.current?.visitCount,
             ...(forceTrack ? { forceRemint: true } : {}),
           },
         });
         if (trackGen !== tabTrackGenRef.current || !isLoggedInRef.current) return;
-        if (forceTrack) {
-          lastTrackedTabRef.current = trackedTab;
-          tabEnteredAtRef.current = Date.now();
+        if (r?.ok === false) {
+          if (forceTrack) requestAchievementProofRemint();
+          return;
         }
+        lastTrackedTabRef.current = trackedTab;
+        tabEnteredAtRef.current = Date.now();
         if (r?.proof && r.proof.tab === trackedTab) setAchievementProof(r.proof);
-        if (trackedTab === 'profile' && r?.proof?.tab === 'profile') setProfileTabReadyTick((t) => t + 1);
+        if (trackedTab === 'profile') setProfileTabReadyTick((t) => t + 1);
         if (r?.user) {
           patchUser(r.user);
           if (trackedTab === 'changelog' && r.user.changelogLastReadVersion === APP_VERSION) {
@@ -230,10 +226,7 @@ export default function App() {
         }
       } catch {
         if (trackGen !== tabTrackGenRef.current || !isLoggedInRef.current) return;
-        if (forceTrack) {
-          lastTrackedTabRef.current = prevTrackedTab;
-          requestAchievementProofRemint();
-        }
+        if (forceTrack) requestAchievementProofRemint();
       }
     })();
   }, [activeTab, renderTab, authLoading, visibilityLoading, pendingTabAfterLogin, patchUser, isLoggedIn, newsFeedVersion]);

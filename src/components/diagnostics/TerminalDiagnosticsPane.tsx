@@ -369,7 +369,7 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
           });
         }
       } else if (query.startsWith('ascii ')) {
-        const arg = body.slice(6);
+        const arg = body.slice(6).slice(0, 200);
         if (!arg.trim()) {
           appendLog('❌ Error: Please specify text to convert. (e.g. "!ascii HELLO")', 'warn');
         } else {
@@ -424,7 +424,7 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
       `.trim();
         appendLog(cow, 'success');
       } else if (query.startsWith('cowsay ')) {
-        const arg = body.slice(7).trim() || 'Moo!';
+        const arg = (body.slice(7).trim() || 'Moo!').slice(0, 200);
         const bubbleLine = '-'.repeat(arg.length + 2);
         const cow = `
   < ${arg} >

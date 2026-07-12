@@ -91,7 +91,6 @@ export async function claimGuestView(scope, ip, resourceId) {
   if (!ip || !resourceId) return true;
   pruneStale();
   const key = `${scope}:${ip}:${resourceId}`;
-  if (guestViews.has(key)) return false;
   try {
     return await withGuestViewWrite(async () => {
       if (guestViews.has(key)) return false;

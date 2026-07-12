@@ -25,7 +25,7 @@ export async function markTabDwellIntegrity(token, tab) {
     const session = db.sessions.find((s) => s.token === token);
     if (!session || session.expiresAt <= Date.now()) return;
     const last = session.analyticsLastTab ?? null;
-    if (last !== null && tab !== last) return;
+    if (last === null || tab !== last) return;
     const lastVisitAt = Number(session.analyticsLastVisitAt) || 0;
     if (lastVisitAt > 0 && Date.now() - lastVisitAt < MIN_DWELL_MS) return;
     session.analyticsDwellReady = true;

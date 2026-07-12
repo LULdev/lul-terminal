@@ -49,8 +49,9 @@ export async function handleGamesRequest(req, res) {
     const user = req.auth?.user ?? null;
 
     if (req.method === 'GET' && pathname === '/api/games/state') {
-      await checkRateLimit(`games-state:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
-      return sendJson(res, 200, await getGamesState(user?.id ?? null));
+      const u = requireUser(req);
+      await checkRateLimit(`games-state:${u.id}`, { max: 120, windowMs: 60_000 });
+      return sendJson(res, 200, await getGamesState(u.id));
     }
 
     if (req.method === 'GET' && pathname === '/api/games/catalog') {

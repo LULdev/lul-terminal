@@ -248,6 +248,10 @@ export function UnifiedTerminalPanel({
   }, [applyDisplayWindow, replaceDisplayWindow]);
 
   useEffect(() => {
+    if (isLoggedIn && pollEnabled) setChatStatus('ok');
+  }, [isLoggedIn, pollEnabled]);
+
+  useEffect(() => {
     if (!pollEnabled || !isLoggedIn || chatStatus === 'gated') return;
     initialDoneRef.current = false;
     lobbyUpdatedAtRef.current = null;

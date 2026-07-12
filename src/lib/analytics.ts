@@ -234,11 +234,13 @@ export async function trackEvent(
       }),
     });
     if (!res.ok) return { ok: false };
-    return res.json() as Promise<{
-      ok: boolean;
+    const data = await res.json() as {
+      ok?: boolean;
       user?: import('../types/auth').AuthUser | null;
       proof?: import('./achievementProof').AchievementProof | null;
-    }>;
+      eventId?: string | null;
+    };
+    return { ...data, ok: data.ok !== false };
   } catch (e) {
     if (e instanceof SessionExpiredError) return { ok: false };
     return { ok: false };

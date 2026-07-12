@@ -142,8 +142,8 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
     let cancelled = false;
     setPublicLoading(true);
     setPublicError('');
-    const load = isLoggedIn && profileTabReadyTick > 0
-      ? authApi.recordProfileView(routeUsername)
+    const load = isLoggedIn && (profileTabReadyTick > 0 || profileTabFallback)
+      ? authApi.recordProfileView(routeUsername, { skipDwell: profileTabReadyTick > 0 })
       : authApi.fetchPublicProfile(routeUsername).then((profile) => ({ user: profile, credited: false as const }));
     load
       .then(({ user: profile, credited }) => {

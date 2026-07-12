@@ -32,8 +32,8 @@ export async function recordPageView(pageId: string): Promise<number> {
           method: 'POST',
         });
         if (res.ok) {
-          sessionStorage.setItem(sessionKey, '1');
-          const data = await res.json();
+          const data = await res.json() as { views?: number; deduped?: boolean };
+          if (!data.deduped) sessionStorage.setItem(sessionKey, '1');
           return Math.max(0, Number(data.views) || 0);
         }
       } catch { /* fall through */ }
