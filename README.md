@@ -88,13 +88,26 @@ Bearbeite `.env` — mindestens für **Produktion**:
 | `PORT` | Nein | Standard: `3000` |
 | `RATE_LIMIT_BACKEND` | Nein | `auto` \| `memory` \| `file` \| `redis` — siehe [Rate Limits](#rate-limits--multi-process) |
 | `RATE_LIMIT_SHARED` | Nein | `1` = File-Backend für mehrere Node-Prozesse auf demselben Host |
-| `REDIS_URL` | Nein | Redis für geteilte Rate-Limits (Multi-Instance) |
+| `REDIS_URL` | Empfohlen (Multi-Instance) | Redis-Verbindungs-URL — siehe [Redis-Anleitung](#redis-anleitung-redis_url) |
 | `GUEST_VIEW_DEDUP_BACKEND` | Nein | `auto` \| `file` \| `redis` — Guest-View-Dedup (auto: Redis wenn `REDIS_URL`) |
 | `GUEST_VIEW_DEDUP_FAIL_OPEN` | Nein | `1` (Standard) = bei Store-Fehler View zählen; `0` = fail-closed |
 
 > **Wichtig hinter Reverse-Proxy:** Ohne `TRUST_PROXY=1` greifen Rate-Limits auf die Proxy-IP statt auf die echte Client-IP. `X-Forwarded-Host` / `X-Forwarded-Proto` werden nur von IPs in `TRUSTED_PROXY_IPS` akzeptiert (Phishing-Schutz für Share-Links).
 
-> **Multi-Process / Cluster:** Ein einzelner Node-Prozess nutzt In-Memory-Rate-Limits. Für PM2-Cluster, mehrere Worker oder mehrere Server: `REDIS_URL` setzen **oder** `RATE_LIMIT_SHARED=1` (File-Store unter `data/rate-limits/`).
+> **Multi-Process / Cluster:** Ein einzelner Node-Prozess nutzt In-Memory-Rate-Limits. Für PM2-Cluster auf **einem** Host reicht `RATE_LIMIT_SHARED=1`. Für **mehrere Server** hinter einem Load Balancer: `REDIS_URL` setzen (Rate-Limits + Guest-View-Dedup).
+
+### Schritt 3b — Redis einrichten (optional)
+
+Nur nötig wenn du **mehrere App-Instanzen** betreibst (Load Balancer, Kubernetes, mehrere VPS). Ein einzelner `npm start`-Prozess braucht kein Redis.
+
+**Kurz:** Redis installieren/starten → `REDIS_URL` in `.env` → App neu starten. Details: [Redis-Anleitung](#redis-anleitung-redis_url).
+
+```env
+# .env — lokaler Redis (Standard-Port)
+REDIS_URL=redis://127.0.0.1:6379
+```
+
+Nach dem Start erscheint in der Server-Konsole u. a. `[redis] shared client connected`. Rate-Limits und Guest-View-Dedup nutzen dann automatisch Redis (`RATE_LIMIT_BACKEND=auto`, `GUEST_VIEW_DEDUP_BACKEND=auto`).
 
 ### Schritt 4 — Optional: Seed-Daten laden
 
@@ -161,6 +174,8 @@ PUBLIC_BASE_URL=https://terminal.example.com
 PREMIUM_VAULT_KEY=<langer-zufälliger-string>
 SEED_ADMIN_PASSWORD=<starkes-passwort>
 SEED_VIP_PASSWORD=<starkes-passwort>
+# Optional — nur bei mehreren App-Instanzen hinter Load Balancer:
+REDIS_URL=redis://127.0.0.1:6379
 ```
 
 ### Schritt 9 — `data/` sichern
@@ -292,6 +307,136 @@ Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client).
 | **Registrierung** | Challenge + Signal-Registry; fail-closed bei unbekannter IP (Prod) |
 | **Premium Vault** | AES-GCM mit `PREMIUM_VAULT_KEY`; Bulk-Import im Admin-Panel |
 
+### Redis-Anleitung (`REDIS_URL`)
+
+`REDIS_URL` verbindet LUL Terminal mit einem Redis-Server. **Eine URL** aktiviert zwei Features:
+
+| Feature | Redis-Keys (Beispiel) | Ohne Redis |
+|---------|----------------------|------------|
+| **Rate Limits** | `rl:login:1.2.3.4`, `rl:analytics:…` | memory / file (`RATE_LIMIT_SHARED=1`) |
+| **Guest View Dedup** | `gv:paste:1.2.3.4:abc123` | `data/analytics/guest-views.json` |
+
+#### URL-Formate
+
+| Szenario | `REDIS_URL` Beispiel |
+|----------|----------------------|
+| Lokal (Dev/Prod auf gleichem Host) | `redis://127.0.0.1:6379` |
+| Passwort (Redis 6+ ACL / `requirepass`) | `redis://:mein-passwort@127.0.0.1:6379` |
+| Benutzer + Passwort | `redis://benutzer:passwort@redis.example.com:6379` |
+| Andere DB-Nummer (Standard: 0) | `redis://127.0.0.1:6379/1` |
+| TLS (Redis Cloud, Upstash, etc.) | `rediss://default:token@host.upstash.io:6379` |
+
+> **`redis://`** = unverschlüsselt (typisch localhost/VPC). **`rediss://`** = TLS — bei Managed-Redis in der Cloud meist Pflicht.
+
+#### Schritt-für-Schritt (Linux / VPS)
+
+**1. Redis installieren**
+
+```bash
+# Debian / Ubuntu
+sudo apt update && sudo apt install -y redis-server
+sudo systemctl enable redis-server
+sudo systemctl start redis-server
+```
+
+**2. Erreichbarkeit prüfen**
+
+```bash
+redis-cli ping
+# Erwartete Antwort: PONG
+```
+
+**3. `.env` setzen**
+
+```env
+REDIS_URL=redis://127.0.0.1:6379
+# Optional explizit (auto ist Standard):
+# RATE_LIMIT_BACKEND=redis
+# GUEST_VIEW_DEDUP_BACKEND=redis
+```
+
+**4. App starten**
+
+```bash
+npm run build && npm start
+```
+
+In der Konsole: `[redis] shared client connected` und `[rate-limit] Redis backend active` (bzw. Redis als Backend über `auto`).
+
+**5. Verifizieren**
+
+- Mehrfach schnell einloggen → Rate-Limit greift app-übergreifend (gleiche IP).
+- Zwei Worker/Instanzen: Guest-Paste-View zählt nur einmal pro IP (Dedup über Redis).
+
+#### Schritt-für-Schritt (Windows / Dev)
+
+**Option A — Docker (empfohlen)**
+
+```bash
+docker run -d --name lul-redis -p 6379:6379 redis:7-alpine
+```
+
+In `.env`:
+
+```env
+REDIS_URL=redis://127.0.0.1:6379
+```
+
+**Option B — WSL2**
+
+Redis in WSL installieren (`sudo apt install redis-server`), `REDIS_URL=redis://127.0.0.1:6379` — von Windows-Node aus erreichbar, wenn Redis auf `0.0.0.0` oder WSL-IP lauscht.
+
+#### Docker Compose (App + Redis)
+
+```yaml
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      TRUST_PROXY: "1"
+      REDIS_URL: redis://redis:6379
+      PREMIUM_VAULT_KEY: ${PREMIUM_VAULT_KEY}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+      SEED_VIP_PASSWORD: ${SEED_VIP_PASSWORD}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - redis
+volumes:
+  redis-data:
+```
+
+#### Wann Redis, wann File?
+
+| Setup | Empfehlung |
+|-------|------------|
+| 1× `npm start` / 1× PM2-Worker | Kein Redis nötig |
+| PM2-Cluster, **ein** Server, gemeinsames `data/` | `RATE_LIMIT_SHARED=1` (File + Lock) |
+| 2+ Server / Pods hinter Load Balancer | **`REDIS_URL` Pflicht** |
+| Managed Redis (Upstash, Redis Cloud, ElastiCache) | `rediss://…` aus Provider-Dashboard kopieren |
+
+#### Fehlerbehebung
+
+| Symptom | Lösung |
+|---------|--------|
+| `[redis] unavailable` in Logs | Redis läuft nicht / falsche URL / Firewall |
+| Rate-Limits wirken pro Instanz unterschiedlich | `REDIS_URL` fehlt oder Instanzen nutzen verschiedene Redis-DBs |
+| `NOAUTH Authentication required` | Passwort in URL: `redis://:passwort@host:6379` |
+| TLS-Fehler bei Cloud-Redis | `rediss://` statt `redis://` verwenden |
+
+Redis-Daten (Rate-Limit-Keys, Guest-Dedup) sind **ephemeral** — kein Backup nötig für App-Betrieb. `data/` (Nutzer, Uploads) bleibt weiterhin auf dem Dateisystem.
+
+---
+
 ### Rate Limits & Multi-Process
 
 `server/rateLimitStore.mjs` wählt das Backend automatisch:
@@ -310,11 +455,15 @@ Priorität bei `auto`: Redis wenn `REDIS_URL` gesetzt, sonst File wenn `RATE_LIM
 **Redis-Backend:** Atomisches `INCR` + `PEXPIRE` per Lua-Script (kein TTL-Leak-Fenster).
 
 ```env
-# Beispiel: PM2 mit 4 Workern auf einem VPS
+# Ein VPS, PM2 mit 4 Workern — kein Redis nötig:
 RATE_LIMIT_SHARED=1
 
-# Beispiel: Zwei Server hinter Load Balancer
+# Zwei+ Server hinter Load Balancer — Redis Pflicht:
 REDIS_URL=redis://127.0.0.1:6379
+# oder mit Passwort:
+# REDIS_URL=redis://:geheim@127.0.0.1:6379
+# oder Cloud (TLS):
+# REDIS_URL=rediss://default:token@eu1-example.upstash.io:6379
 ```
 
 ### Chat & Shoutbox (Wichtig)
@@ -437,7 +586,7 @@ See [`.env.example`](.env.example) for the full template.
 | `PUBLIC_BASE_URL` | Optional canonical origin for API share URLs |
 | `RATE_LIMIT_BACKEND` | `auto` (default), `memory`, `file`, or `redis` |
 | `RATE_LIMIT_SHARED` | `1` — file-backed rate limits for multi-process same host |
-| `REDIS_URL` | Redis connection for shared rate limits (multi-instance) |
+| `REDIS_URL` | Redis URL — `redis://127.0.0.1:6379` (local), `redis://:pass@host:6379` (auth), `rediss://…` (TLS). Enables shared rate limits + guest view dedup. See [Redis-Anleitung](#redis-anleitung-redis_url). |
 | `GUEST_VIEW_DEDUP_BACKEND` | `auto` (default), `file`, or `redis` for anonymous view dedup |
 | `GUEST_VIEW_DEDUP_FAIL_OPEN` | `1` (default) fail-open on dedup store errors; `0` fail-closed |
 | `SEED_ADMIN_PASSWORD` | Initial admin password (required in prod on empty DB) |
@@ -507,7 +656,7 @@ In der laufenden App: **Admin Dashboard → Setup Notes** — spiegelt Deploymen
 |------|---------|
 | **Self-hosted VPS** | `npm run build && npm start` + nginx + `TRUST_PROXY=1` + `PUBLIC_BASE_URL` |
 | **PM2 / Cluster (1 Host)** | `RATE_LIMIT_SHARED=1` + `data/` persistent mounten |
-| **Multi-Instance / LB** | `REDIS_URL` für geteilte Rate-Limits |
+| **Multi-Instance / LB** | `REDIS_URL=redis://…` — Rate-Limits + Guest-Dedup (siehe [Redis-Anleitung](#redis-anleitung-redis_url)) |
 | **Docker** | Mount `data/`, set env from `.env.example` |
 | **Vercel (static only)** | `vercel.json` rewrites SPA routes; **API requires Node server** — use VPS or split frontend/API |
 
@@ -518,7 +667,7 @@ In der laufenden App: **Admin Dashboard → Setup Notes** — spiegelt Deploymen
 - [ ] `PREMIUM_VAULT_KEY`, `SEED_*`-Passwörter gesetzt
 - [ ] `PUBLIC_BASE_URL` = kanonische HTTPS-URL
 - [ ] `data/` persistent (Backup, Volume)
-- [ ] Multi-Process: `RATE_LIMIT_SHARED=1` oder `REDIS_URL`
+- [ ] Multi-Process (1 Host): `RATE_LIMIT_SHARED=1` **oder** Multi-Instance (LB): `REDIS_URL=redis://127.0.0.1:6379` (siehe [Redis-Anleitung](#redis-anleitung-redis_url))
 - [ ] `npm run lint && npm run build` vor Deploy
 - [ ] `data/analytics/guest-views.json` nicht committen (Runtime)
 
