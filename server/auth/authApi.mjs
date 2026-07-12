@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { wrapAsyncHandler } from '../asyncMiddleware.mjs';
 import {
   clearSessionCookie,
   parseCookies,
@@ -312,20 +313,18 @@ export async function handleAuthRequest(req, res) {
           ? 401
           : e instanceof SyntaxError || msg === 'Payload too large'
             ? 400
-            : 400;
+            : 500;
     return sendJson(res, status, { error: msg });
   }
 }
 
 export function createAuthMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (!pathname.startsWith('/api/auth')) {
       next();
       return;
     }
-    handleAuthRequest(req, res).catch((e) => {
-      sendJson(res, 500, { error: e instanceof Error ? e.message : 'Server error' });
-    });
-  };
+    return handleAuthRequest(req, res);
+  });
 }

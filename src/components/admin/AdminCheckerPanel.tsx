@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { fetchAdminChecker, type CheckerDashboardData } from '../../lib/adminModules';
 import { formatRelativeEn } from '../../lib/terminalStats';
@@ -12,10 +12,26 @@ import { ToolCard } from '../pages/PageShell';
 export function AdminCheckerPanel() {
   const [data, setData] = useState<CheckerDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
-    try { setData(await fetchAdminChecker()); } catch { setData(null); }
-    finally { setLoading(false); }
+    const gen = ++loadGenRef.current;
+    try {
+      const result = await fetchAdminChecker();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(result);
+    } catch {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(null);
+    } finally {
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
+    }
   }, []);
 
   useEffect(() => { void load(); }, [load]);
@@ -43,9 +59,9 @@ export function AdminCheckerPanel() {
                 <thead><tr className="text-slate-600"><th className="text-left py-1">Proxy</th><th className="text-left">Status</th><th className="text-right">ms</th></tr></thead>
                 <tbody>{data.results.sample.map((p, i) => (
                   <tr key={`${p.host}-${i}`} className="border-t border-slate-800/40">
-                    <td className="py-1 text-slate-500">{p.type}://{p.host}:{p.port}</td>
+                    <td className="py-1 text-slate-400 truncate max-w-[140px]">{p.raw}</td>
                     <td className={p.alive ? 'text-emerald-400' : 'text-rose-400'}>{p.alive ? 'alive' : 'dead'}</td>
-                    <td className="text-right text-slate-600">{p.latency ?? '—'}</td>
+                    <td className="text-right text-slate-500">{p.latency ?? '—'}</td>
                   </tr>
                 ))}</tbody>
               </table>

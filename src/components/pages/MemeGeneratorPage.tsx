@@ -11,7 +11,7 @@ import { useMemeStorage } from '../../hooks/useMemeStorage';
 import type { MemeTemplate, MemeTemplateType } from '../../types/meme';
 import { MemeDatabaseStats } from '../meme/MemeDatabaseStats';
 import { MemeEditor } from '../meme/MemeEditor';
-import { decodeMemeName } from '../../utils/memeMedia';
+import { decodeMemeName, memeMediaUrl } from '../../utils/memeMedia';
 import { POPULAR_TAGS } from '../../utils/memeEditorConfig';
 
 const PAGE_SIZE = 48;
@@ -322,7 +322,7 @@ export function MemeGeneratorPage() {
               {recentTemplates.map((t) => (
                 <button key={t.id} type="button" onClick={() => selectTemplate(t)} title={decodeMemeName(t.name)}
                   className="shrink-0 w-16 rounded-lg border border-slate-800/80 overflow-hidden hover:border-rose-500/50 hover:scale-105 transition-transform">
-                  <img src={t.previewUrl} alt="" className="w-full aspect-square object-cover" loading="lazy" />
+                  <img src={memeMediaUrl(t.previewUrl)} alt="" className="w-full aspect-square object-cover" loading="lazy" />
                 </button>
               ))}
             </div>
@@ -360,7 +360,7 @@ export function MemeGeneratorPage() {
                   <button type="button" onClick={() => selectTemplate(t)} title={decodeMemeName(t.name)}
                     className="w-full text-left rounded-lg border border-slate-800/80 bg-[#161a24] hover:border-rose-500/50 hover:shadow-lg hover:shadow-rose-500/5 overflow-hidden transition-all active:scale-[0.98]">
                     <div className={`bg-black/40 relative overflow-hidden ${gridSize === 'cozy' ? 'aspect-[4/3]' : 'aspect-square'}`}>
-                      <img src={t.previewUrl} alt={t.name} loading="lazy"
+                      <img src={memeMediaUrl(t.previewUrl)} alt={t.name} loading="lazy"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                       {t.type === 'gif' && (
                         <span className="absolute top-1.5 right-1.5 text-[7px] font-bold bg-violet-500/90 text-white px-1.5 py-0.5 rounded">GIF</span>
@@ -417,7 +417,7 @@ export function MemeGeneratorPage() {
               top: Math.min(hoverPos.y + 16, window.innerHeight - 220),
               width: 200,
             }}>
-            <img src={hoverPreview.previewUrl} alt="" className="w-full aspect-square object-cover" />
+            <img src={memeMediaUrl(hoverPreview.previewUrl)} alt="" className="w-full aspect-square object-cover" />
             <p className="text-[9px] font-mono text-slate-300 p-2 truncate">{decodeMemeName(hoverPreview.name)}</p>
           </div>
         )}

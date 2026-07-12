@@ -10,6 +10,7 @@ import { canAccessAdmin } from './auth/permissions.mjs';
 import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
+import { recordTabVisitFromAnalytics } from './auth/authService.mjs';
 import {
   buildAdminOverview,
   buildUserActivitySummary,
@@ -65,7 +66,14 @@ export async function handleAnalyticsRequest(req, res) {
         meta: body.meta && typeof body.meta === 'object' ? body.meta : {},
       });
 
-      return sendJson(res, 201, { ok: true, eventId: event?.id ?? null, user: null });
+      let userPayload = null;
+      if (req.auth?.user?.id && (eventType === 'tab_visit' || eventType === 'faq_visit')) {
+        const tab = eventType === 'faq_visit' ? 'faq' : String(body.tab ?? '').slice(0, 24);
+        const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, tab);
+        userPayload = visitResult?.user ?? null;
+      }
+
+      return sendJson(res, 201, { ok: true, eventId: event?.id ?? null, user: userPayload });
     }
 
     if (req.method === 'GET' && pathname === '/api/analytics/me') {

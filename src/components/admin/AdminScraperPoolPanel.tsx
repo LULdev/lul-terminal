@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { fetchAdminScraperPool, type ScraperPoolData } from '../../lib/adminModules';
 import { formatRelativeEn } from '../../lib/terminalStats';
@@ -12,10 +12,26 @@ import { ToolCard } from '../pages/PageShell';
 export function AdminScraperPoolPanel() {
   const [data, setData] = useState<ScraperPoolData | null>(null);
   const [loading, setLoading] = useState(true);
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
-    try { setData(await fetchAdminScraperPool()); } catch { setData(null); }
-    finally { setLoading(false); }
+    const gen = ++loadGenRef.current;
+    try {
+      const result = await fetchAdminScraperPool();
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(result);
+    } catch {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
+      setData(null);
+    } finally {
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
+    }
   }, []);
 
   useEffect(() => { void load(); }, [load]);
@@ -43,9 +59,12 @@ export function AdminScraperPoolPanel() {
                 <div>Sources OK: <span className="text-cyan-300">{String(data.state.sourcesOk ?? 0)}</span> · Failed: {String(data.state.sourcesFailed ?? 0)}</div>
               </div>
             </ToolCard>
-            <ToolCard title="Sample proxies" icon="🔗" accent="cyan">
-              <div className="space-y-0.5 max-h-48 overflow-y-auto font-mono text-[8px] text-slate-500">
-                {data.topProxies.map((p, i) => <div key={`${p.host}-${i}`}>{p.type}://{p.host}:{p.port}</div>)}
+            <ToolCard title="Sample proxies" icon="📋" accent="cyan">
+              <div className="text-[7px] font-mono text-slate-600 space-y-0.5 max-h-32 overflow-y-auto">
+                {(data.pool.sample ?? []).slice(0, 12).map((p) => (
+                  <div key={p} className="truncate text-slate-400">{p}</div>
+                ))}
+                {!(data.pool.sample ?? []).length && <p className="text-slate-600">No samples</p>}
               </div>
             </ToolCard>
           </div>

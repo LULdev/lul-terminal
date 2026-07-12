@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { fetchHostedImage, pollImageMeta, recordImageView, type HostedImageMeta } from '../../lib/imageHosting';
+import { fetchHostedImage, ImageFetchError, pollImageMeta, recordImageView, type HostedImageMeta } from '../../lib/imageHosting';
 import { safeHostedImageUrl } from '../../lib/safeHostedImageUrl';
 
 type Props = { id: string };
@@ -18,12 +18,14 @@ export function ImageHostViewer({ id }: Props) {
   const [views, setViews] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [needsLogin, setNeedsLogin] = useState(false);
   const [viewsReady, setViewsReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError('');
+    setNeedsLogin(false);
     setViewsReady(false);
 
     fetchHostedImage(id)
@@ -41,8 +43,14 @@ export function ImageHostViewer({ id }: Props) {
           setViewsReady(true);
         }
       })
-      .catch(() => {
-        if (!cancelled) setError('Could not load image — is the server running?');
+      .catch((e) => {
+        if (cancelled) return;
+        if (e instanceof ImageFetchError && (e.status === 401 || e.status === 403)) {
+          setNeedsLogin(true);
+          setError('Sign in to view hosted images.');
+          return;
+        }
+        setError('Could not load image — is the server running?');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -80,6 +88,14 @@ export function ImageHostViewer({ id }: Props) {
       <div className="min-h-screen bg-[#07080c] flex flex-col items-center justify-center gap-3 p-6">
         <p className="text-4xl opacity-40">🖼️</p>
         <p className="text-[12px] font-mono text-red-300/90 text-center max-w-sm">{error || 'Not found'}</p>
+        {needsLogin && (
+          <a
+            href="/?tab=imagehost"
+            className="text-[10px] font-mono px-4 py-2 rounded-lg border border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20"
+          >
+            Sign in at LUL Terminal ↗
+          </a>
+        )}
       </div>
     );
   }

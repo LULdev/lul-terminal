@@ -411,14 +411,20 @@ export async function recordTabVisitFromAnalytics(userId, tab) {
     const user = db.users.find((u) => u.id === userId);
     if (!user || user.role === 'bot') return null;
     const touched = applyActivityCtx(user, { visitedTab: safeTab });
+    let newUnlocks = [];
     if (touched) {
       user.updatedAt = Date.now();
+      const accountsSubmitted = await countAccountsByCreator(user.id);
+      newUnlocks = syncAchievements(user, { accountsSubmitted });
+      if (newUnlocks.length) {
+        notifyBotAchievements(user.username, newUnlocks).catch(() => {});
+      }
       await saveUsersDb(db);
     }
     const { accountsSubmitted, reportedNotWorkingAccounts, profileStats } = await profileExtrasForUser(user);
     return {
       user: enrichUserForClient(user, accountsSubmitted, reportedNotWorkingAccounts, profileStats),
-      newUnlocks: [],
+      newUnlocks,
     };
   });
 }
@@ -552,7 +558,7 @@ export async function incrementProfileView(username, { viewer = null } = {}) {
       return publicProfileView(user, accountsSubmitted, reportedNotWorkingAccounts, profileStats);
     }
 
-    let countedView = false;
+    let dirty = false;
     if (viewer && viewer.id && viewer.role !== 'bot') {
       const viewerUser = db.users.find((u) => u.id === viewer.id);
       if (viewerUser) {
@@ -560,21 +566,22 @@ export async function incrementProfileView(username, { viewer = null } = {}) {
         const alreadyVisited = Boolean(ensureActivity(viewerUser).flags[visitKey]);
         if (!alreadyVisited) {
           user.profileViews = (Number(user.profileViews) || 0) + 1;
-          countedView = true;
+          user.updatedAt = Date.now();
+          dirty = true;
           syncAchievements(user, { accountsSubmitted: await countAccountsByCreator(user.id) });
+          const ctx = { visitedProfile: uname };
+          if (user.role === 'admin') ctx.flag = 'visited_admin_profile';
+          applyActivityCtx(viewerUser, ctx);
+          const viewerSubmitted = await countAccountsByCreator(viewerUser.id);
+          syncAchievements(viewerUser, { ...ctx, accountsSubmitted: viewerSubmitted });
+          viewerUser.updatedAt = Date.now();
+          dirty = true;
         }
-        const ctx = { visitedProfile: uname };
-        if (user.role === 'admin') ctx.flag = 'visited_admin_profile';
-        applyActivityCtx(viewerUser, ctx);
-        const viewerSubmitted = await countAccountsByCreator(viewerUser.id);
-        syncAchievements(viewerUser, { ...ctx, accountsSubmitted: viewerSubmitted });
-        viewerUser.updatedAt = Date.now();
       }
     }
-    if (countedView) user.updatedAt = Date.now();
     const { accountsSubmitted, reportedNotWorkingAccounts, profileStats } = await profileExtrasForUser(user);
 
-    await saveUsersDb(db);
+    if (dirty) await saveUsersDb(db);
     return publicProfileView(user, accountsSubmitted, reportedNotWorkingAccounts, profileStats);
   });
 }

@@ -197,10 +197,21 @@ export async function uploadHostedImage(
   });
 }
 
+export class ImageFetchError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 export async function fetchHostedImage(id: string): Promise<HostedImageMeta | null> {
   const res = await fetch(`${API}/${id}`);
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error('Could not load image');
+  if (res.status === 401 || res.status === 403) {
+    throw new ImageFetchError(res.status, 'Sign in required');
+  }
+  if (!res.ok) throw new ImageFetchError(res.status, 'Could not load image');
   return res.json() as Promise<HostedImageMeta>;
 }
 

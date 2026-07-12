@@ -23,6 +23,23 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.83',
+    title: 'Extreme deep audit — round 24 (server/client/chat/news/paste)',
+    date: 'Jul 12, 2026 - 10:00',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — Tab-visit achievement pipeline restored: analytics track calls recordTabVisitFromAnalytics + returns user.' },
+      { priority: 'P1', text: 'P1 — /i/ image viewer wrapped in AuthProvider; 403 shows sign-in CTA (not false server error).' },
+      { priority: 'P2', text: 'P2 — authApi wrapAsyncHandler + unknown errors default 500; profile repeat-view skips users.json write.' },
+      { priority: 'P2', text: 'P2 — MemeGeneratorPage previewUrl routed through memeMediaUrl allowlist.' },
+      { priority: 'P2', text: 'P2 — Terminal commands + claw_victim wire handleUnlocks/patchUser on client.' },
+      { priority: 'P3', text: 'P3 — Sidebar/title use renderTab; login keeps public tab when still accessible.' },
+      { priority: 'P3', text: 'P3 — Popstate deferred during authLoading; Admin ProxyDb/ScraperPool/Checker race guards.' },
+      { priority: 'P4', text: 'P4 — ImageFetchError distinguishes 401/403 from network failures; fetchHostedImage status-aware.' },
+      { priority: 'P9', text: 'P9 — Round 24 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.82',
     title: 'Extreme deep audit — round 23 (server/client/chat/news/paste)',
     date: 'Jul 12, 2026 - 08:30',

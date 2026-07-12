@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Download, Play, RefreshCw, Server } from 'lucide-react';
 import {
   exportDbTxt,
@@ -41,23 +41,34 @@ export function AdminProxyDbPanel() {
   const [success, setSuccess] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'working' | 'offline'>('working');
   const [typeFilter, setTypeFilter] = useState<ProxyType | 'all'>('all');
+  const loadGenRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     setError('');
+    setLoading(true);
     try {
       const [s, lists] = await Promise.all([
         fetchProxyDatabaseStats(),
         fetchProxyDatabaseLists(statusFilter === 'all' ? 'all' : statusFilter),
       ]);
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setStats(s);
       let flat = TYPES.flatMap((t) => lists.lists[t] ?? []);
       if (typeFilter !== 'all') flat = flat.filter((p) => p.type === typeFilter);
       flat.sort((a, b) => (a.latency ?? 99999) - (b.latency ?? 99999));
       setProxies(flat.slice(0, 200));
     } catch (err) {
+      if (gen !== loadGenRef.current || !mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Load failed');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
   }, [statusFilter, typeFilter]);
 

@@ -293,7 +293,14 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
       setTempInput('');
 
       if (ALL_COMMANDS_ALIASES.has(query)) {
-        if (isLoggedIn) authApi.recordTerminalCommand(query).catch(() => {});
+        if (isLoggedIn) {
+          authApi.recordTerminalCommand(query)
+            .then((data) => {
+              handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
+              if (data.user) patchUser(data.user);
+            })
+            .catch(() => {});
+        }
         printCompactCommandReference(appendLog);
       } else if (query === 'stats') {
         const stats = getLiveStats();
@@ -355,7 +362,14 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
           appendLog('❌ Error: Allowed colors are: indigo, emerald, amber, cyan, rose', 'warn');
         }
       } else if (query === 'matrix') {
-        if (isLoggedIn) authApi.recordTerminalCommand(query).catch(() => {});
+        if (isLoggedIn) {
+          authApi.recordTerminalCommand(query)
+            .then((data) => {
+              handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
+              if (data.user) patchUser(data.user);
+            })
+            .catch(() => {});
+        }
         appendLog('🟢 INITIALIZING MATRIX PROTOCOL CODES...', 'success');
         setIsMatrixOverlayActive(true);
         playBeep(400, 0.1, 'sawtooth');
@@ -461,7 +475,14 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
         if (selfDestructCountdown > 0) {
           appendLog('🚨 Self-destruct sequence is already active!', 'warn');
         } else {
-          if (isLoggedIn) authApi.recordTerminalCommand(query).catch(() => {});
+          if (isLoggedIn) {
+          authApi.recordTerminalCommand(query)
+            .then((data) => {
+              handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
+              if (data.user) patchUser(data.user);
+            })
+            .catch(() => {});
+        }
           setSelfDestructCountdown(10);
           appendLog('🚨 WARNING: SELF-DESTRUCT INITIATED BY OPERATOR! T-MINUS 10 SECONDS...', 'alert');
           playBeep(440, 0.4, 'sawtooth');

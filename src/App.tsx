@@ -99,7 +99,7 @@ const initialDeepLink = typeof window !== 'undefined' ? readDeepLinkParams() : {
 export default function App() {
   const {
     user, isLoggedIn, isAdmin, loading: authLoading, openAuth, openLoginGate, syncAchievements, authSuccessTick,
-    pendingTabAfterLogin, clearPendingTabAfterLogin, patchUser,
+    pendingTabAfterLogin, clearPendingTabAfterLogin, patchUser, handleUnlocks,
   } = useAuth();
   const { requiresLogin, isPublicTab, loading: visibilityLoading } = usePageVisibility();
   const { newsFeedVersion } = useFeedUnread();
@@ -132,19 +132,19 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const menu = [DASHBOARD_MENU_ITEM, ...MAIN_MENU_ITEMS, ...LAB_MENU_ITEMS].find((m) => m.id === activeTab);
-    const suffix = activeTab === 'profile' && profileUsername ? ` · @${profileUsername}` : '';
+    const menu = [DASHBOARD_MENU_ITEM, ...MAIN_MENU_ITEMS, ...LAB_MENU_ITEMS].find((m) => m.id === renderTab);
+    const suffix = renderTab === 'profile' && profileUsername ? ` · @${profileUsername}` : '';
     document.title = menu ? `${menu.label}${suffix} · LUL Terminal` : 'LUL Terminal';
     const canonical = document.querySelector('link[rel="canonical"]');
     const ogUrl = document.querySelector('meta[property="og:url"]');
-    const path = activeTab === 'profile' && profileUsername
+    const path = renderTab === 'profile' && profileUsername
       ? profilePath(profileUsername)
       : '/';
     const url = `${window.location.origin}${path}`;
     if (canonical) canonical.setAttribute('href', url);
     if (ogUrl) ogUrl.setAttribute('content', url);
     return () => { document.title = 'LUL Terminal'; };
-  }, [activeTab, profileUsername]);
+  }, [renderTab, profileUsername]);
 
   const sessionTrackedRef = useRef(false);
   const visitorCtxRef = useRef<ReturnType<typeof collectVisitorContext> | null>(null);
@@ -433,7 +433,14 @@ export default function App() {
 
     setCursorGrabbed(true);
     recordCatch();
-    if (isLoggedIn) authApi.recordAchievementEvent('claw_victim').catch(() => {});
+    if (isLoggedIn) {
+      authApi.recordAchievementEvent('claw_victim')
+        .then((data) => {
+          handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
+          if (data.user) patchUser(data.user);
+        })
+        .catch(() => {});
+    }
     terminalAppend('🎯 CURSOR SNATCHED! Gravity core localized. Escape probability: < 0.1%', 'alert');
     playBeep(440, 0.4, 'triangle');
     setTimeout(() => playBeep(220, 0.4, 'sawtooth'), 150);
@@ -484,6 +491,10 @@ export default function App() {
   const pendingPopRef = useRef(false);
 
   const applyPopstateNavigation = useCallback(() => {
+    if (authLoading || visibilityLoading) {
+      pendingPopRef.current = true;
+      return;
+    }
     const route = parseProfileRoute();
     if (route) {
       if (!isLoggedIn && !isPublicTab('profile')) {
@@ -518,26 +529,19 @@ export default function App() {
     setActiveTab(fallback);
     setProfileUsername(null);
     syncUrlForTab(fallback);
-  }, [isLoggedIn, isAdmin, isPublicTab, openLoginGate, requiresLogin]);
+  }, [authLoading, visibilityLoading, isLoggedIn, isAdmin, isPublicTab, openLoginGate, requiresLogin]);
 
   useEffect(() => {
-    const onPop = () => {
-      if (visibilityLoading) {
-        pendingPopRef.current = true;
-        return;
-      }
-      pendingPopRef.current = false;
-      applyPopstateNavigation();
-    };
+    const onPop = () => applyPopstateNavigation();
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, [visibilityLoading, applyPopstateNavigation]);
+  }, [applyPopstateNavigation]);
 
   useEffect(() => {
-    if (visibilityLoading || !pendingPopRef.current) return;
+    if (authLoading || visibilityLoading || !pendingPopRef.current) return;
     pendingPopRef.current = false;
     applyPopstateNavigation();
-  }, [visibilityLoading, applyPopstateNavigation]);
+  }, [authLoading, visibilityLoading, applyPopstateNavigation]);
 
   const didBootstrapAuthTab = useRef(false);
   useEffect(() => {
@@ -569,10 +573,18 @@ export default function App() {
       }
       return;
     }
+    if (canAccessTab(activeTab, true, isAdmin)) {
+      if (activeTab === 'profile' && profileUsername) {
+        syncUrlForTab(activeTab, profileUsername);
+      } else {
+        syncUrlForTab(activeTab);
+      }
+      return;
+    }
     setActiveTab('dashboard');
     setProfileUsername(null);
     syncUrlForTab('dashboard');
-  }, [authSuccessTick, pendingTabAfterLogin, clearPendingTabAfterLogin, canAccessTab, isAdmin]);
+  }, [authSuccessTick, pendingTabAfterLogin, clearPendingTabAfterLogin, canAccessTab, isAdmin, activeTab, profileUsername]);
 
   useEffect(() => {
     if (authLoading || visibilityLoading || isLoggedIn) return;
@@ -648,7 +660,7 @@ export default function App() {
             <div className="absolute inset-0 bg-[radial-gradient(#4f5060_0.4px,transparent_0.4px)] [background-size:24px_24px] opacity-10 pointer-events-none" />
 
             <SidebarNav
-              activeTab={activeTab}
+              activeTab={renderTab}
               onTabClick={handleTabClick}
               hudPanel={
                 activeTab === 'fun' ? (
