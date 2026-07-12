@@ -5,10 +5,23 @@
  * Persistent device signals sent with registration — survives IP rotation.
  */
 
-import { getOrCreateGuestId } from './analytics';
 import { collectVisitorContext } from './visitorContext';
 
+const GUEST_KEY = 'lul_analytics_guest';
 const INSTALL_ID_KEY = 'lul_install_id';
+
+function getOrCreateGuestId() {
+  try {
+    let id = localStorage.getItem(GUEST_KEY);
+    if (!id) {
+      id = `g-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      localStorage.setItem(GUEST_KEY, id);
+    }
+    return id;
+  } catch {
+    return `g-anon-${Date.now()}`;
+  }
+}
 const STORAGE_DB = 'lul_terminal_reg';
 const STORAGE_STORE = 'device';
 const STORAGE_KEY = 'storage_id';

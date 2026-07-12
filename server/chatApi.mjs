@@ -10,7 +10,7 @@ import { listLobbyMessages, postLobbyMessage } from './chatService.mjs';
 import { getEmoteFile, listPublicEmotes } from './chatEmotesStore.mjs';
 import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { requireChatAccess } from './tabAccessGuard.mjs';
-import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
+import { applyRateLimitHeaders, checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 
 function sendJson(res, status, body) {
   res.statusCode = status;
@@ -107,8 +107,11 @@ export async function handleChatRequest(req, res) {
     res.end('Not found');
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Server error';
-    const status = isRateLimitError(e) ? 429
-      : e instanceof SyntaxError ? 400
+    if (isRateLimitError(e)) {
+      applyRateLimitHeaders(res, e);
+      return sendJson(res, 429, { error: msg });
+    }
+    const status = e instanceof SyntaxError ? 400
       : msg.includes('logged in') || msg === 'Not logged in'
         ? 401
         : msg === 'Permission denied' || msg.includes('banned') || msg.includes('muted')

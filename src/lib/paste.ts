@@ -171,14 +171,21 @@ export async function fetchTrendingPastes(limit = 12): Promise<PasteMeta[]> {
   return data.pastes ?? [];
 }
 
-export async function fetchPaste(id: string): Promise<PasteRecord> {
-  const res = await sessionFetch(`${API}/${id}`);
+async function fetchPasteResponse(id: string, credentialed: boolean) {
+  const init = { credentials: 'include' as const, headers: { 'Content-Type': 'application/json' } };
+  return credentialed
+    ? sessionFetch(`${API}/${id}`, init)
+    : fetch(`${API}/${id}`, init);
+}
+
+export async function fetchPaste(id: string, { credentialed = true } = {}): Promise<PasteRecord> {
+  const res = await fetchPasteResponse(id, credentialed);
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
 
-export async function fetchPasteMeta(id: string): Promise<PasteMeta | null> {
-  const res = await sessionFetch(`${API}/${id}`);
+export async function fetchPasteMeta(id: string, { credentialed = false } = {}): Promise<PasteMeta | null> {
+  const res = await fetchPasteResponse(id, credentialed);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(await parseError(res));
   const data = await res.json() as PasteRecord;
@@ -224,7 +231,11 @@ export async function recordPasteView(id: string): Promise<{ views: number; burn
     const sessionKey = `${VIEW_SESSION_PREFIX}${id}`;
     if (!sessionStorage.getItem(sessionKey)) {
       try {
-        const res = await sessionFetch(`${API}/${id}/view`, { method: 'POST' });
+        const res = await fetch(`${API}/${id}/view`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        });
         if (res.ok) {
           const data = await res.json() as { views: number; burned: boolean; deduped?: boolean };
           sessionStorage.setItem(sessionKey, '1');

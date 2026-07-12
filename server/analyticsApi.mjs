@@ -9,7 +9,7 @@ import { requireRole } from './auth/authApi.mjs';
 import { canAccessAdmin } from './auth/permissions.mjs';
 import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 
-import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
+import { applyRateLimitHeaders, checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { ALL_MANAGEABLE_TAB_IDS } from './accessControlStore.mjs';
 import { recordTabVisitFromAnalytics } from './auth/authService.mjs';
 import { loadSessionsDb } from './auth/authStore.mjs';
@@ -114,11 +114,18 @@ export async function handleAnalyticsRequest(req, res) {
         }
       }
 
+      if (!req.auth?.user && eventType !== 'session_start') {
+        return sendJson(res, 201, { ok: true, eventId: null, user: null, proof: null });
+      }
+
       if (
         eventType === 'profile_view'
         || eventType === 'command_run'
         || eventType === 'login'
         || eventType === 'logout'
+        || eventType === 'search'
+        || eventType === 'feature_use'
+        || eventType === 'session_end'
         || (eventType === 'session_start' && req.auth?.user)
       ) {
         return sendJson(res, 201, { ok: true, eventId: null, user: null, proof: null });
@@ -252,9 +259,11 @@ export async function handleAnalyticsRequest(req, res) {
     return sendJson(res, 404, { error: 'Not found' });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Server error';
-    const status = isRateLimitError(e)
-      ? 429
-      : msg === 'Permission denied'
+    if (isRateLimitError(e)) {
+      applyRateLimitHeaders(res, e);
+      return sendJson(res, 429, { error: msg });
+    }
+    const status = msg === 'Permission denied'
         ? 403
         : msg === 'Not logged in'
           ? 401

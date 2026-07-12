@@ -7,7 +7,7 @@ import { attachAuth, requireAuth } from './auth/authApi.mjs';
 import { ensureActivity } from './auth/achievements.mjs';
 import { loadUsersDb, saveUsersDb } from './auth/authStore.mjs';
 import { runCoinTransaction } from './gamesCoinLock.mjs';
-import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
+import { applyRateLimitHeaders, checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { ALL_MANAGEABLE_TAB_IDS } from './accessControlStore.mjs';
 import { requireMemberTab } from './tabAccessGuard.mjs';
 import { wrapAsyncHandler } from './asyncMiddleware.mjs';
@@ -39,9 +39,10 @@ export async function handlePageViewsRequest(req, res) {
       const viewer = requireAuth(req);
       const pageId = sanitizePageId(viewMatch[1]);
       if (!pageId) return sendJson(res, 400, { error: 'Invalid page id' });
-      if (ALL_MANAGEABLE_TAB_IDS.includes(pageId)) {
-        await requireMemberTab(req, pageId);
+      if (!ALL_MANAGEABLE_TAB_IDS.includes(pageId)) {
+        return sendJson(res, 404, { error: 'Page not found' });
       }
+      await requireMemberTab(req, pageId);
       const flagKey = `page_view_${pageId}`;
 
       const result = await runCoinTransaction(async () => {
@@ -87,9 +88,11 @@ export async function handlePageViewsRequest(req, res) {
 
     return sendJson(res, 404, { error: 'Not found' });
   } catch (err) {
-    const status = isRateLimitError(err)
-      ? 429
-      : err instanceof SyntaxError
+    if (isRateLimitError(err)) {
+      applyRateLimitHeaders(res, err);
+      return sendJson(res, 429, { error: err.message || 'Too many requests' });
+    }
+    const status = err instanceof SyntaxError
         ? 400
         : err?.message === 'Not logged in'
           ? 401

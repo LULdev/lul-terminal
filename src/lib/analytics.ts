@@ -3,10 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { sessionFetch, sessionJson, SessionExpiredError } from './sessionFetch';
+import { sessionJson } from './sessionFetch';
 
 const API = '/api/analytics';
-const GUEST_KEY = 'lul_analytics_guest';
 
 export type AnalyticsEventType =
   | 'session_start'
@@ -197,40 +196,20 @@ export type AdminOverview = {
   visitorIntelligence: VisitorIntelligence;
 };
 
-let sessionId: string | null = null;
-
-function getSessionId() {
-  if (!sessionId) {
-    sessionId = `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  }
-  return sessionId;
-}
-
-export function getOrCreateGuestId() {
-  try {
-    let id = localStorage.getItem(GUEST_KEY);
-    if (!id) {
-      id = `g-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-      localStorage.setItem(GUEST_KEY, id);
-    }
-    return id;
-  } catch {
-    return `g-anon-${Date.now()}`;
-  }
-}
-
+/** Analytics track — soft 401 (no global session invalidation). */
 export async function trackEvent(
   type: AnalyticsEventType,
-  opts: { tab?: string; meta?: Record<string, unknown>; guestId?: string } = {},
+  opts: { tab?: string; meta?: Record<string, unknown> } = {},
 ) {
   try {
-    const res = await sessionFetch(`${API}/track`, {
+    const res = await fetch(`${API}/track`, {
       method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         type,
         tab: opts.tab,
         meta: opts.meta,
-
       }),
     });
     if (!res.ok) return { ok: false };
@@ -241,8 +220,7 @@ export async function trackEvent(
       eventId?: string | null;
     };
     return { ...data, ok: data.ok !== false };
-  } catch (e) {
-    if (e instanceof SessionExpiredError) return { ok: false };
+  } catch {
     return { ok: false };
   }
 }

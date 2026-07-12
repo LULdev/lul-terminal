@@ -23,6 +23,29 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.37.0',
+    title: 'Extreme deep audit — round 37 (session bus + view integrity)',
+    date: 'Jul 13, 2026 - 02:00',
+    highlight: true,
+    items: [
+      { priority: 'P0', text: 'P0 — invalidateSession single-flight (no parallel 401 bus storms).' },
+      { priority: 'P1', text: 'P1 — Analytics trackEvent uses soft fetch (no global logout on 401).' },
+      { priority: 'P1', text: 'P1 — Paste/image view POST + public paste GET off sessionFetch bus.' },
+      { priority: 'P1', text: 'P1 — Client login/logout trackEvent removed; logout API before local wipe.' },
+      { priority: 'P1', text: 'P1 — Guest analytics: only session_start; logged-in tab_visit/dwell only.' },
+      { priority: 'P2', text: 'P2 — Profile view session dedup only when credited:true.' },
+      { priority: 'P2', text: 'P2 — Post/page view IDs validated (news article, changelog version, tab id).' },
+      { priority: 'P2', text: 'P2 — Login per-email rate limit (10/15min) + Retry-After on 429.' },
+      { priority: 'P2', text: 'P2 — Shoutbox offline poll exponential backoff (mirrors 429).' },
+      { priority: 'P3', text: 'P3 — tab_visit patchUser merges read flags when incoming user is stale.' },
+      { priority: 'P3', text: 'P3 — Guests: no client tab_visit/tab_dwell; server rejects non-session_start.' },
+      { priority: 'P4', text: 'P4 — ChatUserChip no double invalidateSession; usePostViews unmount flush.' },
+      { priority: 'P6', text: 'P6 — MyPasteGallery external links rel=noopener noreferrer.' },
+      { priority: 'P8', text: 'P8 — Arcade matchmaking still single-process RAM (Redis deferred).' },
+      { priority: 'P9', text: 'P9 — Round 37 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.99',
     title: 'Deferred hardening — rate limits, guest dedup Redis, delete confirm, magic bytes',
     date: 'Jul 13, 2026 - 01:00',

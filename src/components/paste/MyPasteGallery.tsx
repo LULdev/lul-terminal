@@ -373,7 +373,7 @@ function PasteCard({
           <a
             href={url}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="flex items-center gap-1 text-[9px] font-mono px-2 py-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-emerald-300 hover:border-emerald-500/30 transition"
           >
             <ExternalLink size={10} /> Open

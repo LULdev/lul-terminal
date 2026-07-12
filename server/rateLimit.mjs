@@ -45,10 +45,16 @@ export async function checkRateLimit(key, { max = 30, windowMs = 60_000 } = {}) 
   if (!ok) {
     const err = new Error('Too many requests');
     err.code = 'RATE_LIMIT';
+    err.retryAfterMs = windowMs;
     throw err;
   }
 }
 
 export function isRateLimitError(err) {
   return err?.code === 'RATE_LIMIT' || err?.message === 'Too many requests';
+}
+
+export function applyRateLimitHeaders(res, err) {
+  const ms = Number(err?.retryAfterMs) || 60_000;
+  res.setHeader('Retry-After', String(Math.max(1, Math.ceil(ms / 1000))));
 }

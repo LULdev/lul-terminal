@@ -1,6 +1,6 @@
 # LUL Terminal
 
-[![Version](https://img.shields.io/badge/version-3.36.99-blue)](package.json)
+[![Version](https://img.shields.io/badge/version-3.37.0-blue)](package.json)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-green)](package.json)
 [![License](https://img.shields.io/badge/license-Apache--2.0-orange)](LICENSE)
 
@@ -287,7 +287,7 @@ npm run build && npm start
 
 ## Sicherheit & Härtung (v3.36.x)
 
-Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Aktuelle Version: **3.36.99**. Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
+Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Aktuelle Version: **3.37.0**. Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
 
 ### Wichtige Sicherheitsmaßnahmen
 
@@ -302,7 +302,9 @@ Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client).
 | **Achievements** | Server-minted Proof (120s TTL, Single-Slot); Tab-Integrity-Kette |
 | **Avatare / Cover** | Server-Allowlist + 2 MB Cap + Magic-Bytes; Client `imageMime.ts` pre-check |
 | **Account löschen** | Passwort-Bestätigung serverseitig (`verifyPassword`) + UI-Prompt |
-| **Analytics** | `guestId` serverseitig; `profile_view` / `command_run` / `login` / `logout` nur serverseitig; `tab_visit` atomisch; denied `tab_visit` → `ok:false` |
+| **Analytics** | Gäste nur `session_start`; Members `tab_visit`/`tab_dwell`; `login`/`logout` server-only; denied tab → `ok:false` |
+| **Session-Bus** | `invalidateSession` single-flight; Analytics/Public-Views soft-401 (kein Logout-Storm) |
+| **View-IDs** | Post-Views: News-Artikel + Changelog-Version validiert; Page-Views: nur `ALL_MANAGEABLE_TAB_IDS` |
 | **Chat / Shoutbox** | **Immer Login + `assertCanChat`** — auch wenn Fun-Tab öffentlich ist |
 | **Registrierung** | Challenge + Signal-Registry; fail-closed bei unbekannter IP (Prod) |
 | **Premium Vault** | AES-GCM mit `PREMIUM_VAULT_KEY`; Bulk-Import im Admin-Panel |

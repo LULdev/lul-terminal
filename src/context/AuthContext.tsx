@@ -12,8 +12,7 @@ import { clearStoredReferralCode } from '../lib/referral';
 import { clearAchievementProofs } from '../lib/achievementProof';
 import { closeChatAudioContext } from '../lib/chat';
 import { clearViewDedupSessionKeys } from '../lib/viewDedup';
-import { trackEvent } from '../lib/analytics';
-import { onSessionInvalidated } from '../lib/sessionEvents';
+import { onSessionInvalidated, resetSessionInvalidation } from '../lib/sessionEvents';
 import type { TabId } from '../config/menuItems';
 
 type AuthMode = 'login' | 'register' | null;
@@ -131,6 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       setPermissions(data.permissions ?? defaultPermissions);
       setAccountsSubmitted(data.stats?.accountsSubmitted ?? 0);
+      if (data.user) resetSessionInvalidation();
     } catch (e) {
       const status = (e as { status?: number })?.status;
       if (status === 401) {
@@ -180,8 +180,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setAuthModal(null);
     clearViewDedupSessionKeys();
+    resetSessionInvalidation();
     setAuthSuccessTick((t) => t + 1);
-    trackEvent('login').catch(() => {});
   }, [refresh, handleUnlocks]);
 
   const register = useCallback(async (input: {
@@ -221,7 +221,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [login]);
 
   const logout = useCallback(async () => {
-    await trackEvent('logout').catch(() => {});
     try {
       await authApi.logout();
     } catch (e) {

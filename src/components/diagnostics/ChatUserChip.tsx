@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { ChatRoleBadges } from './ChatRoleBadges';
 import { useAuth } from '../../context/AuthContext';
-import { invalidateSession } from '../../lib/sessionEvents';
+
 import { insertShoutboxDraft, focusShoutboxInput } from '../../lib/shoutboxDraft';
 import { sendShoutboxCommand } from '../../lib/shoutboxSend';
 import { adminModerateShoutboxUser } from '../../lib/adminModules';
@@ -112,7 +112,6 @@ export function ChatUserChip({ user, onOpenProfile, compact = false, modViaApi =
     try {
       const result = await sendShoutboxCommand(`/ping ${user.username}`);
       if (result.ok === false && result.error === 'CHAT_AUTH_REQUIRED') {
-        invalidateSession();
         openAuth('login');
         return;
       }
@@ -141,7 +140,6 @@ export function ChatUserChip({ user, onOpenProfile, compact = false, modViaApi =
         : `/${action} ${user.username}`;
       const result = await sendShoutboxCommand(command);
       if (result.ok === false && result.error === 'CHAT_AUTH_REQUIRED') {
-        invalidateSession();
         openAuth('login');
         return;
       }

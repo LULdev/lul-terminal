@@ -241,6 +241,7 @@ export function UnifiedTerminalPanel({
         setChatStatus('gated');
       } else {
         setChatStatus('offline');
+        pollBackoffRef.current = Math.min(pollBackoffRef.current * 2, 60_000);
       }
     } finally {
       if (gen === loadGenRef.current && mountedRef.current) setLoading(false);

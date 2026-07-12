@@ -32,7 +32,9 @@ export function usePostViews(type: PostViewType, opts?: { enabled?: boolean }) {
       pendingRef.current = {};
       const keys = Object.keys(batch);
       if (!keys.length) return;
-      viewsRef.current = { ...viewsRef.current, ...batch };
+      const merged = { ...viewsRef.current, ...batch };
+      viewsRef.current = merged;
+      setViews((prev) => ({ ...prev, ...batch }));
     };
   }, []);
 

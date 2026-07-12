@@ -174,6 +174,7 @@ export default function App() {
     if (authLoading || visibilityLoading) return;
     if (pendingTabAfterLogin) return;
     if (activeTab !== renderTab) return;
+    if (!isLoggedIn) return;
     const trackedTab = renderTab;
     const trackGen = ++tabTrackGenRef.current;
 
@@ -211,7 +212,20 @@ export default function App() {
         if (r?.proof && r.proof.tab === trackedTab) setAchievementProof(r.proof);
         if (trackedTab === 'profile') setProfileTabReadyTick((t) => t + 1);
         if (r?.user) {
-          patchUser(r.user);
+          patchUser((prev) => {
+            if (!prev) return r.user!;
+            const incoming = r.user!;
+            const prevAt = Number(prev.updatedAt) || 0;
+            const incAt = Number(incoming.updatedAt) || 0;
+            if (incAt < prevAt) {
+              return {
+                ...prev,
+                changelogLastReadVersion: incoming.changelogLastReadVersion ?? prev.changelogLastReadVersion,
+                newsLastReadVersion: incoming.newsLastReadVersion ?? prev.newsLastReadVersion,
+              };
+            }
+            return { ...prev, ...incoming };
+          });
           if (trackedTab === 'changelog' && r.user.changelogLastReadVersion === APP_VERSION) {
             markLocalChangelogRead();
             notifyFeedRead('changelog');

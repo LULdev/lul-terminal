@@ -4,7 +4,9 @@
  */
 
 import { attachAuth, requireAuth } from './auth/authApi.mjs';
-import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
+import { applyRateLimitHeaders, checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
+import { changelogVersionExists } from './changelogMeta.mjs';
+import { getArticleById } from './newsStore.mjs';
 import { ensureActivity } from './auth/achievements.mjs';
 import { loadUsersDb, saveUsersDb } from './auth/authStore.mjs';
 import { runCoinTransaction } from './gamesCoinLock.mjs';
@@ -56,6 +58,12 @@ export async function handlePostViewsRequest(req, res) {
       const viewer = requireAuth(req);
       const bucket = type === 'news' ? 'news' : 'changelog';
       await requireMemberTab(req, bucket);
+      if (bucket === 'news') {
+        const article = await getArticleById(id);
+        if (!article) return sendJson(res, 404, { error: 'Article not found' });
+      } else if (!(await changelogVersionExists(id))) {
+        return sendJson(res, 404, { error: 'Changelog entry not found' });
+      }
       const flagKey = `post_view_${bucket}_${id}`;
 
       const result = await runCoinTransaction(async () => {
@@ -92,9 +100,11 @@ export async function handlePostViewsRequest(req, res) {
 
     return sendJson(res, 404, { error: 'Not found' });
   } catch (err) {
-    const status = isRateLimitError(err)
-      ? 429
-      : err instanceof SyntaxError || err?.message === 'Payload too large'
+    if (isRateLimitError(err)) {
+      applyRateLimitHeaders(res, err);
+      return sendJson(res, 429, { error: err.message || 'Too many requests' });
+    }
+    const status = err instanceof SyntaxError || err?.message === 'Payload too large'
         ? 400
         : err?.message === 'Not logged in'
           ? 401

@@ -110,8 +110,8 @@ export async function recordProfileView(
           }
           if (res.ok) {
             const data = await res.json() as { user: PublicProfile; credited?: boolean };
-            sessionStorage.setItem(sessionKey, '1');
             if (data.credited) {
+              sessionStorage.setItem(sessionKey, '1');
               return { user: data.user, credited: true };
             }
             return { user: data.user, credited: false };

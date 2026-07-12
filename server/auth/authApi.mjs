@@ -44,7 +44,7 @@ import {
   listUsers,
   updateUserAdmin,
 } from './adminService.mjs';
-import { checkRateLimit, clientIp, isRateLimitError } from '../rateLimit.mjs';
+import { applyRateLimitHeaders, checkRateLimit, clientIp, isRateLimitError } from '../rateLimit.mjs';
 
 let initPromise = null;
 
@@ -172,6 +172,10 @@ export async function handleAuthRequest(req, res) {
     if (req.method === 'POST' && pathname === '/api/auth/login') {
       await checkRateLimit(`login:${clientIp(req)}`, { max: 25, windowMs: 15 * 60_000 });
       const body = await readJsonBody(req);
+      const emailKey = String(body.email ?? '').trim().toLowerCase().slice(0, 128);
+      if (emailKey) {
+        await checkRateLimit(`login-email:${emailKey}`, { max: 10, windowMs: 15 * 60_000 });
+      }
       const result = await loginUser(body);
       await recordAuthLifecycleEvent(req, 'login', result.user, result.token);
       await recordAuthLifecycleEvent(req, 'session_start', result.user, result.token);
@@ -343,9 +347,11 @@ export async function handleAuthRequest(req, res) {
     return sendJson(res, 404, { error: 'Not found' });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Server error';
-    const status = isRateLimitError(e)
-      ? 429
-      : msg === 'Permission denied'
+    if (isRateLimitError(e)) {
+      applyRateLimitHeaders(res, e);
+      return sendJson(res, 429, { error: msg });
+    }
+    const status = msg === 'Permission denied'
         ? 403
         : msg === 'Not logged in' || msg === 'Invalid login credentials'
           ? 401
