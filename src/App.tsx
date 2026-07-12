@@ -213,7 +213,7 @@ export default function App() {
           tabEnteredAtRef.current = Date.now();
         }
         if (r?.proof && r.proof.tab === trackedTab) setAchievementProof(r.proof);
-        if (trackedTab === 'profile') setProfileTabReadyTick((t) => t + 1);
+        if (trackedTab === 'profile' && r?.ok !== false) setProfileTabReadyTick((t) => t + 1);
         if (r?.user) {
           patchUser(r.user);
           if (trackedTab === 'changelog' && r.user.changelogLastReadVersion === APP_VERSION) {
@@ -242,7 +242,12 @@ export default function App() {
     if (authSuccessTick < 1 || !isLoggedIn) return;
     tabTrackForceRef.current = true;
     lastTrackedTabRef.current = null;
+    visitorCtxRef.current = collectVisitorContext(true);
   }, [authSuccessTick, isLoggedIn]);
+
+  useEffect(() => {
+    if (renderTab !== 'profile') setProfileTabReadyTick(0);
+  }, [renderTab]);
 
   const changelogVisitSynced = useRef(false);
   useEffect(() => {

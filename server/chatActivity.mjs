@@ -55,7 +55,8 @@ export async function handleChatActivity(user, body) {
 
         const templateId = String(body.templateId ?? '').trim();
         const rawHref = String(body.memeHref ?? '').trim();
-        const memeHref = (rawHref.startsWith('/i/') || rawHref.startsWith('/hosting/'))
+        const safeMemePath = new RegExp(`^/(?:i|hosting)/${memeImageId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+        const memeHref = safeMemePath.test(rawHref)
           ? rawHref
           : imageViewLink(memeImageId);
         const message = await postBotMemeCreated({

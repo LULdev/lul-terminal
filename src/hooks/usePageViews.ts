@@ -34,16 +34,16 @@ export function usePageViews(pageId: string | undefined, enabled = true) {
       return;
     }
     const gen = ++loadGenRef.current;
-    if (isLoggedIn) {
-      recordPageView(pageId)
-        .then((v) => { if (gen === loadGenRef.current && mountedRef.current) setViews(v); })
-        .catch(() => { if (gen === loadGenRef.current && mountedRef.current) refresh(); });
-    } else {
-      refresh();
+    if (!isLoggedIn) {
+      setViews(0);
+      return;
     }
+    recordPageView(pageId)
+      .then((v) => { if (gen === loadGenRef.current && mountedRef.current) setViews(v); })
+      .catch(() => { if (gen === loadGenRef.current && mountedRef.current) refresh(); });
   }, [pageId, enabled, isLoggedIn, refresh]);
 
-  useVisibilityAwarePoll(refresh, 10_000, Boolean(pageId && enabled));
+  useVisibilityAwarePoll(refresh, 10_000, Boolean(pageId && enabled && isLoggedIn));
 
   return views;
 }

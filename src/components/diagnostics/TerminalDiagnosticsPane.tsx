@@ -274,13 +274,13 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
   }, []);
 
   useEffect(() => {
-    if (postedAutoCatalog.current) return;
+    if (!isLoggedIn || postedAutoCatalog.current) return;
     postedAutoCatalog.current = true;
     const t = setTimeout(() => {
       postAllAutoMessages((msg, type) => appendLogRef.current(msg, type));
     }, 900);
     return () => clearTimeout(t);
-  }, []);
+  }, [isLoggedIn]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowUp') {
@@ -319,7 +319,9 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
       const query = body.toLowerCase();
       const displayCmd = formatTerminalCommand(body);
 
-      trackEvent('command_run', { meta: { cmd: query.slice(0, 40) } }).catch(() => {});
+      if (isLoggedIn) {
+        trackEvent('command_run', { meta: { cmd: query.slice(0, 40) } }).catch(() => {});
+      }
 
       if (query !== 'clean') {
         appendLog(displayCmd, 'info');
@@ -540,7 +542,6 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
       trackInterval,
       clearTrackedInterval,
       isLoggedIn,
-      syncAchievements,
       playBeep,
       setThemeColor,
       setIsMatrixOverlayActive,

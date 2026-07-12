@@ -97,7 +97,12 @@ export async function handleAnalyticsRequest(req, res) {
           await markTabDwellIntegrity(req.auth.token, persistTab);
         }
       }
-      const event = await recordEvent({
+
+      if (eventType === 'profile_view' || eventType === 'command_run') {
+        return sendJson(res, 201, { ok: true, eventId: null, user: null, proof: null });
+      }
+
+      const eventBase = {
         type: eventType,
         userId: req.auth?.user?.id ?? null,
         username: req.auth?.user?.username ?? null,
@@ -107,11 +112,16 @@ export async function handleAnalyticsRequest(req, res) {
           : derivedGuestId,
         tab: persistTab,
         meta,
-      });
+      };
 
       let userPayload = null;
       let proofPayload = null;
-      if (req.auth?.user?.id && persistTab && (eventType === 'tab_visit' || eventType === 'faq_visit')) {
+      let event = null;
+
+      const isLoggedInTabVisit = req.auth?.user?.id && persistTab
+        && (eventType === 'tab_visit' || eventType === 'faq_visit');
+
+      if (isLoggedInTabVisit) {
         try {
           await checkRateLimit(`analytics-tab-visit:${req.auth.user.id}`, { max: 24, windowMs: 60_000 });
           const sessionCreated = Number(req.auth.session?.createdAt) || 0;
@@ -120,13 +130,9 @@ export async function handleAnalyticsRequest(req, res) {
             && (Date.now() - sessionCreated) < 120_000;
           const claim = await tryClaimTabVisitCredit(req.auth.token, persistTab, { forceRemint });
           if (!claim.claimed) {
-            return sendJson(res, 201, {
-              ok: true,
-              eventId: event?.id ?? null,
-              user: null,
-              proof: null,
-            });
+            return sendJson(res, 201, { ok: true, eventId: null, user: null, proof: null });
           }
+          event = await recordEvent(eventBase);
           try {
             const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, persistTab, { forceRemint });
             userPayload = visitResult?.user ?? null;
@@ -143,6 +149,8 @@ export async function handleAnalyticsRequest(req, res) {
             console.warn('[analytics] tab visit side effect failed', e);
           }
         }
+      } else {
+        event = await recordEvent(eventBase);
       }
 
       return sendJson(res, 201, {

@@ -61,6 +61,7 @@ export async function fetchPublicProfile(username: string): Promise<PublicProfil
 
 const PROFILE_VIEW_PREFIX = 'lul_profile_view_';
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+const profileViewInflight = new Map<string, Promise<ProfileViewResult>>();
 
 export type ProfileViewResult = {
   user: PublicProfile;
@@ -69,28 +70,42 @@ export type ProfileViewResult = {
 
 export async function recordProfileView(username: string): Promise<ProfileViewResult> {
   const uname = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
-  const sessionKey = `${PROFILE_VIEW_PREFIX}${uname}`;
-  if (!sessionStorage.getItem(sessionKey)) {
-    for (let attempt = 0; attempt < 4; attempt++) {
-      try {
-        const res = await sessionFetch(`${API}/users/${encodeURIComponent(uname)}/view`, {
-          method: 'POST',
-        });
-        if (res.ok) {
-          const data = await res.json() as { user: PublicProfile; credited?: boolean };
-          sessionStorage.setItem(sessionKey, '1');
-          if (data.credited) return { user: data.user, credited: true };
-          if (attempt < 3) {
-            await new Promise((r) => setTimeout(r, 400));
-            continue;
+  const pending = profileViewInflight.get(uname);
+  if (pending) return pending;
+
+  const run = (async (): Promise<ProfileViewResult> => {
+    const sessionKey = `${PROFILE_VIEW_PREFIX}${uname}`;
+    if (!sessionStorage.getItem(sessionKey)) {
+      for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+          const res = await sessionFetch(`${API}/users/${encodeURIComponent(uname)}/view`, {
+            method: 'POST',
+          });
+          if (res.ok) {
+            const data = await res.json() as { user: PublicProfile; credited?: boolean };
+            if (data.credited) {
+              sessionStorage.setItem(sessionKey, '1');
+              return { user: data.user, credited: true };
+            }
+            if (attempt < 3) {
+              await new Promise((r) => setTimeout(r, 400));
+              continue;
+            }
+            return { user: data.user, credited: false };
           }
-          return { user: data.user, credited: false };
-        }
-      } catch { /* fall through */ }
-      break;
+        } catch { /* fall through */ }
+        break;
+      }
     }
+    return { user: await fetchPublicProfile(uname), credited: false };
+  })();
+
+  profileViewInflight.set(uname, run);
+  try {
+    return await run;
+  } finally {
+    if (profileViewInflight.get(uname) === run) profileViewInflight.delete(uname);
   }
-  return { user: await fetchPublicProfile(uname), credited: false };
 }
 
 export async function login(email: string, password: string, remember: boolean) {

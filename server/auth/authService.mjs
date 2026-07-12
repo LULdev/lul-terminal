@@ -583,6 +583,14 @@ export async function recordTerminalCommand(userId, command, proofNonce, session
     if (newUnlocks.length) {
       notifyBotAchievements(user.username, newUnlocks).catch(() => {});
     }
+    const { recordEvent } = await import('../analyticsService.mjs');
+    await recordEvent({
+      type: 'command_run',
+      userId: user.id,
+      username: user.username,
+      tab: 'dashboard',
+      meta: { cmd },
+    }).catch(() => {});
     return {
       user: enrichUserForClient(user, accountsSubmitted, reportedNotWorkingAccounts, profileStats),
       ...buildUnlockPayload(newUnlocks),
@@ -654,6 +662,16 @@ export async function incrementProfileView(username, { viewer = null, sessionTab
     const { accountsSubmitted, reportedNotWorkingAccounts, profileStats } = await profileExtrasForUser(user);
 
     if (dirty) await saveUsersDb(db);
+    if (credited && viewer?.id) {
+      const { recordEvent } = await import('../analyticsService.mjs');
+      await recordEvent({
+        type: 'profile_view',
+        userId: viewer.id,
+        username: viewer.username ?? null,
+        tab: 'profile',
+        meta: { target: uname },
+      }).catch(() => {});
+    }
     return {
       user: publicProfileView(user, accountsSubmitted, reportedNotWorkingAccounts, profileStats),
       credited,

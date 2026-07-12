@@ -6,7 +6,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Check, Crown, Gamepad2, LogOut, Settings, Sparkles, Trophy, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { trackEvent } from '../../lib/analytics';
 import * as authApi from '../../lib/auth';
 import { LOGOUT_ARCADE_BLOCKED } from '../../lib/authMessages';
 import { filterAchievementsForPrivacyPreview } from '../../lib/achievementPrivacy';
@@ -125,7 +124,11 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
       setPublicError('');
       return;
     }
-    if (isLoggedIn && !profileTabReadyTick) return;
+    if (isLoggedIn && !profileTabReadyTick) {
+      setPublicLoading(true);
+      setPublicError('');
+      return;
+    }
     let cancelled = false;
     setPublicLoading(true);
     setPublicError('');
@@ -136,9 +139,6 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
       .then(({ user: profile, credited }) => {
         if (!cancelled) {
           setPublicProfile(profile);
-          if (credited) {
-            trackEvent('profile_view', { meta: { target: routeUsername } }).catch(() => {});
-          }
         }
       })
       .catch((e) => {

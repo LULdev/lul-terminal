@@ -139,7 +139,7 @@ async function countPasteViewDeduped(req, pasteId, { consumeBurn = false } = {})
       const db = await loadUsersDb();
       const viewer = db.users.find((u) => u.id === viewerId);
       if (viewer) {
-        const flagKey = `paste_meta_view_${pasteId.slice(0, 14)}`;
+        const flagKey = `paste_meta_view_${pasteId}`;
         const act = ensureActivity(viewer);
         if (act.flags[flagKey]) {
           countMeta = false;
@@ -163,7 +163,7 @@ async function countPasteViewDeduped(req, pasteId, { consumeBurn = false } = {})
       reservedDb = await loadUsersDb();
       reservedViewer = reservedDb.users.find((u) => u.id === viewerId);
       if (reservedViewer) {
-        reservedFlagKey = `paste_meta_view_${pasteId.slice(0, 14)}`;
+        reservedFlagKey = `paste_meta_view_${pasteId}`;
         const act = ensureActivity(reservedViewer);
         act.flags[reservedFlagKey] = true;
         reservedViewer.updatedAt = Date.now();

@@ -23,6 +23,27 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.95',
+    title: 'Extreme deep audit — round 33 (integrity + client regressions)',
+    date: 'Jul 12, 2026 - 21:00',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — Profile view credit requires 2s since profile tab_visit (server MIN_DWELL_MS gate).' },
+      { priority: 'P1', text: 'P1 — Guest page views no longer call sessionFetch (401 invalidateSession regression fixed).' },
+      { priority: 'P1', text: 'P1 — Profile page shows loading spinner while waiting for profileTabReadyTick.' },
+      { priority: 'P2', text: 'P2 — profileTabReadyTick only advances on successful trackEvent; resets on tab leave.' },
+      { priority: 'P2', text: 'P2 — recordProfileView: inflight coalescing; session dedup only when credited.' },
+      { priority: 'P2', text: 'P2 — Logged-in tab_visit not persisted when claim denied (no same-tab aggregate spam).' },
+      { priority: 'P3', text: 'P3 — profile_view/command_run analytics server-only; client track rejected.' },
+      { priority: 'P3', text: 'P3 — Meme shoutbox href must match uploaded image id path.' },
+      { priority: 'P3', text: 'P3 — command_run analytics gated on isLoggedIn; auto-catalog reposts after login.' },
+      { priority: 'P4', text: 'P4 — GET /api/post-views requires stats tab; paste dedup uses full paste id.' },
+      { priority: 'P4', text: 'P4 — Paste create 512 KB client guard.' },
+      { priority: 'P5', text: 'P5 — visitorCtx refreshed on login (stale visitCount meta).' },
+      { priority: 'P9', text: 'P9 — Round 33 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.94',
     title: 'Extreme deep audit — round 32 (server/client hardening)',
     date: 'Jul 12, 2026 - 20:00',

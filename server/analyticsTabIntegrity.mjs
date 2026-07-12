@@ -82,6 +82,8 @@ export async function tryClaimProfileViewCredit(token) {
     const session = db.sessions.find((s) => s.token === token);
     if (!session || session.expiresAt <= Date.now()) return false;
     if (String(session.analyticsLastTab ?? '') !== 'profile') return false;
+    const lastVisitAt = Number(session.analyticsLastVisitAt) || 0;
+    if (lastVisitAt > 0 && Date.now() - lastVisitAt < MIN_DWELL_MS) return false;
     const used = Number(session.profileViewCreditsUsed) || 0;
     if (used >= PROFILE_VIEW_BURST_CAP) return false;
     session.profileViewCreditsUsed = used + 1;

@@ -258,7 +258,11 @@ export function formatPasteViews(n: number): string {
   return n.toLocaleString('en-US');
 }
 
+const MAX_PASTE_BYTES = 512 * 1024;
+
 export async function createPaste(input: CreatePasteInput): Promise<PasteRecord> {
+  const bytes = new TextEncoder().encode(input.content ?? '').length;
+  if (bytes > MAX_PASTE_BYTES) throw new Error('Paste max. 512 KB');
   const res = await sessionFetch(API, {
     method: 'POST',
     body: JSON.stringify(input),
