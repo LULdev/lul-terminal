@@ -56,7 +56,12 @@ import {
   InviteFriendsPage,
 } from './components/pages';
 import * as authApi from './lib/auth';
-import { commitAchievementProof, peekAchievementProof, setAchievementProof } from './lib/achievementProof';
+import {
+  commitAchievementProof,
+  peekAchievementProof,
+  setAchievementProof,
+  takeAchievementProofRemintRequest,
+} from './lib/achievementProof';
 import { trackEvent } from './lib/analytics';
 import { collectVisitorContext, visitorContextToMeta } from './lib/visitorContext';
 
@@ -140,7 +145,9 @@ export default function App() {
     const ogUrl = document.querySelector('meta[property="og:url"]');
     const path = renderTab === 'profile' && profileUsername
       ? profilePath(profileUsername)
-      : '/';
+      : renderTab === 'changelog'
+        ? '/'
+        : `/?tab=${encodeURIComponent(renderTab)}`;
     const url = `${window.location.origin}${path}`;
     if (canonical) canonical.setAttribute('href', url);
     if (ogUrl) ogUrl.setAttribute('content', url);
@@ -173,8 +180,8 @@ export default function App() {
         trackEvent('tab_dwell', { tab: prevTab, meta: { dwellSec } }).catch(() => {});
       }
     }
-    const forceTrack = tabTrackForceRef.current;
-    if (forceTrack) tabTrackForceRef.current = false;
+    const forceTrack = tabTrackForceRef.current || takeAchievementProofRemintRequest();
+    if (tabTrackForceRef.current) tabTrackForceRef.current = false;
     if (!forceTrack && lastTrackedTabRef.current === trackedTab) return;
     lastTrackedTabRef.current = trackedTab;
     tabEnteredAtRef.current = Date.now();
@@ -208,7 +215,7 @@ export default function App() {
       .then((r) => {
         if (trackGen !== tabTrackGenRef.current || !isLoggedInRef.current) return;
         if (r?.proof && r.proof.tab === trackedTab) setAchievementProof(r.proof);
-        if (r?.user) patchUser(r.user);
+        if (r?.user && (r.proof?.tab === trackedTab || forceTrack)) patchUser(r.user);
       })
       .catch(() => {});
   }, [activeTab, renderTab, authLoading, visibilityLoading, patchUser, isLoggedIn, user, newsFeedVersion]);
@@ -541,6 +548,8 @@ export default function App() {
       } else if (!isLoggedIn && (requiresLogin(tab) || !isPublicTab(tab))) {
         openLoginGate(tab);
         setActiveTab('changelog');
+        setProfileUsername(null);
+        syncUrlForTab('changelog');
       } else {
         setActiveTab(tab);
         syncUrlForTab(tab);

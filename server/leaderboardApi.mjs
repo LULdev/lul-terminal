@@ -30,7 +30,8 @@ export async function handleLeaderboardRequest(req, res) {
   } catch (e) {
     if (isRateLimitError(e)) return sendJson(res, 429, { error: 'Too many requests' });
     const msg = e instanceof Error ? e.message : 'Server error';
-    sendJson(res, 500, { error: msg });
+    const status = msg === 'Permission denied' ? 403 : msg === 'Not logged in' ? 401 : 500;
+    sendJson(res, status, { error: msg });
   }
 }
 

@@ -120,7 +120,7 @@ export function UnifiedTerminalPanel({
   const [pinned, setPinned] = useState<PinnedMessage | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [chatStatus, setChatStatus] = useState<'ok' | 'offline' | 'rate_limited'>('ok');
+  const [chatStatus, setChatStatus] = useState<'ok' | 'offline' | 'rate_limited' | 'gated'>('ok');
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastTsRef = useRef(0);
   const lobbyUpdatedAtRef = useRef<string | null>(null);
@@ -235,6 +235,8 @@ export function UnifiedTerminalPanel({
       if (e instanceof ChatFetchError && e.status === 429) {
         setChatStatus('rate_limited');
         pollBackoffRef.current = Math.min(pollBackoffRef.current * 2, 60_000);
+      } else if (e instanceof ChatFetchError && e.status === 403) {
+        setChatStatus('gated');
       } else {
         setChatStatus('offline');
       }
@@ -334,7 +336,9 @@ export function UnifiedTerminalPanel({
         }`}>
           {chatStatus === 'rate_limited'
             ? 'Shoutbox poll rate-limited — retrying…'
-            : 'Shoutbox offline — logs still work, retrying…'}
+            : chatStatus === 'gated'
+              ? 'Shoutbox members-only — sign in to view chat'
+              : 'Shoutbox offline — logs still work, retrying…'}
         </p>
       )}
 

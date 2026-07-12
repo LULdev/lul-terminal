@@ -8,9 +8,9 @@ import { sessionFetch } from './sessionFetch';
 const API = '/api/page-views';
 const SESSION_PREFIX = 'lul_page_view_';
 
-export async function fetchPageViews(pageId: string): Promise<number> {
+export async function fetchPageViews(pageId: string): Promise<number | null> {
   const res = await fetch(`${API}/${encodeURIComponent(pageId)}`);
-  if (!res.ok) return 0;
+  if (!res.ok) return null;
   const data = await res.json();
   return Math.max(0, Number(data.views) || 0);
 }

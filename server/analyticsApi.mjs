@@ -68,6 +68,18 @@ export async function handleAnalyticsRequest(req, res) {
         : crypto.createHash('sha256').update(`guest:${ip}`).digest('hex').slice(0, 16);
       const meta = body.meta && typeof body.meta === 'object' ? { ...body.meta } : {};
       delete meta.forceRemint;
+      if (eventType === 'tab_dwell' && typeof meta.dwellSec === 'number') {
+        meta.dwellSec = Math.min(Math.max(0, Math.round(meta.dwellSec)), 3600);
+      }
+      let persistTab = safeTab;
+      const tabGatedTypes = new Set(['tab_visit', 'faq_visit', 'tab_dwell']);
+      if (tabGatedTypes.has(eventType) && safeTab) {
+        try {
+          await requireMemberTab(req, safeTab);
+        } catch {
+          persistTab = null;
+        }
+      }
       const event = await recordEvent({
         type: eventType,
         userId: req.auth?.user?.id ?? null,
@@ -76,21 +88,20 @@ export async function handleAnalyticsRequest(req, res) {
         sessionId: req.auth?.user
           ? (req.auth.token?.slice(0, 16) ?? req.auth.user.id)
           : derivedGuestId,
-        tab: safeTab,
+        tab: persistTab,
         meta,
       });
 
       let userPayload = null;
       let proofPayload = null;
-      if (req.auth?.user?.id && safeTab && (eventType === 'tab_visit' || eventType === 'faq_visit')) {
+      if (req.auth?.user?.id && persistTab && (eventType === 'tab_visit' || eventType === 'faq_visit')) {
         try {
-          await requireMemberTab(req, safeTab);
           checkRateLimit(`analytics-tab-visit:${req.auth.user.id}`, { max: 24, windowMs: 60_000 });
           const sessionCreated = Number(req.auth.session?.createdAt) || 0;
           const forceRemint = Boolean(body.meta?.forceRemint)
             && sessionCreated > 0
             && (Date.now() - sessionCreated) < 120_000;
-          const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, safeTab, { forceRemint });
+          const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, persistTab, { forceRemint });
           userPayload = visitResult?.user ?? null;
           proofPayload = visitResult?.proof ?? null;
         } catch (e) {

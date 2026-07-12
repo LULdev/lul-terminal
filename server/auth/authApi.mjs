@@ -4,6 +4,7 @@
  */
 
 import { wrapAsyncHandler } from '../asyncMiddleware.mjs';
+import { requireMemberTab } from '../tabAccessGuard.mjs';
 import {
   clearSessionCookie,
   parseCookies,
@@ -208,6 +209,7 @@ export async function handleAuthRequest(req, res) {
 
     if (req.method === 'POST' && pathname === '/api/auth/achievements/event') {
       const user = requireAuth(req);
+      await requireMemberTab(req, 'fun');
       checkRateLimit(`ach-event:${user.id}`, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const result = await recordAchievementEvent(user.id, String(body.event ?? ''), body.proof);
@@ -257,6 +259,7 @@ export async function handleAuthRequest(req, res) {
     const profileViewMatch = pathname.match(/^\/api\/auth\/users\/([a-z0-9_]+)\/view$/);
     if (profileViewMatch && req.method === 'POST') {
       await attachAuth(req);
+      await requireMemberTab(req, 'profile');
       const viewerId = req.auth?.user?.id ?? clientIp(req);
       checkRateLimit(`profile-view:${viewerId}`, { max: 40, windowMs: 60_000 });
       const profile = await incrementProfileView(profileViewMatch[1], {

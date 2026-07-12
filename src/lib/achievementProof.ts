@@ -11,6 +11,18 @@ export type AchievementProof = {
 
 /** Server stores one proof at a time — client mirrors with a single slot. */
 let cached: AchievementProof | null = null;
+let remintRequested = false;
+
+/** Signal App to force a tab_visit track after proof was consumed on the same tab. */
+export function requestAchievementProofRemint() {
+  remintRequested = true;
+}
+
+export function takeAchievementProofRemintRequest(): boolean {
+  if (!remintRequested) return false;
+  remintRequested = false;
+  return true;
+}
 
 function pruneExpired() {
   if (cached && Date.now() > cached.exp) cached = null;
@@ -20,6 +32,7 @@ export function setAchievementProof(proof: AchievementProof | null | undefined) 
   if (!proof?.nonce || !proof.exp || !proof.tab) {
     return;
   }
+  if (Date.now() >= proof.exp) return;
   cached = proof;
 }
 
@@ -37,6 +50,7 @@ export function commitAchievementProof(requiredTab?: string) {
   if (!cached) return;
   if (requiredTab && cached.tab !== requiredTab) return;
   cached = null;
+  requestAchievementProofRemint();
 }
 
 /** Take proof for an action; optionally require it was minted on a specific tab. */

@@ -24,7 +24,7 @@ export function usePageViews(pageId: string | undefined, enabled = true) {
     const gen = ++loadGenRef.current;
     try {
       const v = await fetchPageViews(pageId);
-      if (gen === loadGenRef.current && mountedRef.current) setViews(v);
+      if (v !== null && gen === loadGenRef.current && mountedRef.current) setViews(v);
     } catch { /* ignore */ }
   }, [pageId]);
 

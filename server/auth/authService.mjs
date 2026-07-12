@@ -14,7 +14,6 @@ import {
   ACHIEVEMENT_PROOF_INELIGIBLE_TABS,
   clearAchievementProofFlags,
   consumeAchievementProof,
-  hasValidAchievementProof,
   mintAchievementProof,
   TERMINAL_PROOF_ELIGIBLE_TABS,
 } from './achievementProof.mjs';
@@ -429,9 +428,8 @@ export async function recordTabVisitFromAnalytics(userId, tab, { forceRemint = f
     if (!user || user.role === 'bot') return null;
     if (safeTab === 'admin' && !canAccessAdmin(user)) return null;
     const touched = applyActivityCtx(user, { visitedTab: safeTab });
-    const missingProof = !hasValidAchievementProof(user, safeTab);
     const shouldMint = !ACHIEVEMENT_PROOF_INELIGIBLE_TABS.has(safeTab)
-      && (touched || forceRemint || missingProof);
+      && (touched || forceRemint);
     let proof = null;
     if (shouldMint) {
       try {

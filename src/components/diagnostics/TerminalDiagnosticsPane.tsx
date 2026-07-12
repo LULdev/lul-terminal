@@ -125,7 +125,12 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
         handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
         if (data.user) patchUser(data.user);
       })
-      .catch(() => {});
+      .catch((e) => {
+        appendLogRef.current(
+          e instanceof Error ? `⚠️ Achievement claim failed: ${e.message}` : '⚠️ Achievement claim failed',
+          'warn',
+        );
+      });
   }, [isLoggedIn, handleUnlocks, patchUser]);
 
   const [commandInput, setCommandInput] = useState('');

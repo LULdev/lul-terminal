@@ -23,6 +23,25 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.88',
+    title: 'Extreme deep audit — round 28 (server/client/chat/news/paste)',
+    date: 'Jul 12, 2026 - 15:00',
+    highlight: true,
+    items: [
+      { priority: 'P0', text: 'P0 — Proof remint only on first touch or login forceRemint (closes missingProof cycling farm).' },
+      { priority: 'P1', text: 'P1 — claw_victim API requires requireMemberTab(fun); profile view gated on profile tab.' },
+      { priority: 'P1', text: 'P1 — Popstate restricted-tab syncs URL; logout clears pendingTabAfterLogin/loginGate.' },
+      { priority: 'P2', text: 'P2 — Analytics tab_visit/dwell gated before persist (denied tabs not written to aggregates).' },
+      { priority: 'P2', text: 'P2 — tab_dwell capped at 3600s; client proof remint after consume via takeAchievementProofRemintRequest.' },
+      { priority: 'P2', text: 'P2 — Logout clears view-dedup sessionStorage keys (page/post/paste/image).' },
+      { priority: 'P3', text: 'P3 — Canonical/og:url includes ?tab= deep links; expired proofs rejected in setAchievementProof.' },
+      { priority: 'P3', text: 'P3 — Chat 403 shows members-only message; terminal achievement errors surfaced in log.' },
+      { priority: 'P4', text: 'P4 — Leaderboard Permission denied → 403; guest pageViews skip 0 on failed GET.' },
+      { priority: 'P4', text: 'P4 — Admin visibility save/reset race guard; stale patchUser from analytics suppressed.' },
+      { priority: 'P9', text: 'P9 — Round 28 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.87',
     title: 'Extreme deep audit — round 27 (server/client/chat/news/paste)',
     date: 'Jul 12, 2026 - 14:00',

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Globe,
   Lock,
@@ -67,6 +67,7 @@ export function AdminPageVisibilityPanel() {
   const [draft, setDraft] = useState<Record<string, PageVisibility>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const saveGenRef = useRef(0);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const [search, setSearch] = useState('');
@@ -129,38 +130,46 @@ export function AdminPageVisibilityPanel() {
   };
 
   const save = async () => {
+    const gen = ++saveGenRef.current;
     setSaving(true);
     setErr('');
     setMsg('');
     try {
       const res = await updateAdminPageVisibility(draft);
+      if (gen !== saveGenRef.current) return;
       setData(res);
       setDraft(res.pages);
       await refreshGlobal();
+      if (gen !== saveGenRef.current) return;
       setMsg('Saved — guests see changes within ~60s (immediately after reload).');
       setTimeout(() => setMsg(''), 5000);
     } catch (e) {
+      if (gen !== saveGenRef.current) return;
       setErr(e instanceof Error ? e.message : 'Save failed');
     } finally {
-      setSaving(false);
+      if (gen === saveGenRef.current) setSaving(false);
     }
   };
 
   const reset = async () => {
     if (!confirm('Reset all visibility settings to defaults?')) return;
+    const gen = ++saveGenRef.current;
     setSaving(true);
     setErr('');
     try {
       const res = await resetAdminPageVisibility();
+      if (gen !== saveGenRef.current) return;
       setData(res);
       setDraft(res.pages);
       await refreshGlobal();
+      if (gen !== saveGenRef.current) return;
       setMsg('Defaults restored.');
       setTimeout(() => setMsg(''), 4000);
     } catch (e) {
+      if (gen !== saveGenRef.current) return;
       setErr(e instanceof Error ? e.message : 'Reset failed');
     } finally {
-      setSaving(false);
+      if (gen === saveGenRef.current) setSaving(false);
     }
   };
 

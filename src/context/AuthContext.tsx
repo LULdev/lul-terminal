@@ -11,6 +11,7 @@ import { AchievementNotification } from '../components/auth/AchievementNotificat
 import { clearStoredReferralCode } from '../lib/referral';
 import { clearAchievementProofs } from '../lib/achievementProof';
 import { closeChatAudioContext } from '../lib/chat';
+import { clearViewDedupSessionKeys } from '../lib/viewDedup';
 import { trackEvent } from '../lib/analytics';
 import { onSessionInvalidated } from '../lib/sessionEvents';
 import type { TabId } from '../config/menuItems';
@@ -152,14 +153,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return onSessionInvalidated(() => {
       clearAchievementProofs();
       closeChatAudioContext();
+      clearViewDedupSessionKeys();
       setUser(null);
+      setLoginGate(null);
+      setPendingTabAfterLogin(null);
       setPermissions(defaultPermissions);
       setAccountsSubmitted(0);
       setPendingUnlocks([]);
       setPendingUnlockRewards({});
-      setLoginGate(null);
       setAuthModal(null);
-      setPendingTabAfterLogin(null);
     });
   }, []);
 
@@ -230,6 +232,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     clearAchievementProofs();
     closeChatAudioContext();
+    clearViewDedupSessionKeys();
+    setLoginGate(null);
+    setPendingTabAfterLogin(null);
     setUser(null);
     setPermissions(defaultPermissions);
     setAccountsSubmitted(0);
