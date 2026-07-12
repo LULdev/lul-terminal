@@ -236,7 +236,11 @@ export async function recordAccountView(id: string): Promise<number> {
   const sessionKey = `${ACCOUNT_VIEW_PREFIX}${id}`;
   if (!sessionStorage.getItem(sessionKey)) {
     try {
-      const res = await sessionFetch(`${API}/accounts/${id}/view`, { method: 'POST' });
+      const res = await fetch(`${API}/accounts/${id}/view`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
       if (res.ok) {
         sessionStorage.setItem(sessionKey, '1');
         const data = await res.json() as { views: number };

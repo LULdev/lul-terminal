@@ -23,6 +23,27 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.38.0',
+    title: 'Extreme deep audit — round 38 (session-bus parity + server hardening)',
+    date: 'Jul 13, 2026 - 03:00',
+    highlight: true,
+    items: [
+      { priority: 'P0', text: 'P0 — SVG emotes: stronger sanitize + re-sanitize on serve; CSP/nosniff headers.' },
+      { priority: 'P1', text: 'P1 — postViews/pageViews view POST off sessionFetch (no global logout on 401).' },
+      { priority: 'P1', text: 'P1 — Chat poll/send soft 401; premiumAccounts + chatActivity soft fetch.' },
+      { priority: 'P1', text: 'P1 — login/register soft401; login 429 Retry-After UX in api().' },
+      { priority: 'P1', text: 'P1 — session_start deferred until authLoading completes.' },
+      { priority: 'P1', text: 'P1 — activity.flags prune (ephemeral + profile_visit cap) in normalizeActivity.' },
+      { priority: 'P1', text: 'P1 — Registration challenges: interval purge + per-IP cap (20).' },
+      { priority: 'P2', text: 'P2 — Profile view session dedup on any ok POST (stops revisit churn).' },
+      { priority: 'P2', text: 'P2 — Arcade: queue heartbeat uses heartbeatAt; consumedRooms sweep; caps.' },
+      { priority: 'P3', text: 'P3 — Analytics export redacts email; broader sanitizeActivityFlags.' },
+      { priority: 'P5', text: 'P5 — applyActivityCtx duplicate flag branch removed.' },
+      { priority: 'P8', text: 'P8 — Full Redis arcade matchmaker + Redis registration challenges deferred.' },
+      { priority: 'P9', text: 'P9 — Round 38 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.37.0',
     title: 'Extreme deep audit — round 37 (session bus + view integrity)',
     date: 'Jul 13, 2026 - 02:00',

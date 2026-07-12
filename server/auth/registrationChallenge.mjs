@@ -10,13 +10,32 @@ import { clientIp } from '../rateLimit.mjs';
 
 const CHALLENGE_TTL_MS = 10 * 60 * 1000;
 const MAX_CHALLENGES = 5000;
+const MAX_CHALLENGES_PER_IP = 20;
+const PURGE_INTERVAL_MS = 60_000;
 const challenges = new Map();
+let purgeTimer = null;
 
 function purgeExpired() {
   const now = Date.now();
   for (const [id, row] of challenges.entries()) {
     if (row.expiresAt <= now) challenges.delete(id);
   }
+}
+
+function countChallengesForIp(ip) {
+  if (!ip || ip === 'unknown') return 0;
+  let n = 0;
+  for (const row of challenges.values()) {
+    if (row.ip === ip) n += 1;
+  }
+  return n;
+}
+
+export function startRegistrationChallengePurge() {
+  if (purgeTimer) return;
+  purgeExpired();
+  purgeTimer = setInterval(purgeExpired, PURGE_INTERVAL_MS);
+  if (purgeTimer.unref) purgeTimer.unref();
 }
 
 export function issueRegistrationChallenge(req) {
@@ -28,6 +47,9 @@ export function issueRegistrationChallenge(req) {
   const ip = clientIp(req);
   if (process.env.NODE_ENV === 'production' && ip === 'unknown') {
     throw new Error('Registration temporarily unavailable — try again shortly');
+  }
+  if (countChallengesForIp(ip) >= MAX_CHALLENGES_PER_IP) {
+    throw new Error('Too many registration attempts — wait a few minutes');
   }
   const row = {
     id,

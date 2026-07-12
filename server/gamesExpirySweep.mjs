@@ -5,6 +5,7 @@
 
 import {
   expireMatchWithRefund,
+  sweepStaleConsumedRooms,
   sweepStaleDoneMatches,
   sweepStaleQueueEntries,
 } from './gamesCore.mjs';
@@ -13,6 +14,7 @@ export async function sweepExpiredInMap(mm, expireMeta) {
   const activeMatches = mm?.activeMatches ?? mm;
   if (!activeMatches || !expireMeta) return 0;
   sweepStaleDoneMatches(activeMatches);
+  if (mm?.consumedRooms) sweepStaleConsumedRooms(mm.consumedRooms);
   if (mm?.queue) await sweepStaleQueueEntries(mm, expireMeta);
   const expired = [...activeMatches.values()].filter(
     (m) => m.status !== 'done' && Date.now() > m.expiresAt,

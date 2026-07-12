@@ -157,11 +157,12 @@ export default function App() {
   const sessionTrackedRef = useRef(false);
   const visitorCtxRef = useRef<ReturnType<typeof collectVisitorContext> | null>(null);
   useEffect(() => {
+    if (authLoading) return;
     if (sessionTrackedRef.current) return;
     sessionTrackedRef.current = true;
     visitorCtxRef.current = collectVisitorContext(isLoggedIn);
     trackEvent('session_start', { meta: visitorContextToMeta(visitorCtxRef.current) }).catch(() => {});
-  }, [isLoggedIn]);
+  }, [isLoggedIn, authLoading]);
 
   const [profileTabReadyTick, setProfileTabReadyTick] = useState(0);
   const lastTrackedTabRef = useRef<TabId | null>(null);

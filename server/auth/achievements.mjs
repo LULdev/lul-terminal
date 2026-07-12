@@ -338,6 +338,42 @@ export function normalizeSocialLinks(raw) {
     .filter((l) => l.platform && l.url);
 }
 
+const EPHEMERAL_ACTIVITY_FLAGS = new Set([
+  'achProofNonce',
+  'achProofExp',
+  'achProofTab',
+  'lastMemeBotAt',
+  'lastChatActionAt',
+  'lastAchievementEventAt',
+  'lastTerminalCommandAt',
+]);
+const MAX_PROFILE_VISIT_FLAGS = 256;
+const MAX_ACTIVITY_FLAG_KEYS = 512;
+
+function pruneActivityFlags(flags) {
+  if (!flags || typeof flags !== 'object') return {};
+  const out = { ...flags };
+  for (const key of EPHEMERAL_ACTIVITY_FLAGS) delete out[key];
+  for (const key of Object.keys(out)) {
+    if (key.startsWith('claw_daily_') || key.startsWith('terminal_cmd_daily_')) delete out[key];
+  }
+  const profileKeys = Object.keys(out).filter((k) => k.startsWith('profile_visit_'));
+  if (profileKeys.length > MAX_PROFILE_VISIT_FLAGS) {
+    profileKeys.sort();
+    for (let i = 0; i < profileKeys.length - MAX_PROFILE_VISIT_FLAGS; i += 1) {
+      delete out[profileKeys[i]];
+    }
+  }
+  const keys = Object.keys(out);
+  if (keys.length > MAX_ACTIVITY_FLAG_KEYS) {
+    keys.sort();
+    for (let i = 0; i < keys.length - MAX_ACTIVITY_FLAG_KEYS; i += 1) {
+      delete out[keys[i]];
+    }
+  }
+  return out;
+}
+
 export function normalizeActivity(raw) {
   const base = {
     loginCount: 0,
@@ -356,7 +392,7 @@ export function normalizeActivity(raw) {
   const tabsVisited = Array.isArray(raw.tabsVisited)
     ? raw.tabsVisited.map((t) => String(t).slice(0, 24)).filter(Boolean)
     : [];
-  const flags = raw.flags && typeof raw.flags === 'object' ? { ...raw.flags } : {};
+  const flags = pruneActivityFlags(raw.flags);
   return {
     loginCount: Math.max(0, Number(raw.loginCount) || 0),
     commandsRun: Math.max(0, Number(raw.commandsRun) || 0),
@@ -481,9 +517,6 @@ export function applyActivityCtx(user, ctx = {}) {
   if (ctx.flag) {
     const key = String(ctx.flag).slice(0, 32);
     if (key && !act.flags[key]) {
-      act.flags[key] = true;
-      touched = true;
-    } else if (key) {
       act.flags[key] = true;
       touched = true;
     }

@@ -42,6 +42,9 @@ import { normalizeProfileCustomization } from './profileCustomization.mjs';
 import { assertNoOtherArcadeSession, assertPvpPairReady } from './gamesSessionGuard.mjs';
 
 export const ROOM_TOMBSTONE_MS = 90_000;
+const MAX_QUEUE_ENTRIES = 200;
+const MAX_ACTIVE_MATCHES_PER_GAME = 100;
+const MAX_ROOMS_PER_GAME = 100;
 
 export function newMatchId() {
   return crypto.randomBytes(6).toString('hex');
@@ -470,7 +473,20 @@ export function userInActiveMatch(activeMatches, userId) {
 
 export function touchQueueHeartbeat(queue, userId) {
   const entry = queue.find((q) => q.userId === userId);
-  if (entry) entry.at = Date.now();
+  if (entry) entry.heartbeatAt = Date.now();
+}
+
+export function sweepStaleConsumedRooms(consumedRooms, maxAgeMs = ROOM_TOMBSTONE_MS) {
+  if (!consumedRooms?.size) return 0;
+  const now = Date.now();
+  let swept = 0;
+  for (const [code, at] of consumedRooms.entries()) {
+    if (now - at > maxAgeMs) {
+      consumedRooms.delete(code);
+      swept += 1;
+    }
+  }
+  return swept;
 }
 
 export function queueStatusForUser(queue, userId) {
@@ -659,6 +675,13 @@ async function joinMatchQueueInner({
   const db = await loadUsersDb();
   const user = getUser(db, userId);
   if (!user) throw new Error('User not found');
+  if (mm.queue.length >= MAX_QUEUE_ENTRIES && !mm.queue.some((q) => q.userId === userId)) {
+    throw new Error('Matchmaking busy — try again shortly');
+  }
+  const liveMatches = [...mm.activeMatches.values()].filter((m) => m.status !== 'done').length;
+  if (liveMatches >= MAX_ACTIVE_MATCHES_PER_GAME) {
+    throw new Error('Too many active matches — try again shortly');
+  }
   if (expireMeta?.gameId) {
     await assertNoOtherArcadeSession(userId, expireMeta.gameId);
   }
@@ -733,6 +756,9 @@ async function joinMatchQueueInner({
     if (isRoomConsumed(mm.consumedRooms, code)) throw new Error('Room already filled');
     let room = mm.rooms.get(code);
     if (!room) {
+      if (mm.rooms.size >= MAX_ROOMS_PER_GAME) {
+        throw new Error('Too many open rooms — try again shortly');
+      }
       mm.consumedRooms?.delete(code);
       deductCoins(user, amount, escrow);
       user.updatedAt = Date.now();

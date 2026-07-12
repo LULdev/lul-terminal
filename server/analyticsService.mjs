@@ -174,11 +174,41 @@ function analyzeUserEvents(events) {
   };
 }
 
+const EXPORT_EPHEMERAL_FLAGS = new Set([
+  'achProofNonce',
+  'achProofExp',
+  'achProofTab',
+  'lastMemeBotAt',
+  'lastChatActionAt',
+  'lastAchievementEventAt',
+  'lastTerminalCommandAt',
+]);
+
 function sanitizeActivityFlags(flags) {
   const out = { ...(flags ?? {}) };
-  delete out.achProofNonce;
-  delete out.achProofExp;
-  delete out.achProofTab;
+  for (const key of EXPORT_EPHEMERAL_FLAGS) delete out[key];
+  for (const key of Object.keys(out)) {
+    if (key.startsWith('claw_daily_') || key.startsWith('terminal_cmd_daily_')) delete out[key];
+  }
+  return out;
+}
+
+function redactUserActivityRow(row) {
+  if (!row) return row;
+  const { email, ...rest } = row;
+  return rest;
+}
+
+function sanitizeExportEvent(event) {
+  if (!event || typeof event !== 'object') return event;
+  const out = { ...event };
+  delete out.email;
+  if (out.meta && typeof out.meta === 'object') {
+    const meta = { ...out.meta };
+    delete meta.email;
+    delete meta.password;
+    out.meta = meta;
+  }
   return out;
 }
 
@@ -390,9 +420,12 @@ export async function exportAnalyticsBundle() {
   ]);
   return {
     exportedAt: Date.now(),
-    events: events.events,
+    events: events.events.map(sanitizeExportEvent),
     aggregates,
-    overview,
+    overview: {
+      ...overview,
+      leaderboard: (overview.leaderboard ?? []).map(redactUserActivityRow),
+    },
   };
 }
 

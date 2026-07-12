@@ -25,6 +25,7 @@ import { createStatusMiddleware } from './statusApi.mjs';
 import { createGamesMiddleware } from './gamesApi.mjs';
 import { refundAllEscrowsOnBoot } from './gamesEscrow.mjs';
 import { startMatchExpirySweep } from './gamesExpirySweep.mjs';
+import { startRegistrationChallengePurge } from './auth/registrationChallenge.mjs';
 import { startLeaderboardSyncScheduler } from './leaderboardService.mjs';
 import { startProxyDatabaseScheduler } from './proxyDatabaseScheduler.mjs';
 
@@ -36,6 +37,7 @@ export function createServerMiddleware() {
     schedulerStarted = true;
     startProxyDatabaseScheduler();
     startLeaderboardSyncScheduler();
+    startRegistrationChallengePurge();
   }
   if (!gamesBootstrapped) {
     gamesBootstrapped = true;

@@ -19,13 +19,14 @@ export type AuthUnlockResponse = {
 import { invalidateSession } from './sessionEvents';
 import { validateImageFileMagic } from './imageMime';
 import { parseRetryAfterMs } from './retryAfter';
-import { sessionFetch } from './sessionFetch';
 
 const AVATAR_ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 const API = '/api/auth';
 
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
+type ApiOpts = { soft401?: boolean };
+
+async function api<T>(path: string, init?: RequestInit, opts?: ApiOpts): Promise<T> {
   const res = await fetch(`${API}${path}`, {
     credentials: 'include',
     ...init,
@@ -36,8 +37,17 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (res.status === 401) invalidateSession();
-    const err = new Error(data.error ?? `HTTP ${res.status}`) as Error & { status?: number };
+    if (res.status === 401 && !opts?.soft401) invalidateSession();
+    if (res.status === 429) {
+      const waitSec = Math.ceil(parseRetryAfterMs(res.headers.get('Retry-After'), 60_000) / 1000);
+      const err = new Error(
+        (data as { error?: string }).error ?? `Too many attempts — try again in ${waitSec}s`,
+      ) as Error & { status?: number; retryAfterMs?: number };
+      err.status = 429;
+      err.retryAfterMs = waitSec * 1000;
+      throw err;
+    }
+    const err = new Error((data as { error?: string }).error ?? `HTTP ${res.status}`) as Error & { status?: number };
     err.status = res.status;
     throw err;
   }
@@ -110,11 +120,8 @@ export async function recordProfileView(
           }
           if (res.ok) {
             const data = await res.json() as { user: PublicProfile; credited?: boolean };
-            if (data.credited) {
-              sessionStorage.setItem(sessionKey, '1');
-              return { user: data.user, credited: true };
-            }
-            return { user: data.user, credited: false };
+            sessionStorage.setItem(sessionKey, '1');
+            return { user: data.user, credited: Boolean(data.credited) };
           }
         } catch { /* fall through */ }
         if (attempt < 4) {
@@ -139,7 +146,7 @@ export async function login(email: string, password: string, remember: boolean) 
   return api<AuthUnlockResponse>('/login', {
     method: 'POST',
     body: JSON.stringify({ email, password, remember }),
-  });
+  }, { soft401: true });
 }
 
 export type ReferralInfo = {
@@ -166,7 +173,7 @@ export async function register(input: {
   return api<{ user: AuthUser }>('/register', {
     method: 'POST',
     body: JSON.stringify(input),
-  });
+  }, { soft401: true });
 }
 
 export async function logout() {

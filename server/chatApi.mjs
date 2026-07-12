@@ -53,6 +53,8 @@ export async function handleChatRequest(req, res) {
       }
       res.statusCode = 200;
       res.setHeader('Content-Type', hit.mime);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'");
       res.setHeader('Cache-Control', 'public, max-age=86400');
       res.end(hit.buf);
       return;

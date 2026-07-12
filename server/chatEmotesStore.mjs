@@ -197,7 +197,7 @@ export async function getEmoteFile(filename) {
   if (!row || row.enabled === false) return null;
   const filePath = path.join(DATA_DIR, safe);
   try {
-    const buf = await fs.readFile(filePath);
+    let buf = await fs.readFile(filePath);
     const ext = safe.split('.').pop()?.toLowerCase();
     const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
       : ext === 'png' ? 'image/png'
@@ -205,6 +205,9 @@ export async function getEmoteFile(filename) {
           : ext === 'webp' ? 'image/webp'
             : ext === 'svg' ? 'image/svg+xml'
               : 'application/octet-stream';
+    if (mime === 'image/svg+xml') {
+      buf = sanitizeSvgBuffer(buf);
+    }
     return { buf, mime, filename: safe };
   } catch {
     return null;

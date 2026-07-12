@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { sessionFetch } from './sessionFetch';
-
 export type PostViewType = 'changelog' | 'news';
 
 export type PostViewsMap = Record<string, number>;
@@ -37,8 +35,10 @@ export async function recordPostView(
     return currentViews;
   }
   try {
-    const res = await sessionFetch(`${API}/view`, {
+    const res = await fetch(`${API}/view`, {
       method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type, id }),
     });
     if (res.ok) {
