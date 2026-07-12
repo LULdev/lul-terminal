@@ -1,6 +1,6 @@
 # LUL Terminal
 
-[![Version](https://img.shields.io/badge/version-3.36.79-blue)](package.json)
+[![Version](https://img.shields.io/badge/version-3.36.95-blue)](package.json)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-green)](package.json)
 [![License](https://img.shields.io/badge/license-Apache--2.0-orange)](LICENSE)
 
@@ -86,8 +86,14 @@ Bearbeite `.env` — mindestens für **Produktion**:
 | `SEED_VIP_PASSWORD` | Ja (leere DB) | Passwort für `vipdemo` |
 | `PREMIUM_VAULT_KEY` | Ja | AES-Verschlüsselung Premium-Vault |
 | `PORT` | Nein | Standard: `3000` |
+| `RATE_LIMIT_BACKEND` | Nein | `auto` \| `memory` \| `file` \| `redis` — siehe [Rate Limits](#rate-limits--multi-process) |
+| `RATE_LIMIT_SHARED` | Nein | `1` = File-Backend für mehrere Node-Prozesse auf demselben Host |
+| `REDIS_URL` | Nein | Redis für geteilte Rate-Limits (Multi-Instance) |
+| `GUEST_VIEW_DEDUP_FAIL_OPEN` | Nein | `1` (Standard) = bei Store-Fehler View zählen; `0` = fail-closed |
 
 > **Wichtig hinter Reverse-Proxy:** Ohne `TRUST_PROXY=1` greifen Rate-Limits auf die Proxy-IP statt auf die echte Client-IP. `X-Forwarded-Host` / `X-Forwarded-Proto` werden nur von IPs in `TRUSTED_PROXY_IPS` akzeptiert (Phishing-Schutz für Share-Links).
+
+> **Multi-Process / Cluster:** Ein einzelner Node-Prozess nutzt In-Memory-Rate-Limits. Für PM2-Cluster, mehrere Worker oder mehrere Server: `REDIS_URL` setzen **oder** `RATE_LIMIT_SHARED=1` (File-Store unter `data/rate-limits/`).
 
 ### Schritt 4 — Optional: Seed-Daten laden
 
@@ -265,22 +271,88 @@ npm run build && npm start
 
 ## Sicherheit & Härtung (v3.36.x)
 
-Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
+Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Aktuelle Version: **3.36.95**. Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
 
 ### Wichtige Sicherheitsmaßnahmen
 
 | Thema | Verhalten |
 |-------|-----------|
-| **Rate Limits** | Auth, Admin, Paste, Chat, News, Games, Proxy, Analytics |
+| **Rate Limits** | Auth, Admin, Paste, Chat, News, Games, Proxy, Analytics — Backends: memory / file / Redis |
 | **TRUST_PROXY** | Echte Client-IPs nur wenn Proxy-Hop in `TRUSTED_PROXY_IPS` |
 | **Öffentliche URLs** | `resolvePublicOrigin` — kein blindes Vertrauen in `X-Forwarded-Host` |
-| **Paste** | Kein `?password=` in URLs; private/geschützte Pastes → 404 für Fremde; Burn-Dedup |
-| **View-Dedup** | Flag-first mit Rollback (Paste, Image, Post, Page, Vault) |
-| **Achievements** | `matrix` / `self_destruct` nur via Terminal-Command; `claw_victim` via Event |
-| **Avatare / Cover** | Server-Allowlist + Client `safeAvatarUrl` / `safeCoverStyle` |
-| **Analytics** | `guestId` / `sessionId` serverseitig abgeleitet; `tab_visit` ohne Achievement-Spoof |
+| **Paste** | Kein `?password=` in URLs; private/geschützte Pastes → 404 für Fremde; Burn-Dedup; max. 512 KB |
+| **View-Dedup** | Flag-first mit Rollback (Paste, Image, Post, Page, Vault, Profile) |
+| **Guest View-Dedup** | Anonyme Paste/Image-Views pro IP+Resource (`data/analytics/guest-views.json`); fail-open/fail-closed per Env |
+| **Achievements** | Server-minted Proof (120s TTL, Single-Slot); Tab-Integrity-Kette |
+| **Avatare / Cover** | Server-Allowlist + 2 MB Cap; Client `safeAvatarUrl` / `safeCoverStyle` |
+| **Analytics** | `guestId` serverseitig; `profile_view` / `command_run` nur serverseitig; `tab_visit` atomisch |
+| **Chat / Shoutbox** | **Immer Login + `assertCanChat`** — auch wenn Fun-Tab öffentlich ist |
 | **Registrierung** | Challenge + Signal-Registry; fail-closed bei unbekannter IP (Prod) |
 | **Premium Vault** | AES-GCM mit `PREMIUM_VAULT_KEY`; Bulk-Import im Admin-Panel |
+
+### Rate Limits & Multi-Process
+
+`server/rateLimitStore.mjs` wählt das Backend automatisch:
+
+| Backend | Wann | Env |
+|---------|------|-----|
+| **memory** | Standard (ein Prozess) | — |
+| **file** | Mehrere Node-Prozesse, gleicher Host | `RATE_LIMIT_SHARED=1` |
+| **redis** | Multi-Instance / Cluster | `REDIS_URL=redis://…` |
+| **explizit** | Override | `RATE_LIMIT_BACKEND=memory\|file\|redis` |
+
+Priorität bei `auto`: Redis wenn `REDIS_URL` gesetzt, sonst File wenn `RATE_LIMIT_SHARED=1`, sonst Memory.
+
+```env
+# Beispiel: PM2 mit 4 Workern auf einem VPS
+RATE_LIMIT_SHARED=1
+
+# Beispiel: Zwei Server hinter Load Balancer
+REDIS_URL=redis://127.0.0.1:6379
+```
+
+### Chat & Shoutbox (Wichtig)
+
+- **Lesen und Schreiben** der Shoutbox erfordert Login + aktiven Account + `assertCanChat` (kein Bann/Mute).
+- Öffentlicher **Fun-Tab** in Page Visibility öffnet nur die UI — **Chat-API bleibt members-only**.
+- Terminal-Shoutbox pollt nur wenn eingeloggt **und** Terminal-Panel expandiert (jeder Tab).
+- Nachrichten max. **280 Zeichen** (Client + Server).
+
+### Profile Views & Tab-Integrity
+
+| Regel | Detail |
+|-------|--------|
+| **Nur eingeloggt** | Gäste sehen Profile, erhöhen aber keine `profileViews` |
+| **Profile-Tab** | Server prüft `session.analyticsLastTab === 'profile'` |
+| **Dwell-Gate** | Mind. **2s** seit letztem `tab_visit` auf Profile-Tab |
+| **Burst-Cap** | Max. **5** unique credited Views pro Profile-Tab-Stint (`profileViewCreditsUsed`) |
+| **Client-Sync** | `profileTabReadyTick` wartet auf erfolgreichen `tab_visit` vor POST `/view` |
+| **Dedup** | Session-Dedup nur bei `credited: true`; inflight-Coalescing gegen Doppel-POSTs |
+
+### Achievement Proof (Anti-Farm)
+
+1. `tab_visit` / `faq_visit` mintet serverseitig einen **Proof** (Nonce + Tab + 120s TTL).
+2. Client spiegelt Single-Slot (`achievementProof.ts`).
+3. Terminal-Commands (`matrix`, `self-destruct`) und `claw_victim` **verbrauchen** Proof via `takeAchievementProof`.
+4. Bei Fehler: **Remint** (kein Proof-Verlust durch blindes Clear).
+5. **Tab-Dwell-Kette:** Tab-Wechsel braucht ≥2s Dwell auf vorherigem Tab (`analyticsDwellReady`).
+6. **Atomischer Claim:** `tryClaimTabVisitCredit` unter `withSessionsWrite` — parallele `tab_visit`-Farms blockiert.
+7. Gleicher Tab erneut: kein Aggregate-Spam (Event nur bei erfolgreichem Claim).
+
+### Guest View Dedup
+
+Anonyme Views auf Paste/Image werden in `data/analytics/guest-views.json` dedupliziert (Scope + IP + Resource-ID, 90-Tage-Prune).
+
+| `GUEST_VIEW_DEDUP_FAIL_OPEN` | Verhalten bei Persist-Fehler |
+|------------------------------|------------------------------|
+| `1` (Standard) | View zählen (fail-open — kein Under-Count) |
+| `0` | View nicht zählen (fail-closed) |
+
+### Analytics-Integrität
+
+- Client-`track` für `profile_view` und `command_run` wird **abgelehnt** — nur Server schreibt diese Events.
+- `profile_view` bei credited `incrementProfileView`; `command_run` bei `recordTerminalCommand`.
+- Gäste: kein `tab_dwell` persistiert; Page-View-Counter nur für eingeloggte User (kein `sessionFetch`-401-Spam).
 
 ### Admin: Premium Account Vault
 
@@ -340,6 +412,10 @@ See [`.env.example`](.env.example) for the full template.
 | `TRUST_PROXY` | `1` when behind reverse proxy |
 | `TRUSTED_PROXY_IPS` | Comma-separated IPs allowed to set forwarded headers |
 | `PUBLIC_BASE_URL` | Optional canonical origin for API share URLs |
+| `RATE_LIMIT_BACKEND` | `auto` (default), `memory`, `file`, or `redis` |
+| `RATE_LIMIT_SHARED` | `1` — file-backed rate limits for multi-process same host |
+| `REDIS_URL` | Redis connection for shared rate limits (multi-instance) |
+| `GUEST_VIEW_DEDUP_FAIL_OPEN` | `1` (default) fail-open on dedup store errors; `0` fail-closed |
 | `SEED_ADMIN_PASSWORD` | Initial admin password (required in prod on empty DB) |
 | `SEED_VIP_PASSWORD` | Initial VIP demo password (required in prod on empty DB) |
 | `PREMIUM_VAULT_KEY` | AES key for premium account encryption (required in prod) |
@@ -355,7 +431,7 @@ See [`.env.example`](.env.example) for the full template.
 - **Backend:** Express (`server/start.mjs`), JSON file stores
 - **Auth:** Cookie sessions (`HttpOnly`, `SameSite=Lax`), registration signal registry
 - **Games:** 14 titles, coin escrow, matchmaking
-- **Security libs:** `resolvePublicOrigin`, `safeMediaUrl`, `viewDedup`, `asyncMiddleware`, `jobPrune`
+- **Security libs:** `resolvePublicOrigin`, `safeMediaUrl`, `viewDedup`, `rateLimitStore`, `analyticsTabIntegrity`, `tabAccessGuard`, `asyncMiddleware`, `jobPrune`
 
 ---
 
@@ -370,13 +446,17 @@ lul-terminal/
 │   ├── games/         # history, jackpot, state
 │   ├── premium-accounts/
 │   ├── proxy-scraper/ # sources.json (+ runtime state/results)
-│   └── …
+│   ├── analytics/     # guest-views.json (runtime, gitignored)
+│   └── rate-limits/   # buckets.json (RATE_LIMIT_SHARED)
 ├── public/            # Static assets (favicon, memes catalog)
 ├── server/            # Express API + stores
 │   ├── auth/          # Auth, achievements, safeMediaUrl
 │   ├── resolvePublicOrigin.mjs
 │   ├── asyncMiddleware.mjs
 │   ├── viewDedup.mjs
+│   ├── rateLimitStore.mjs
+│   ├── analyticsTabIntegrity.mjs
+│   ├── tabAccessGuard.mjs
 │   └── …
 ├── src/               # React app
 │   ├── components/    # Pages, admin panels, chat, paste, profile
@@ -402,8 +482,21 @@ In der laufenden App: **Admin Dashboard → Setup Notes** — spiegelt Deploymen
 | Ziel | Hinweis |
 |------|---------|
 | **Self-hosted VPS** | `npm run build && npm start` + nginx + `TRUST_PROXY=1` + `PUBLIC_BASE_URL` |
+| **PM2 / Cluster (1 Host)** | `RATE_LIMIT_SHARED=1` + `data/` persistent mounten |
+| **Multi-Instance / LB** | `REDIS_URL` für geteilte Rate-Limits |
 | **Docker** | Mount `data/`, set env from `.env.example` |
 | **Vercel (static only)** | `vercel.json` rewrites SPA routes; **API requires Node server** — use VPS or split frontend/API |
+
+### Produktions-Checkliste
+
+- [ ] `NODE_ENV=production`
+- [ ] `TRUST_PROXY=1` + `TRUSTED_PROXY_IPS` (hinter Proxy)
+- [ ] `PREMIUM_VAULT_KEY`, `SEED_*`-Passwörter gesetzt
+- [ ] `PUBLIC_BASE_URL` = kanonische HTTPS-URL
+- [ ] `data/` persistent (Backup, Volume)
+- [ ] Multi-Process: `RATE_LIMIT_SHARED=1` oder `REDIS_URL`
+- [ ] `npm run lint && npm run build` vor Deploy
+- [ ] `data/analytics/guest-views.json` nicht committen (Runtime)
 
 ### Clone & contribute
 
