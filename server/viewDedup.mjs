@@ -49,15 +49,15 @@ async function loadGuestViews() {
       guestViews.set(key, Number(seenAt) || Date.now());
     }
   } catch (err) {
-    console.error('[view-dedup] CRITICAL: guest-views.json unreadable', err);
-    throw new Error('Guest view dedup unavailable');
+    console.error('[view-dedup] guest-views.json unreadable — starting empty store', err);
+    guestViews.clear();
   }
   loaded = true;
 }
 
 const guestViewsReady = loadGuestViews().catch((err) => {
-  console.error('[view-dedup] initial load failed', err);
-  throw err;
+  console.error('[view-dedup] initial load failed — dedup disabled until restart', err);
+  loaded = true;
 });
 
 function pruneStale() {

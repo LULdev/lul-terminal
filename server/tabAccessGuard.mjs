@@ -4,6 +4,7 @@
  */
 
 import { attachAuth } from './auth/authApi.mjs';
+import { assertCanChat } from './chatGuards.mjs';
 import { canAccessAdmin, isEffectivelyActive } from './auth/permissions.mjs';
 import { isTabPublic, loadAccessControl } from './accessControlStore.mjs';
 
@@ -14,6 +15,7 @@ export async function requireChatAccess(req) {
   if (!user || !isEffectivelyActive(user)) {
     throw new Error('Permission denied');
   }
+  assertCanChat(user);
   await requireMemberTab(req, 'fun');
 }
 

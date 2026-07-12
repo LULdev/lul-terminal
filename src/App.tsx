@@ -57,11 +57,9 @@ import {
 } from './components/pages';
 import * as authApi from './lib/auth';
 import {
-  commitAchievementProof,
-  peekAchievementProof,
   setAchievementProof,
-  clearAchievementProofs,
   requestAchievementProofRemint,
+  takeAchievementProof,
   takeAchievementProofRemintRequest,
 } from './lib/achievementProof';
 import { trackEvent } from './lib/analytics';
@@ -165,6 +163,7 @@ export default function App() {
     trackEvent('session_start', { meta: visitorContextToMeta(visitorCtxRef.current) }).catch(() => {});
   }, [isLoggedIn]);
 
+  const [profileTabReadyTick, setProfileTabReadyTick] = useState(0);
   const lastTrackedTabRef = useRef<TabId | null>(null);
   const tabEnteredAtRef = useRef(Date.now());
   const tabTrackGenRef = useRef(0);
@@ -214,6 +213,7 @@ export default function App() {
           tabEnteredAtRef.current = Date.now();
         }
         if (r?.proof && r.proof.tab === trackedTab) setAchievementProof(r.proof);
+        if (trackedTab === 'profile') setProfileTabReadyTick((t) => t + 1);
         if (r?.user) {
           patchUser(r.user);
           if (trackedTab === 'changelog' && r.user.changelogLastReadVersion === APP_VERSION) {
@@ -468,16 +468,14 @@ export default function App() {
     setCursorGrabbed(true);
     recordCatch();
     if (isLoggedInRef.current) {
-      const proof = peekAchievementProof('fun');
+      const proof = takeAchievementProof('fun');
       if (proof) {
         authApi.recordAchievementEvent('claw_victim', proof)
           .then((data) => {
-            commitAchievementProof('fun');
             handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
             if (data.user) patchUser(data.user);
           })
           .catch((e) => {
-            clearAchievementProofs();
             requestAchievementProofRemint();
             terminalAppend(
               e instanceof Error ? `⚠️ Claw achievement failed: ${e.message}` : '⚠️ Claw achievement failed',
@@ -854,6 +852,7 @@ export default function App() {
               {renderTab === 'profile' && (
                 <ProfilePage
                   routeUsername={profileUsername ?? undefined}
+                  profileTabReadyTick={profileTabReadyTick}
                   onNavigateTab={(tab) => handleTabClick(tab as TabId)}
                 />
               )}

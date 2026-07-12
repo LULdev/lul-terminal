@@ -56,6 +56,7 @@ export async function tryClaimTabVisitCredit(token, tab, { forceRemint = false }
       analyticsLastTab: session.analyticsLastTab ?? null,
       analyticsDwellReady: Boolean(session.analyticsDwellReady),
       analyticsLastVisitAt: session.analyticsLastVisitAt ?? null,
+      profileViewCreditsUsed: Number(session.profileViewCreditsUsed) || 0,
     };
 
     if (snapshot.analyticsLastTab === 'profile' && tab !== 'profile') {
@@ -98,6 +99,22 @@ export async function rollbackTabVisitCredit(token, snapshot) {
     session.analyticsLastTab = snapshot.analyticsLastTab;
     session.analyticsDwellReady = snapshot.analyticsDwellReady;
     session.analyticsLastVisitAt = snapshot.analyticsLastVisitAt;
+    if (snapshot.profileViewCreditsUsed != null) {
+      session.profileViewCreditsUsed = snapshot.profileViewCreditsUsed;
+    }
+    await saveSessionsDb(db);
+  });
+}
+
+/** Undo a burst slot when user-DB credit fails after tryClaimProfileViewCredit. */
+export async function releaseProfileViewCredit(token) {
+  if (!token) return;
+  await withSessionsWrite(async () => {
+    const db = await loadSessionsDb();
+    const session = db.sessions.find((s) => s.token === token);
+    if (!session || session.expiresAt <= Date.now()) return;
+    const used = Number(session.profileViewCreditsUsed) || 0;
+    if (used > 0) session.profileViewCreditsUsed = used - 1;
     await saveSessionsDb(db);
   });
 }

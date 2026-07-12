@@ -23,6 +23,27 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.94',
+    title: 'Extreme deep audit — round 32 (server/client hardening)',
+    date: 'Jul 12, 2026 - 20:00',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — Profile view waits for profile tab_visit (profileTabReadyTick) before POST /view.' },
+      { priority: 'P1', text: 'P1 — Profile burst: alreadyVisited before credit claim; releaseProfileViewCredit on DB failure.' },
+      { priority: 'P1', text: 'P1 — Tab-visit rollback snapshot includes profileViewCreditsUsed.' },
+      { priority: 'P2', text: 'P2 — fetchPageViews uses sessionFetch (auth-gated GET no longer 401-stale).' },
+      { priority: 'P2', text: 'P2 — Achievement proof: takeAchievementProof on send; remint on failure (no stale clear).' },
+      { priority: 'P3', text: 'P3 — Guest profiles use fetchPublicProfile; session dedup on any res.ok view POST.' },
+      { priority: 'P3', text: 'P3 — Shoutbox polls when terminal expanded + logged in (any tab).' },
+      { priority: 'P3', text: 'P3 — requireChatAccess asserts assertCanChat; banned/muted cannot read chat APIs.' },
+      { priority: 'P3', text: 'P3 — Guest dedup load failure fail-open (empty store); GUEST_VIEW_DEDUP_FAIL_OPEN=0 fail-closed.' },
+      { priority: 'P4', text: 'P4 — Games leaderboard/history require login; chat activity rate limit before body read.' },
+      { priority: 'P4', text: 'P4 — Avatar upload 2 MB guard client + base64 pre-decode cap server.' },
+      { priority: 'P8', text: 'P8 — Chat send 280-char client guard before POST.' },
+      { priority: 'P9', text: 'P9 — Round 32 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.93',
     title: 'Deferred hardening — profile burst, Redis limits, chat policy, dedup',
     date: 'Jul 12, 2026 - 19:00',

@@ -624,23 +624,30 @@ export async function incrementProfileView(username, { viewer = null, sessionTab
       const viewerUser = db.users.find((u) => u.id === viewer.id);
       const onProfileTab = String(sessionTab ?? '') === 'profile';
       if (viewerUser && onProfileTab) {
-        const { tryClaimProfileViewCredit } = await import('../analyticsTabIntegrity.mjs');
-        const burstOk = sessionToken ? await tryClaimProfileViewCredit(sessionToken) : false;
         const visitKey = `profile_visit_${uname}`;
         const alreadyVisited = Boolean(ensureActivity(viewerUser).flags[visitKey]);
-        if (burstOk && !alreadyVisited) {
-          user.profileViews = (Number(user.profileViews) || 0) + 1;
-          user.updatedAt = Date.now();
-          dirty = true;
-          credited = true;
-          syncAchievements(user, { accountsSubmitted: await countAccountsByCreator(user.id) });
-          const ctx = { visitedProfile: uname };
-          if (user.role === 'admin') ctx.flag = 'visited_admin_profile';
-          applyActivityCtx(viewerUser, ctx);
-          const viewerSubmitted = await countAccountsByCreator(viewerUser.id);
-          syncAchievements(viewerUser, { ...ctx, accountsSubmitted: viewerSubmitted });
-          viewerUser.updatedAt = Date.now();
-          dirty = true;
+        if (!alreadyVisited) {
+          const { tryClaimProfileViewCredit, releaseProfileViewCredit } = await import('../analyticsTabIntegrity.mjs');
+          const burstOk = sessionToken ? await tryClaimProfileViewCredit(sessionToken) : false;
+          if (burstOk) {
+            try {
+              user.profileViews = (Number(user.profileViews) || 0) + 1;
+              user.updatedAt = Date.now();
+              dirty = true;
+              credited = true;
+              syncAchievements(user, { accountsSubmitted: await countAccountsByCreator(user.id) });
+              const ctx = { visitedProfile: uname };
+              if (user.role === 'admin') ctx.flag = 'visited_admin_profile';
+              applyActivityCtx(viewerUser, ctx);
+              const viewerSubmitted = await countAccountsByCreator(viewerUser.id);
+              syncAchievements(viewerUser, { ...ctx, accountsSubmitted: viewerSubmitted });
+              viewerUser.updatedAt = Date.now();
+              dirty = true;
+            } catch (creditErr) {
+              if (sessionToken) await releaseProfileViewCredit(sessionToken);
+              throw creditErr;
+            }
+          }
         }
       }
     }

@@ -114,12 +114,17 @@ export type SendLobbyMessageResult = {
   unlockCoinsTotal?: number;
 };
 
+const MAX_MESSAGE_LEN = 280;
+
 export async function sendLobbyMessage(text: string): Promise<SendLobbyMessageResult> {
+  const body = text.trim();
+  if (!body) throw new Error('Message text required');
+  if (body.length > MAX_MESSAGE_LEN) throw new Error('Message too long (max 280)');
   const res = await fetch(`${API}/lobby/messages`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text: body }),
   });
   if (res.status === 401) {
     invalidateSession();

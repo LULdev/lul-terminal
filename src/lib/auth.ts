@@ -60,6 +60,7 @@ export async function fetchPublicProfile(username: string): Promise<PublicProfil
 }
 
 const PROFILE_VIEW_PREFIX = 'lul_profile_view_';
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 
 export type ProfileViewResult = {
   user: PublicProfile;
@@ -77,10 +78,8 @@ export async function recordProfileView(username: string): Promise<ProfileViewRe
         });
         if (res.ok) {
           const data = await res.json() as { user: PublicProfile; credited?: boolean };
-          if (data.credited) {
-            sessionStorage.setItem(sessionKey, '1');
-            return { user: data.user, credited: true };
-          }
+          sessionStorage.setItem(sessionKey, '1');
+          if (data.credited) return { user: data.user, credited: true };
           if (attempt < 3) {
             await new Promise((r) => setTimeout(r, 400));
             continue;
@@ -153,6 +152,7 @@ export async function updateProfile(input: Partial<{
 }
 
 export async function uploadAvatar(file: File): Promise<AuthUnlockResponse> {
+  if (file.size > MAX_AVATAR_BYTES) throw new Error('Avatar max. 2 MB');
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));

@@ -16,9 +16,7 @@ import { registerShoutboxDraft } from '../../lib/shoutboxDraft';
 import { registerShoutboxSend } from '../../lib/shoutboxSend';
 import { registerTerminalAppend } from '../../lib/terminalLogBridge';
 import {
-  clearAchievementProofs,
-  commitAchievementProof,
-  peekAchievementProof,
+  takeAchievementProof,
   requestAchievementProofRemint,
 } from '../../lib/achievementProof';
 import { getLiveStats } from '../../lib/liveStatsStore';
@@ -126,19 +124,17 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
       appendLogRef.current('⚠️ Terminal achievements require the Dashboard tab.', 'warn');
       return;
     }
-    const proof = peekAchievementProof('dashboard');
+    const proof = takeAchievementProof('dashboard');
     if (!proof) {
       appendLogRef.current('⚠️ Achievement proof expired — switch tabs to refresh proof.', 'warn');
       return;
     }
     authApi.recordTerminalCommand(command, proof)
       .then((data) => {
-        commitAchievementProof('dashboard');
         handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
         if (data.user) patchUser(data.user);
       })
       .catch((e) => {
-        clearAchievementProofs();
         requestAchievementProofRemint();
         appendLogRef.current(
           e instanceof Error ? `⚠️ Achievement claim failed: ${e.message}` : '⚠️ Achievement claim failed',
@@ -685,7 +681,7 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
                 isMatrixOverlayActive={isMatrixOverlayActive}
                 onCloseMatrix={() => setIsMatrixOverlayActive(false)}
                 isMuted={isMuted}
-                pollEnabled={expandedPanels.terminal && renderTab === 'fun'}
+                pollEnabled={expandedPanels.terminal && isLoggedIn}
                 onSendChatReady={handleSendChatReady}
                 onOpenProfile={onNavigateProfile}
                 onChatUnlocks={(ids, rewards, coinsTotal) => {

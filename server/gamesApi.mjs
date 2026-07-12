@@ -59,12 +59,14 @@ export async function handleGamesRequest(req, res) {
     }
 
     if (req.method === 'GET' && pathname === '/api/games/leaderboard') {
-      await checkRateLimit(`games-leaderboard:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      const u = requireUser(req);
+      await checkRateLimit(`games-leaderboard:${u.id}`, { max: 90, windowMs: 60_000 });
       return sendJson(res, 200, await getGamesLeaderboard());
     }
 
     if (req.method === 'GET' && pathname === '/api/games/history') {
-      await checkRateLimit(`games-history:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
+      const u = requireUser(req);
+      await checkRateLimit(`games-history:${u.id}`, { max: 90, windowMs: 60_000 });
       const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 20));
       return sendJson(res, 200, { matches: await getRecentHistory(limit) });
     }

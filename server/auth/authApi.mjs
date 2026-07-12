@@ -196,7 +196,10 @@ export async function handleAuthRequest(req, res) {
       const user = requireAuth(req);
       await checkRateLimit(`avatar:${user.id}`, { max: 10, windowMs: 60_000 });
       const body = await readJsonBody(req, 3 * 1024 * 1024);
-      const buffer = Buffer.from(body.data ?? '', 'base64');
+      const b64 = String(body.data ?? '');
+      const estBytes = Math.floor((b64.length * 3) / 4);
+      if (estBytes > 2 * 1024 * 1024) throw new Error('Avatar max. 2 MB');
+      const buffer = Buffer.from(b64, 'base64');
       const result = await uploadUserAvatar(user.id, { mime: body.mime, buffer });
       return sendJson(res, 200, { user: result.user, newUnlocks: result.newUnlocks ?? [] });
     }

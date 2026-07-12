@@ -36,6 +36,8 @@ import '../profile/profile.css';
 
 type ProfilePageProps = {
   routeUsername?: string;
+  /** Increments after profile tab_visit analytics completes (logged-in viewers). */
+  profileTabReadyTick?: number;
   onNavigateTab?: (tab: string) => void;
 };
 
@@ -48,8 +50,8 @@ const TABS: { id: ProfileTab; label: string; icon: React.ReactNode; ownOnly?: bo
   { id: 'settings', label: 'Settings', icon: <Settings size={12} />, ownOnly: true },
 ];
 
-export function ProfilePage({ routeUsername, onNavigateTab }: ProfilePageProps) {
-  const { user, refresh, logout, openAuth, isLoggedIn, permissions, handleUnlocks, syncAchievements } = useAuth();
+export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigateTab }: ProfilePageProps) {
+  const { user, refresh, logout, openAuth, isLoggedIn, permissions, handleUnlocks } = useAuth();
   const [activeTab, setActiveTab] = useState<ProfileTab>('overview');
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
@@ -123,10 +125,14 @@ export function ProfilePage({ routeUsername, onNavigateTab }: ProfilePageProps) 
       setPublicError('');
       return;
     }
+    if (isLoggedIn && !profileTabReadyTick) return;
     let cancelled = false;
     setPublicLoading(true);
     setPublicError('');
-    authApi.recordProfileView(routeUsername)
+    const load = isLoggedIn
+      ? authApi.recordProfileView(routeUsername)
+      : authApi.fetchPublicProfile(routeUsername).then((profile) => ({ user: profile, credited: false as const }));
+    load
       .then(({ user: profile, credited }) => {
         if (!cancelled) {
           setPublicProfile(profile);
@@ -142,7 +148,7 @@ export function ProfilePage({ routeUsername, onNavigateTab }: ProfilePageProps) 
         if (!cancelled) setPublicLoading(false);
       });
     return () => { cancelled = true; };
-  }, [routeUsername, isOwnProfile]);
+  }, [routeUsername, isOwnProfile, isLoggedIn, profileTabReadyTick]);
 
   React.useEffect(() => {
     if (!isOwnProfile || !isLoggedIn || !customization.privacy.showCoins) {

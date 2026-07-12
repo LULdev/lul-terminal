@@ -91,14 +91,14 @@ export async function handleChatRequest(req, res) {
       if (!req.auth?.user) {
         throw new Error('You must be logged in to report activity');
       }
+      await requireChatAccess(req);
+      await checkRateLimit(`chat-activity:${req.auth.user.id}`, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const activityType = String(body?.type ?? '').trim();
-      await requireChatAccess(req);
       if (activityType === 'meme_created') {
         const { requireMemberTab } = await import('./tabAccessGuard.mjs');
         await requireMemberTab(req, 'memegen');
       }
-      await checkRateLimit(`chat-activity:${req.auth.user.id}`, { max: 20, windowMs: 60_000 });
       const message = await handleChatActivity(req.auth.user, body);
       return sendJson(res, 201, { message });
     }
