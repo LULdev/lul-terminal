@@ -524,7 +524,9 @@ export async function ratePaste(id, userId, stars) {
     const meta = await purgeIfExpired(await getMeta(id));
     if (!meta) throw new Error('Paste not found');
     const uid = String(userId).slice(0, 32);
-    const value = Math.min(5, Math.max(1, Math.round(Number(stars))));
+    const raw = Number(stars);
+    if (!Number.isFinite(raw)) throw new Error('Invalid rating');
+    const value = Math.min(5, Math.max(1, Math.round(raw)));
     if (!meta.ratingVotes || typeof meta.ratingVotes !== 'object') meta.ratingVotes = {};
     const prev = meta.ratingVotes[uid];
     let sum = Number(meta.ratingSum) || 0;

@@ -3,8 +3,8 @@
   "meta": {
     "totalEverCollected": 118,
     "totalRemovedStale": 88,
-    "lastDailyCheckAt": 1783559617118,
-    "lastDailyCheckDay": "2026-07-09",
+    "lastDailyCheckAt": 1783878885048,
+    "lastDailyCheckDay": "2026-07-12",
     "lastUpsertAt": 1783037071751
   },
   "proxies": [
@@ -15,10 +15,10 @@
       "type": "socks5",
       "raw": "152.53.144.223:1080",
       "status": "working",
-      "latency": 94,
+      "latency": 101,
       "firstSeenAt": 1783032896321,
-      "lastAliveAt": 1783559617118,
-      "lastCheckedAt": 1783559617118,
+      "lastAliveAt": 1783878885048,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 0,
       "lastOfflineDay": null
     },
@@ -32,9 +32,9 @@
       "latency": null,
       "firstSeenAt": 1783032896321,
       "lastAliveAt": 1783296203125,
-      "lastCheckedAt": 1783559617118,
-      "consecutiveOfflineDays": 3,
-      "lastOfflineDay": "2026-07-09"
+      "lastCheckedAt": 1783878885048,
+      "consecutiveOfflineDays": 1,
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "socks5:5.45.118.209:1080",
@@ -43,10 +43,10 @@
       "type": "socks5",
       "raw": "5.45.118.209:1080",
       "status": "working",
-      "latency": 226,
+      "latency": 253,
       "firstSeenAt": 1783032896321,
-      "lastAliveAt": 1783559617118,
-      "lastCheckedAt": 1783559617118,
+      "lastAliveAt": 1783878885048,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 0,
       "lastOfflineDay": null
     },
@@ -57,10 +57,10 @@
       "type": "socks5",
       "raw": "141.148.158.143:1080",
       "status": "working",
-      "latency": 627,
+      "latency": 1109,
       "firstSeenAt": 1783032896321,
-      "lastAliveAt": 1783559617118,
-      "lastCheckedAt": 1783559617118,
+      "lastAliveAt": 1783878885048,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 0,
       "lastOfflineDay": null
     },
@@ -71,10 +71,10 @@
       "type": "socks5",
       "raw": "213.176.113.24:50001",
       "status": "working",
-      "latency": 89,
+      "latency": 184,
       "firstSeenAt": 1783032896321,
-      "lastAliveAt": 1783559617118,
-      "lastCheckedAt": 1783559617118,
+      "lastAliveAt": 1783878885048,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 0,
       "lastOfflineDay": null
     },
@@ -85,10 +85,10 @@
       "type": "socks5",
       "raw": "204.48.29.137:1088",
       "status": "working",
-      "latency": 435,
+      "latency": 426,
       "firstSeenAt": 1783032896321,
-      "lastAliveAt": 1783559617118,
-      "lastCheckedAt": 1783559617118,
+      "lastAliveAt": 1783878885048,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 0,
       "lastOfflineDay": null
     },
@@ -102,9 +102,9 @@
       "latency": null,
       "firstSeenAt": 1783032896321,
       "lastAliveAt": 1783472177777,
-      "lastCheckedAt": 1783559617118,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 1,
-      "lastOfflineDay": "2026-07-09"
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "socks5:152.70.241.59:1080",
@@ -116,9 +116,9 @@
       "latency": null,
       "firstSeenAt": 1783033128775,
       "lastAliveAt": 1783296203125,
-      "lastCheckedAt": 1783559617118,
-      "consecutiveOfflineDays": 3,
-      "lastOfflineDay": "2026-07-09"
+      "lastCheckedAt": 1783878885048,
+      "consecutiveOfflineDays": 1,
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "socks5:109.199.107.68:1080",
@@ -130,9 +130,9 @@
       "latency": null,
       "firstSeenAt": 1783033128775,
       "lastAliveAt": 1783296203125,
-      "lastCheckedAt": 1783559617118,
-      "consecutiveOfflineDays": 3,
-      "lastOfflineDay": "2026-07-09"
+      "lastCheckedAt": 1783878885048,
+      "consecutiveOfflineDays": 1,
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "http:164.92.200.113:80",
@@ -141,10 +141,10 @@
       "type": "http",
       "raw": "164.92.200.113:80",
       "status": "working",
-      "latency": 32,
+      "latency": 41,
       "firstSeenAt": 1783033128775,
-      "lastAliveAt": 1783559617118,
-      "lastCheckedAt": 1783559617118,
+      "lastAliveAt": 1783878885048,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 0,
       "lastOfflineDay": null
     },
@@ -158,9 +158,9 @@
       "latency": null,
       "firstSeenAt": 1783033128775,
       "lastAliveAt": 1783296203125,
-      "lastCheckedAt": 1783559617118,
-      "consecutiveOfflineDays": 3,
-      "lastOfflineDay": "2026-07-09"
+      "lastCheckedAt": 1783878885048,
+      "consecutiveOfflineDays": 1,
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "http:217.79.253.106:80",
@@ -169,10 +169,10 @@
       "type": "http",
       "raw": "217.79.253.106:80",
       "status": "working",
-      "latency": 234,
+      "latency": 258,
       "firstSeenAt": 1783033128775,
-      "lastAliveAt": 1783559617118,
-      "lastCheckedAt": 1783559617118,
+      "lastAliveAt": 1783878885048,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 0,
       "lastOfflineDay": null
     },
@@ -183,10 +183,10 @@
       "type": "http",
       "raw": "107.161.20.80:80",
       "status": "working",
-      "latency": 232,
+      "latency": 252,
       "firstSeenAt": 1783033128775,
-      "lastAliveAt": 1783559617118,
-      "lastCheckedAt": 1783559617118,
+      "lastAliveAt": 1783878885048,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 0,
       "lastOfflineDay": null
     },
@@ -200,9 +200,9 @@
       "latency": null,
       "firstSeenAt": 1783033128775,
       "lastAliveAt": 1783472177777,
-      "lastCheckedAt": 1783559617118,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 1,
-      "lastOfflineDay": "2026-07-09"
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "http:200.8.200.191:8088",
@@ -210,13 +210,13 @@
       "port": 8088,
       "type": "http",
       "raw": "200.8.200.191:8088",
-      "status": "working",
-      "latency": 636,
+      "status": "offline",
+      "latency": null,
       "firstSeenAt": 1783033128775,
       "lastAliveAt": 1783559617118,
-      "lastCheckedAt": 1783559617118,
-      "consecutiveOfflineDays": 0,
-      "lastOfflineDay": null
+      "lastCheckedAt": 1783878885048,
+      "consecutiveOfflineDays": 1,
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "https:8.212.165.164:41890",
@@ -225,10 +225,10 @@
       "type": "https",
       "raw": "8.212.165.164:41890",
       "status": "working",
-      "latency": 4627,
+      "latency": 4629,
       "firstSeenAt": 1783033128775,
-      "lastAliveAt": 1783559617118,
-      "lastCheckedAt": 1783559617118,
+      "lastAliveAt": 1783878885048,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 0,
       "lastOfflineDay": null
     },
@@ -239,10 +239,10 @@
       "type": "https",
       "raw": "47.91.110.148:8080",
       "status": "working",
-      "latency": 4298,
+      "latency": 4293,
       "firstSeenAt": 1783033128775,
-      "lastAliveAt": 1783559617118,
-      "lastCheckedAt": 1783559617118,
+      "lastAliveAt": 1783878885048,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 0,
       "lastOfflineDay": null
     },
@@ -253,10 +253,10 @@
       "type": "https",
       "raw": "47.250.159.65:80",
       "status": "working",
-      "latency": 4380,
+      "latency": 4383,
       "firstSeenAt": 1783033128775,
-      "lastAliveAt": 1783559617118,
-      "lastCheckedAt": 1783559617118,
+      "lastAliveAt": 1783878885048,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 0,
       "lastOfflineDay": null
     },
@@ -266,13 +266,13 @@
       "port": 3128,
       "type": "https",
       "raw": "64.188.77.26:3128",
-      "status": "working",
-      "latency": 56,
+      "status": "offline",
+      "latency": null,
       "firstSeenAt": 1783033128775,
       "lastAliveAt": 1783559617118,
-      "lastCheckedAt": 1783559617118,
-      "consecutiveOfflineDays": 0,
-      "lastOfflineDay": null
+      "lastCheckedAt": 1783878885048,
+      "consecutiveOfflineDays": 1,
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "socks5:81.168.119.85:443",
@@ -284,9 +284,9 @@
       "latency": null,
       "firstSeenAt": 1783033128775,
       "lastAliveAt": 1783472177777,
-      "lastCheckedAt": 1783559617118,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 1,
-      "lastOfflineDay": "2026-07-09"
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "https:149.129.226.9:5441",
@@ -295,10 +295,10 @@
       "type": "https",
       "raw": "149.129.226.9:5441",
       "status": "working",
-      "latency": 4374,
+      "latency": 4396,
       "firstSeenAt": 1783033128775,
-      "lastAliveAt": 1783559617118,
-      "lastCheckedAt": 1783559617118,
+      "lastAliveAt": 1783878885048,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 0,
       "lastOfflineDay": null
     },
@@ -312,9 +312,9 @@
       "latency": null,
       "firstSeenAt": 1783034790077,
       "lastAliveAt": 1783382456494,
-      "lastCheckedAt": 1783559617118,
-      "consecutiveOfflineDays": 2,
-      "lastOfflineDay": "2026-07-09"
+      "lastCheckedAt": 1783878885048,
+      "consecutiveOfflineDays": 1,
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "http:206.135.55.224:999",
@@ -322,13 +322,13 @@
       "port": 999,
       "type": "http",
       "raw": "206.135.55.224:999",
-      "status": "working",
-      "latency": 461,
+      "status": "offline",
+      "latency": null,
       "firstSeenAt": 1783034790077,
       "lastAliveAt": 1783559617118,
-      "lastCheckedAt": 1783559617118,
-      "consecutiveOfflineDays": 0,
-      "lastOfflineDay": null
+      "lastCheckedAt": 1783878885048,
+      "consecutiveOfflineDays": 1,
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "socks5:91.107.182.124:82",
@@ -340,9 +340,9 @@
       "latency": null,
       "firstSeenAt": 1783034790077,
       "lastAliveAt": 1783472177777,
-      "lastCheckedAt": 1783559617118,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 1,
-      "lastOfflineDay": "2026-07-09"
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "http:85.117.60.131:8080",
@@ -350,13 +350,13 @@
       "port": 8080,
       "type": "http",
       "raw": "85.117.60.131:8080",
-      "status": "offline",
-      "latency": null,
+      "status": "working",
+      "latency": 647,
       "firstSeenAt": 1783036021414,
-      "lastAliveAt": 1783382456494,
-      "lastCheckedAt": 1783559617118,
-      "consecutiveOfflineDays": 2,
-      "lastOfflineDay": "2026-07-09"
+      "lastAliveAt": 1783878885048,
+      "lastCheckedAt": 1783878885048,
+      "consecutiveOfflineDays": 0,
+      "lastOfflineDay": null
     },
     {
       "id": "http:185.155.15.63:8080",
@@ -368,9 +368,9 @@
       "latency": null,
       "firstSeenAt": 1783036021414,
       "lastAliveAt": 1783382456494,
-      "lastCheckedAt": 1783559617118,
-      "consecutiveOfflineDays": 2,
-      "lastOfflineDay": "2026-07-09"
+      "lastCheckedAt": 1783878885048,
+      "consecutiveOfflineDays": 1,
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "http:181.174.231.26:999",
@@ -382,9 +382,9 @@
       "latency": null,
       "firstSeenAt": 1783036651146,
       "lastAliveAt": 1783472177777,
-      "lastCheckedAt": 1783559617118,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 1,
-      "lastOfflineDay": "2026-07-09"
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "http:103.156.16.63:8818",
@@ -396,9 +396,9 @@
       "latency": null,
       "firstSeenAt": 1783036764207,
       "lastAliveAt": 1783296203125,
-      "lastCheckedAt": 1783559617118,
-      "consecutiveOfflineDays": 3,
-      "lastOfflineDay": "2026-07-09"
+      "lastCheckedAt": 1783878885048,
+      "consecutiveOfflineDays": 1,
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "http:200.39.152.161:999",
@@ -410,9 +410,9 @@
       "latency": null,
       "firstSeenAt": 1783037071751,
       "lastAliveAt": 1783472177777,
-      "lastCheckedAt": 1783559617118,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 1,
-      "lastOfflineDay": "2026-07-09"
+      "lastOfflineDay": "2026-07-12"
     },
     {
       "id": "socks5:199.247.29.193:50000",
@@ -424,9 +424,9 @@
       "latency": null,
       "firstSeenAt": 1783037071751,
       "lastAliveAt": 1783472177777,
-      "lastCheckedAt": 1783559617118,
+      "lastCheckedAt": 1783878885048,
       "consecutiveOfflineDays": 1,
-      "lastOfflineDay": "2026-07-09"
+      "lastOfflineDay": "2026-07-12"
     }
   ]
 }

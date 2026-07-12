@@ -169,7 +169,7 @@ function LeaderMini({
 }
 
 export function GamesPage() {
-  const { user, isLoggedIn, syncAchievements, refresh } = useAuth();
+  const { user, isLoggedIn, loading: authLoading, syncAchievements, refresh } = useAuth();
   const [selectedGame, setSelectedGame] = useState<GameId>('rps');
   const catalog = GAME_CATALOG_MAP[selectedGame];
   const [state, setState] = useState<GamesState | null>(null);
@@ -372,11 +372,22 @@ export function GamesPage() {
   }, [pollState, load]);
 
   useEffect(() => {
+    if (authLoading || !isLoggedIn) return;
     if (initialLoadDoneRef.current) return;
     initialLoadDoneRef.current = true;
     void load();
     void loadMeta();
-  }, [load, loadMeta]);
+  }, [load, loadMeta, authLoading, isLoggedIn]);
+
+  useEffect(() => {
+    if (isLoggedIn) return;
+    initialLoadDoneRef.current = false;
+    setLoading(false);
+    setState(null);
+    setBoards(null);
+    setMatch(null);
+    setWaiting(false);
+  }, [isLoggedIn]);
 
   useVisibilityAwarePoll(() => { void loadMeta(); }, 60_000);
 

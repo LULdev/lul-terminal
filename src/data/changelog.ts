@@ -23,6 +23,21 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.38.1',
+    title: 'Bug sweep — paste burn, ratings, games guard, view counts',
+    date: 'Jul 13, 2026 - 04:00',
+    highlight: true,
+    items: [
+      { priority: 'P0', text: 'P0 — Burn-after-read: PasteViewer honors GET/unlock burned flag; no double view POST.' },
+      { priority: 'P0', text: 'P0 — Paste rating rejects invalid stars (no NaN corruption).' },
+      { priority: 'P1', text: 'P1 — Public paste GET uses plain fetch (off session bus).' },
+      { priority: 'P1', text: 'P1 — GamesPage waits for auth before sessionFetch game state load.' },
+      { priority: 'P2', text: 'P2 — recordAccountView keeps current count on session dedup.' },
+      { priority: 'P2', text: 'P2 — fetchAllPostViews credentials parity; usePostViews unmount flush.' },
+      { priority: 'P9', text: 'P9 — Bug sweep: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.38.0',
     title: 'Extreme deep audit — round 38 (session-bus parity + server hardening)',
     date: 'Jul 13, 2026 - 03:00',

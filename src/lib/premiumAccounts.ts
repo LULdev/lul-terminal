@@ -232,7 +232,7 @@ export async function rejectAccountReport(reportId: string): Promise<void> {
   await authedJson(`/reports/${reportId}/reject`, { method: 'POST' });
 }
 
-export async function recordAccountView(id: string): Promise<number> {
+export async function recordAccountView(id: string, currentViews = 0): Promise<number> {
   const sessionKey = `${ACCOUNT_VIEW_PREFIX}${id}`;
   if (!sessionStorage.getItem(sessionKey)) {
     try {
@@ -248,5 +248,5 @@ export async function recordAccountView(id: string): Promise<number> {
       }
     } catch { /* fall through */ }
   }
-  return 0;
+  return currentViews;
 }

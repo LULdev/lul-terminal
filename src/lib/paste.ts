@@ -244,7 +244,8 @@ export async function recordPasteView(id: string): Promise<{ views: number; burn
       } catch { /* fall through */ }
     }
     const meta = await fetchPasteMeta(id);
-    return { views: meta?.views ?? 0, burned: false };
+    if (!meta) return { views: 0, burned: true };
+    return { views: meta.views ?? 0, burned: false };
   })();
 
   viewInflight.set(id, run);

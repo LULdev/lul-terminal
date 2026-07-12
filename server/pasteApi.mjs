@@ -455,7 +455,11 @@ export async function handlePasteRequest(req, res) {
         return sendJson(res, 403, { error: 'Not allowed' });
       }
       const body = await readJsonBody(req, 4 * 1024);
-      const result = await ratePaste(rateMatch[1], user.id, body.stars);
+      const stars = Number(body.stars);
+      if (!Number.isFinite(stars) || stars < 1 || stars > 5) {
+        return sendJson(res, 400, { error: 'Rating must be between 1 and 5' });
+      }
+      const result = await ratePaste(rateMatch[1], user.id, stars);
       return sendJson(res, 200, result);
     }
 
@@ -481,7 +485,10 @@ export async function handlePasteRequest(req, res) {
         if (viewResult.meta?.userId && unlockUid && !viewResult.deduped) {
           await incrementUserPasteViews(viewResult.meta.userId, { viewerId: unlockUid, pasteId: meta.id });
         }
-        return sendJson(res, 200, toClientPaste(viewResult.meta, content, req, { userId: unlockUid }));
+        return sendJson(res, 200, {
+          ...toClientPaste(viewResult.meta, content, req, { userId: unlockUid }),
+          burned: true,
+        });
       }
       const viewResult = await countPasteViewDeduped(req, meta.id, { consumeBurn: false });
       const outMeta = viewResult?.meta ?? meta;

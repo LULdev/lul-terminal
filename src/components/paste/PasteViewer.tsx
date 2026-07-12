@@ -27,7 +27,6 @@ import {
   formatPasteDate,
   formatPasteViews,
   pollPasteMeta,
-  recordPasteView,
   unlockPaste,
   type PasteRecord,
 } from '../../lib/paste';
@@ -93,8 +92,8 @@ export function PasteViewer({ id }: Props) {
     setDedupeRemoved(0);
     setSearch('');
 
-    fetchPaste(id)
-      .then(async (data) => {
+    fetchPaste(id, { credentialed: false })
+      .then((data) => {
         if (cancelled) return;
         if ((data.requiresPassword || data.requiresLogin) && !data.content) {
           setPaste(data);
@@ -109,16 +108,13 @@ export function PasteViewer({ id }: Props) {
           return;
         }
         setPaste(data);
+        setViews(data.views ?? 0);
         setRatingAvg(data.ratingAvg ?? 0);
         setRatingCount(data.ratingCount ?? 0);
         setUserRating(data.userRating ?? null);
-        const counted = await recordPasteView(id);
-        if (!cancelled) {
-          setViews(counted.views);
-          setViewsReady(true);
-          if (counted.burned) {
-            setError('This paste was burn-after-read and has been consumed.');
-          }
+        setViewsReady(true);
+        if (data.burned) {
+          setError('This paste was burn-after-read and has been consumed.');
         }
       })
       .catch(() => {
@@ -132,14 +128,14 @@ export function PasteViewer({ id }: Props) {
   }, [id]);
 
   useEffect(() => {
-    if (!paste?.content) return;
+    if (!paste?.content || paste.burned) return;
     return pollPasteMeta(id, (meta) => {
       setViews(meta.views ?? 0);
       setRatingAvg(meta.ratingAvg ?? 0);
       setRatingCount(meta.ratingCount ?? 0);
       setViewsReady(true);
     });
-  }, [id, paste?.content]);
+  }, [id, paste?.content, paste?.burned]);
 
   useEffect(() => {
     if (paste?.title && paste.content) {
@@ -156,14 +152,12 @@ export function PasteViewer({ id }: Props) {
       const data = await unlockPaste(id, password);
       if (!mountedRef.current) return;
       setPaste(data);
+      setViews(data.views ?? 0);
       setRatingAvg(data.ratingAvg ?? 0);
       setRatingCount(data.ratingCount ?? 0);
       setUserRating(data.userRating ?? null);
-      const counted = await recordPasteView(id);
-      if (!mountedRef.current) return;
-      setViews(counted.views);
       setViewsReady(true);
-      if (counted.burned) {
+      if (data.burned) {
         setError('This paste was burn-after-read and has been consumed.');
       }
     } catch (err) {
@@ -282,6 +276,11 @@ export function PasteViewer({ id }: Props) {
       <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/[0.04] via-transparent to-indigo-500/[0.03] pointer-events-none" />
 
       <div className="max-w-[min(100%,920px)] mx-auto flex flex-col gap-4 relative z-10">
+        {error && (
+          <p className="text-[10px] font-mono text-amber-300/90 text-center px-3 py-2 rounded-lg border border-amber-500/30 bg-amber-500/10">
+            {error}
+          </p>
+        )}
         {/* Header card */}
         <div className="rounded-2xl border border-slate-800/80 bg-gradient-to-br from-[#12151c]/95 via-[#0c0d12] to-black/50 p-4 sm:p-5 shadow-xl">
           <div className="flex flex-wrap items-start justify-between gap-4">

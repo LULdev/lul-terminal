@@ -17,7 +17,7 @@ const VIEW_SESSION_PREFIX = 'lul_post_view_';
 
 export async function fetchAllPostViews(): Promise<AllPostViews> {
   try {
-    const res = await fetch(API);
+    const res = await fetch(API, { credentials: 'include' });
     if (!res.ok) return { changelog: {}, news: {} };
     return res.json() as Promise<AllPostViews>;
   } catch {

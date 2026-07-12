@@ -92,9 +92,12 @@ export function usePostViews(type: PostViewType, opts?: { enabled?: boolean }) {
     try {
       const current = viewsRef.current[id] ?? 0;
       const next = await recordPostView(typeRef.current, id, current);
-      if (!aliveRef.current) return;
       pendingRef.current[id] = next;
-      scheduleFlush();
+      if (aliveRef.current) {
+        scheduleFlush();
+      } else {
+        flushPending();
+      }
     } finally {
       inflightRef.current.delete(id);
     }

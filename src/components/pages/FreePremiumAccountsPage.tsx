@@ -266,8 +266,8 @@ const PremiumAccountCard: React.FC<{
 
   useEffect(() => {
     let active = true;
-    recordAccountView(account.id).then((v) => {
-      if (active && v > 0) setViews(v);
+    recordAccountView(account.id, account.views ?? 0).then((v) => {
+      if (active) setViews(v);
     });
     return () => { active = false; };
   }, [account.id]);

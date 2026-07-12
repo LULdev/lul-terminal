@@ -1,6 +1,6 @@
 # LUL Terminal
 
-[![Version](https://img.shields.io/badge/version-3.38.0-blue)](package.json)
+[![Version](https://img.shields.io/badge/version-3.38.1-blue)](package.json)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-green)](package.json)
 [![License](https://img.shields.io/badge/license-Apache--2.0-orange)](LICENSE)
 
@@ -287,7 +287,7 @@ npm run build && npm start
 
 ## Sicherheit & Härtung (v3.36.x)
 
-Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Aktuelle Version: **3.38.0**. Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
+Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Aktuelle Version: **3.38.1**. Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
 
 ### Wichtige Sicherheitsmaßnahmen
 
