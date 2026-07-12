@@ -252,6 +252,21 @@ export function UnifiedTerminalPanel({
   }, [isLoggedIn, pollEnabled]);
 
   useEffect(() => {
+    if (chatStatus !== 'gated' || !pollEnabled || !isLoggedIn) return;
+    const probe = setInterval(() => {
+      if (!document.hidden) void loadMessages(false);
+    }, 60_000);
+    const onVisible = () => {
+      if (!document.hidden) void loadMessages(false);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(probe);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [chatStatus, pollEnabled, isLoggedIn, loadMessages]);
+
+  useEffect(() => {
     if (!pollEnabled || !isLoggedIn || chatStatus === 'gated') return;
     initialDoneRef.current = false;
     lobbyUpdatedAtRef.current = null;

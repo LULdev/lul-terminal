@@ -76,7 +76,7 @@ const ACCENT_STYLES: Record<string, { iconBox: string; iconColor: string; mono: 
 
 const DEFAULT_ACCENT = ACCENT_STYLES['text-indigo-400'];
 
-function PageViewCounter({ views }: { views: number }) {
+function PageViewCounter({ views }: { views: number | null }) {
   return (
     <div
       className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-emerald-500/25 bg-emerald-500/10 shrink-0 shadow-[0_0_12px_rgba(52,211,153,0.08)]"
@@ -87,7 +87,7 @@ function PageViewCounter({ views }: { views: number }) {
       </div>
       <div className="leading-none pr-0.5">
         <span className="text-[11px] font-mono font-bold text-emerald-200 tabular-nums">
-          {views.toLocaleString('en-US')}
+          {views == null ? '—' : views.toLocaleString('en-US')}
         </span>
         <span className="text-[6px] font-mono text-emerald-400/70 uppercase tracking-wider block mt-0.5">
           views

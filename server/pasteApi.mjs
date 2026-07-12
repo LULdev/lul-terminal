@@ -134,6 +134,11 @@ async function countPasteViewDeduped(req, pasteId, { consumeBurn = false } = {})
   await attachAuth(req);
   const viewerId = req.auth?.user?.id ?? null;
   return runCoinTransaction(async () => {
+    const earlyMeta = await loadAlive(pasteId);
+    if (!earlyMeta) return null;
+    if (viewerId && earlyMeta.userId && String(earlyMeta.userId) === String(viewerId)) {
+      return { views: earlyMeta.views ?? 0, burned: false, deduped: true, selfView: true, meta: earlyMeta };
+    }
     let countMeta = true;
     if (viewerId) {
       const db = await loadUsersDb();

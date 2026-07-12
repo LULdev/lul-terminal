@@ -17,6 +17,7 @@ import {
   assertCanChat,
   assertCanModerateShoutboxTarget,
   reserveChatRateLimit,
+  rollbackChatRateLimit,
   getActivityFlag,
   setActivityFlag,
 } from './chatGuards.mjs';
@@ -279,9 +280,13 @@ export async function executeChatCommand(user, rawText) {
 
   if (!body.startsWith('/')) {
     if (body.length > MAX_MESSAGE_LEN) throw new Error(`Message too long (max ${MAX_MESSAGE_LEN})`);
-    await reserveChatRateLimit(user.id);
-    const message = await pushChatMessage(user, { text: body, kind: 'chat' });
-    return message;
+    const prevCooldown = await reserveChatRateLimit(user.id);
+    try {
+      return await pushChatMessage(user, { text: body, kind: 'chat' });
+    } catch (e) {
+      await rollbackChatRateLimit(user.id, prevCooldown);
+      throw e;
+    }
   }
 
   const withoutSlash = body.slice(1).trim();
@@ -293,8 +298,13 @@ export async function executeChatCommand(user, rawText) {
   const args = rest ? rest.split(/\s+/) : [];
 
   const runCmd = async (fn) => {
-    await reserveChatRateLimit(user.id);
-    return fn();
+    const prevCooldown = await reserveChatRateLimit(user.id);
+    try {
+      return await fn();
+    } catch (e) {
+      await rollbackChatRateLimit(user.id, prevCooldown);
+      throw e;
+    }
   };
 
   switch (cmd) {

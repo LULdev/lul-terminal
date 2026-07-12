@@ -12,8 +12,10 @@ import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { ALL_MANAGEABLE_TAB_IDS } from './accessControlStore.mjs';
 import { recordTabVisitFromAnalytics } from './auth/authService.mjs';
+import { loadSessionsDb } from './auth/authStore.mjs';
 import {
   markTabDwellIntegrity,
+  MIN_DWELL_MS,
   rollbackTabVisitCredit,
   tryClaimTabVisitCredit,
 } from './analyticsTabIntegrity.mjs';
@@ -93,17 +95,37 @@ export async function handleAnalyticsRequest(req, res) {
       }
       if (eventType === 'tab_dwell' && persistTab && req.auth?.token) {
         const dwellSec = Number(meta.dwellSec) || 0;
-        if (dwellSec >= 2) {
-          await markTabDwellIntegrity(req.auth.token, persistTab);
+        const sessionsDb = await loadSessionsDb();
+        const session = sessionsDb.sessions.find((s) => s.token === req.auth.token);
+        if (
+          !session
+          || session.expiresAt <= Date.now()
+          || String(session.analyticsLastTab ?? '') !== persistTab
+          || dwellSec < 2
+        ) {
+          persistTab = null;
+        } else {
+          const lastVisitAt = Number(session.analyticsLastVisitAt) || 0;
+          if (lastVisitAt > 0 && Date.now() - lastVisitAt < MIN_DWELL_MS) {
+            persistTab = null;
+          } else {
+            await markTabDwellIntegrity(req.auth.token, persistTab);
+          }
         }
       }
 
-      if (eventType === 'profile_view' || eventType === 'command_run') {
+      if (
+        eventType === 'profile_view'
+        || eventType === 'command_run'
+        || eventType === 'login'
+        || eventType === 'logout'
+        || (eventType === 'session_start' && req.auth?.user)
+      ) {
         return sendJson(res, 201, { ok: true, eventId: null, user: null, proof: null });
       }
 
       if (tabGatedTypes.has(eventType) && !persistTab) {
-        return sendJson(res, 201, { ok: true, eventId: null, user: null, proof: null });
+        return sendJson(res, 201, { ok: false, eventId: null, user: null, proof: null });
       }
 
       const eventBase = {
@@ -141,10 +163,10 @@ export async function handleAnalyticsRequest(req, res) {
             return sendJson(res, 201, { ok: true, eventId: null, user: null, proof: null });
           }
           try {
+            event = await recordEvent(eventBase);
             const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, persistTab, { forceRemint });
             userPayload = visitResult?.user ?? null;
             proofPayload = visitResult?.proof ?? null;
-            event = await recordEvent(eventBase);
           } catch (sideErr) {
             if (claim.snapshot) {
               await rollbackTabVisitCredit(req.auth.token, claim.snapshot);
@@ -216,7 +238,7 @@ export async function handleAnalyticsRequest(req, res) {
       const adminKey = req.auth?.user?.id ?? clientIp(req);
       await checkRateLimit(`analytics-admin-act:${adminKey}`, { max: 10, windowMs: 60_000 });
       const body = await readJsonBody(req);
-      const keep = Number(body.keep) || 2000;
+      const keep = Math.max(1, Math.min(Number(body.keep) || 2000, 50_000));
       return sendJson(res, 200, await purgeOldEvents(keep));
     }
 

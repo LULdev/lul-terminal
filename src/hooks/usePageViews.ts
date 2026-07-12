@@ -10,7 +10,7 @@ import { useVisibilityAwarePoll } from './useVisibilityAwarePoll';
 
 export function usePageViews(pageId: string | undefined, enabled = true) {
   const { isLoggedIn } = useAuth();
-  const [views, setViews] = useState(0);
+  const [views, setViews] = useState<number | null>(null);
   const loadGenRef = useRef(0);
   const mountedRef = useRef(true);
 
@@ -30,17 +30,17 @@ export function usePageViews(pageId: string | undefined, enabled = true) {
 
   useEffect(() => {
     if (!pageId || !enabled) {
-      setViews(0);
+      setViews(null);
       return;
     }
     const gen = ++loadGenRef.current;
     if (!isLoggedIn) {
-      setViews(0);
+      setViews(null);
       return;
     }
     recordPageView(pageId)
       .then((v) => { if (gen === loadGenRef.current && mountedRef.current) setViews(v); })
-      .catch(() => { if (gen === loadGenRef.current && mountedRef.current) refresh(); });
+      .catch(() => { if (gen === loadGenRef.current && mountedRef.current) void refresh(); });
   }, [pageId, enabled, isLoggedIn, refresh]);
 
   useVisibilityAwarePoll(refresh, 10_000, Boolean(pageId && enabled && isLoggedIn));

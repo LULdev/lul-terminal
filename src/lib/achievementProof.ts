@@ -20,7 +20,7 @@ export function requestAchievementProofRemint() {
 
 export function takeAchievementProofRemintRequest(): boolean {
   if (remintRequestCount <= 0) return false;
-  remintRequestCount -= 1;
+  remintRequestCount = 0;
   return true;
 }
 

@@ -163,6 +163,10 @@ export async function uploadHostedImage(
 
   const dims = await readImageDimensions(file);
   const data = await fileToBase64(file);
+  const estimatedBytes = Math.floor((data.length * 3) / 4);
+  if (estimatedBytes > MAX_IMAGE_BYTES) {
+    throw new Error(`Maximum ${(MAX_IMAGE_BYTES / 1024 / 1024).toFixed(0)} MB per image.`);
+  }
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -227,7 +231,7 @@ export async function recordImageView(id: string): Promise<number> {
         const res = await sessionFetch(`${API}/${id}/view`, { method: 'POST' });
         if (res.ok) {
           const data = await res.json() as { views: number; deduped?: boolean };
-          if (!data.deduped) sessionStorage.setItem(sessionKey, '1');
+          sessionStorage.setItem(sessionKey, '1');
           return data.views;
         }
       } catch { /* fall through */ }

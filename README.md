@@ -1,6 +1,6 @@
 # LUL Terminal
 
-[![Version](https://img.shields.io/badge/version-3.36.95-blue)](package.json)
+[![Version](https://img.shields.io/badge/version-3.36.98-blue)](package.json)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-green)](package.json)
 [![License](https://img.shields.io/badge/license-Apache--2.0-orange)](LICENSE)
 
@@ -271,7 +271,7 @@ npm run build && npm start
 
 ## Sicherheit & Härtung (v3.36.x)
 
-Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Aktuelle Version: **3.36.95**. Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
+Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Aktuelle Version: **3.36.98**. Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
 
 ### Wichtige Sicherheitsmaßnahmen
 
@@ -285,7 +285,7 @@ Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client).
 | **Guest View-Dedup** | Anonyme Paste/Image-Views pro IP+Resource (`data/analytics/guest-views.json`); fail-open/fail-closed per Env |
 | **Achievements** | Server-minted Proof (120s TTL, Single-Slot); Tab-Integrity-Kette |
 | **Avatare / Cover** | Server-Allowlist + 2 MB Cap; Client `safeAvatarUrl` / `safeCoverStyle` |
-| **Analytics** | `guestId` serverseitig; `profile_view` / `command_run` nur serverseitig; `tab_visit` atomisch |
+| **Analytics** | `guestId` serverseitig; `profile_view` / `command_run` / `login` / `logout` nur serverseitig; `tab_visit` atomisch; denied `tab_visit` → `ok:false` |
 | **Chat / Shoutbox** | **Immer Login + `assertCanChat`** — auch wenn Fun-Tab öffentlich ist |
 | **Registrierung** | Challenge + Signal-Registry; fail-closed bei unbekannter IP (Prod) |
 | **Premium Vault** | AES-GCM mit `PREMIUM_VAULT_KEY`; Bulk-Import im Admin-Panel |
@@ -316,6 +316,8 @@ REDIS_URL=redis://127.0.0.1:6379
 - **Lesen und Schreiben** der Shoutbox erfordert Login + aktiven Account + `assertCanChat` (kein Bann/Mute).
 - Öffentlicher **Fun-Tab** in Page Visibility öffnet nur die UI — **Chat-API bleibt members-only**.
 - Terminal-Shoutbox pollt nur wenn eingeloggt **und** Terminal-Panel expandiert (jeder Tab).
+- Bei `gated` (403): schneller Poll stoppt; **60s Recovery-Poll** + Probe bei Tab-Visibility.
+- Chat-Cooldown wird bei fehlgeschlagenem Message-Write **zurückgerollt** (`rollbackChatRateLimit`).
 - Nachrichten max. **280 Zeichen** (Client + Server).
 
 ### Profile Views & Tab-Integrity
@@ -327,7 +329,9 @@ REDIS_URL=redis://127.0.0.1:6379
 | **Dwell-Gate** | Mind. **2s** seit letztem `tab_visit` auf Profile-Tab |
 | **Burst-Cap** | Max. **5** unique credited Views pro Profile-Tab-Stint (`profileViewCreditsUsed`) |
 | **Client-Sync** | `profileTabReadyTick` wartet auf erfolgreichen `tab_visit` vor POST `/view` |
-| **Dedup** | Session-Dedup nur bei `credited: true`; inflight-Coalescing gegen Doppel-POSTs |
+| **Dedup** | Session-Dedup bei jedem erfolgreichen POST (auch `credited: false` / `deduped: true`); inflight-Coalescing |
+| **Soft-401** | Profile-View-POST nutzt plain `fetch` — 401 erzwingt kein globales Logout |
+| **Username-Wechsel** | In-Tab `@user`-Wechsel resettet `profileTabReadyTick` und erzwingt neuen `tab_visit` |
 
 ### Achievement Proof (Anti-Farm)
 
@@ -348,11 +352,17 @@ Anonyme Views auf Paste/Image werden in `data/analytics/guest-views.json` dedupl
 | `1` (Standard) | View zählen (fail-open — kein Under-Count) |
 | `0` | View nicht zählen (fail-closed) |
 
+Paste- und Image-**Owner-Self-Views** zählen nicht (Dedup wie bei Image Host seit v3.36.98).
+
 ### Analytics-Integrität
 
-- Client-`track` für `profile_view` und `command_run` wird **abgelehnt** — nur Server schreibt diese Events.
+- Client-`track` für `profile_view`, `command_run`, `login` und `logout` wird **abgelehnt** — nur Server schreibt diese Events.
+- `login` / `logout` / `session_start` (nach Login) werden in `authApi.mjs` beim Login/Logout persistiert.
 - `profile_view` bei credited `incrementProfileView`; `command_run` bei `recordTerminalCommand`.
-- Gäste: kein `tab_dwell` persistiert; Page-View-Counter nur für eingeloggte User (kein `sessionFetch`-401-Spam).
+- Gäste: `session_start` weiterhin clientseitig (einmal pro Mount); kein `tab_dwell` persistiert.
+- `tab_dwell` nur wenn `session.analyticsLastTab` passt und ≥2s Dwell seit `tab_visit`.
+- Abgelehnte/gated `tab_visit`/`tab_dwell`: API antwortet `ok:false` (Client aktualisiert Tab-Refs nicht).
+- `recordEvent` vor `recordTabVisitFromAnalytics` — kein orphan User-Activity bei Event-Fehler.
 
 ### Admin: Premium Account Vault
 

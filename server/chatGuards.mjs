@@ -35,6 +35,7 @@ export function setActivityFlag(act, key, value) {
 
 /** Atomically enforce shoutbox cooldown and reserve the next send slot. */
 export async function reserveChatRateLimit(userId) {
+  let previousLast = 0;
   await runCoinTransaction(async () => {
     const db = await loadUsersDb();
     const user = db.users.find((u) => u.id === userId);
@@ -44,7 +45,28 @@ export async function reserveChatRateLimit(userId) {
     if (Date.now() - last < MIN_SEND_INTERVAL_MS) {
       throw new Error('Please wait a few seconds before sending another message');
     }
+    previousLast = last;
     setActivityFlag(act, 'lastChatActionAt', Date.now());
+    user.updatedAt = Date.now();
+    await saveUsersDb(db);
+  });
+  return previousLast;
+}
+
+/** Restore cooldown slot when message write fails after reserveChatRateLimit. */
+export async function rollbackChatRateLimit(userId, previousLast) {
+  await runCoinTransaction(async () => {
+    const db = await loadUsersDb();
+    const user = db.users.find((u) => u.id === userId);
+    if (!user) return;
+    const act = ensureActivity(user);
+    if (previousLast > 0) {
+      setActivityFlag(act, 'lastChatActionAt', previousLast);
+    } else {
+      const flags = { ...(act.flags ?? {}) };
+      delete flags.lastChatActionAt;
+      act.flags = flags;
+    }
     user.updatedAt = Date.now();
     await saveUsersDb(db);
   });

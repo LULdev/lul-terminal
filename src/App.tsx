@@ -235,12 +235,19 @@ export default function App() {
     if (authSuccessTick < 1 || !isLoggedIn) return;
     tabTrackForceRef.current = true;
     lastTrackedTabRef.current = null;
+    changelogVisitSynced.current = false;
     visitorCtxRef.current = collectVisitorContext(true);
   }, [authSuccessTick, isLoggedIn]);
 
   useEffect(() => {
     if (renderTab !== 'profile') setProfileTabReadyTick(0);
   }, [renderTab]);
+
+  useEffect(() => {
+    if (renderTab !== 'profile' || !profileUsername) return;
+    lastTrackedTabRef.current = null;
+    setProfileTabReadyTick(0);
+  }, [profileUsername, renderTab]);
 
   const changelogVisitSynced = useRef(false);
   useEffect(() => {

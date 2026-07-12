@@ -5,7 +5,7 @@
 
 import { loadSessionsDb, saveSessionsDb, withSessionsWrite } from './auth/authStore.mjs';
 
-const MIN_DWELL_MS = 2000;
+export const MIN_DWELL_MS = 2000;
 export const PROFILE_VIEW_BURST_CAP = 5;
 
 /** Whether a tab_visit may trigger achievement side effects (blocks spoofed tab bursts). */

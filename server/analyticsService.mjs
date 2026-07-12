@@ -397,10 +397,11 @@ export async function exportAnalyticsBundle() {
 }
 
 export async function purgeOldEvents(keep = 2000) {
+  const capped = Math.max(1, Math.min(Number(keep) || 2000, MAX_EVENTS));
   return withAnalyticsWrite(async () => {
     const db = await loadEventsDb();
     const before = db.events.length;
-    db.events = db.events.slice(-Math.min(keep, MAX_EVENTS));
+    db.events = db.events.slice(-capped);
     await saveEventsDb(db);
     return { before, after: db.events.length, removed: before - db.events.length };
   });

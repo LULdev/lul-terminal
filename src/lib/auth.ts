@@ -92,9 +92,14 @@ export async function recordProfileView(
       if (!opts.skipDwell) await waitForProfileDwell();
       for (let attempt = 0; attempt < 5; attempt++) {
         try {
-          const res = await sessionFetch(`${API}/users/${encodeURIComponent(uname)}/view`, {
+          const res = await fetch(`${API}/users/${encodeURIComponent(uname)}/view`, {
             method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
           });
+          if (res.status === 401) {
+            return { user: await fetchPublicProfile(uname), credited: false };
+          }
           if (res.status === 429) {
             const waitMs = Math.min(parseRetryAfterMs(res.headers.get('Retry-After'), 2000), 30_000);
             await new Promise((r) => setTimeout(r, waitMs));
@@ -102,13 +107,9 @@ export async function recordProfileView(
           }
           if (res.ok) {
             const data = await res.json() as { user: PublicProfile; credited?: boolean };
+            sessionStorage.setItem(sessionKey, '1');
             if (data.credited) {
-              sessionStorage.setItem(sessionKey, '1');
               return { user: data.user, credited: true };
-            }
-            if (attempt < 4) {
-              await new Promise((r) => setTimeout(r, 600));
-              continue;
             }
             return { user: data.user, credited: false };
           }

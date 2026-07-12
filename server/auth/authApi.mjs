@@ -96,6 +96,20 @@ export function requireRole(req, minChecker) {
   return user;
 }
 
+async function recordAuthLifecycleEvent(req, type, user, token) {
+  const { recordEvent } = await import('../analyticsService.mjs');
+  const ip = clientIp(req);
+  await recordEvent({
+    type,
+    userId: user?.id ?? null,
+    username: user?.username ?? null,
+    guestId: null,
+    sessionId: token?.slice(0, 16) ?? user?.id ?? null,
+    tab: null,
+    meta: { ip },
+  }).catch(() => {});
+}
+
 export async function handleAuthRequest(req, res) {
   const url = new URL(req.url, 'http://localhost');
   const pathname = url.pathname;
@@ -159,6 +173,8 @@ export async function handleAuthRequest(req, res) {
       await checkRateLimit(`login:${clientIp(req)}`, { max: 25, windowMs: 15 * 60_000 });
       const body = await readJsonBody(req);
       const result = await loginUser(body);
+      await recordAuthLifecycleEvent(req, 'login', result.user, result.token);
+      await recordAuthLifecycleEvent(req, 'session_start', result.user, result.token);
       setSessionCookie(res, result.token, result.maxAgeSec);
       const { countAccountsByCreator } = await import('../premiumAccountsService.mjs');
       const accountsSubmitted = await countAccountsByCreator(result.user.id);
@@ -179,6 +195,9 @@ export async function handleAuthRequest(req, res) {
 
     if (req.method === 'POST' && pathname === '/api/auth/logout') {
       await checkRateLimit(`logout:${clientIp(req)}`, { max: 30, windowMs: 60_000 });
+      if (req.auth?.user) {
+        await recordAuthLifecycleEvent(req, 'logout', req.auth.user, req.auth.token);
+      }
       await logoutUser(req.auth.token);
       clearSessionCookie(res);
       return sendJson(res, 200, { ok: true });

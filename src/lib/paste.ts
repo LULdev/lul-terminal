@@ -227,7 +227,7 @@ export async function recordPasteView(id: string): Promise<{ views: number; burn
         const res = await sessionFetch(`${API}/${id}/view`, { method: 'POST' });
         if (res.ok) {
           const data = await res.json() as { views: number; burned: boolean; deduped?: boolean };
-          if (!data.deduped) sessionStorage.setItem(sessionKey, '1');
+          sessionStorage.setItem(sessionKey, '1');
           return data;
         }
       } catch { /* fall through */ }

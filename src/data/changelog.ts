@@ -23,6 +23,29 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.98',
+    title: 'Extreme deep audit — round 36 (analytics integrity + client dedup)',
+    date: 'Jul 13, 2026 - 00:00',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — Denied tab_visit/tab_dwell returns ok:false (no client ref drift).' },
+      { priority: 'P1', text: 'P1 — recordEvent before recordTabVisitFromAnalytics; session rollback on failure.' },
+      { priority: 'P1', text: 'P1 — recordProfileView sets session key on any ok POST (stops uncredited retry storm).' },
+      { priority: 'P2', text: 'P2 — tab_dwell gated on session.analyticsLastTab + MIN_DWELL_MS.' },
+      { priority: 'P2', text: 'P2 — login/logout/session_start server-only; emitted from auth API on login/logout.' },
+      { priority: 'P2', text: 'P2 — View session keys set on any successful POST (page/image/paste).' },
+      { priority: 'P2', text: 'P2 — Shoutbox gated recovery poll (60s) + visibility probe.' },
+      { priority: 'P2', text: 'P2 — profileUsername change resets profileTabReadyTick + tab_visit.' },
+      { priority: 'P3', text: 'P3 — Paste owner self-views skipped (parity with image host).' },
+      { priority: 'P3', text: 'P3 — postViews dedup flag uses full sanitized id.' },
+      { priority: 'P3', text: 'P3 — Profile view POST soft-401 (no global logout); chat uses shared Retry-After parser.' },
+      { priority: 'P4', text: 'P4 — Image upload base64 size guard; usePageViews null on auth failure.' },
+      { priority: 'P5', text: 'P5 — purgeOldEvents keep clamped; chat cooldown rollback on write failure.' },
+      { priority: 'P8', text: 'P8 — !ping host capped at 200 chars; remint request drains all pending.' },
+      { priority: 'P9', text: 'P9 — Round 36 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.97',
     title: 'Extreme deep audit — round 35 (tab tracking + API hardening)',
     date: 'Jul 12, 2026 - 23:00',

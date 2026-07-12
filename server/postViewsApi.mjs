@@ -56,7 +56,7 @@ export async function handlePostViewsRequest(req, res) {
       const viewer = requireAuth(req);
       const bucket = type === 'news' ? 'news' : 'changelog';
       await requireMemberTab(req, bucket);
-      const flagKey = `post_view_${bucket}_${id.slice(0, 32)}`;
+      const flagKey = `post_view_${bucket}_${id}`;
 
       const result = await runCoinTransaction(async () => {
         const db = await loadUsersDb();

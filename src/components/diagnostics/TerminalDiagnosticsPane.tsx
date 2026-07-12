@@ -437,7 +437,7 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
       `.trim();
         appendLog(cow, 'success');
       } else if (query.startsWith('ping ')) {
-        const host = body.slice(5).trim();
+        const host = body.slice(5).trim().slice(0, 200);
         if (!host) {
           appendLog('❌ Error: Specify a host to ping.', 'warn');
         } else {
