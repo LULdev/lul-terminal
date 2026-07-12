@@ -305,7 +305,10 @@ export function MemeEditor({ template, onBack, onMemeCreated }: Props) {
     return new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
   }, [drawCanvas]);
 
+  const announcedTemplateRef = useRef<string | null>(null);
+
   const announceMemeExport = useCallback(async () => {
+    if (announcedTemplateRef.current === template.id) return;
     onMemeCreated?.();
     if (!isLoggedIn) return;
     try {
@@ -319,10 +322,15 @@ export function MemeEditor({ template, onBack, onMemeCreated }: Props) {
         memeImageId: meta.id,
         templateId: template.id,
       });
+      announcedTemplateRef.current = template.id;
     } catch {
       /* shoutbox announce is best-effort */
     }
   }, [getPngBlob, isLoggedIn, onMemeCreated, template.id, template.name]);
+
+  useEffect(() => {
+    announcedTemplateRef.current = null;
+  }, [template.id]);
 
   const downloadPng = useCallback(async () => {
     const blob = await getPngBlob();

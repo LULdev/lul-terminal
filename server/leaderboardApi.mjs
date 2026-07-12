@@ -4,6 +4,7 @@
  */
 
 import { wrapAsyncHandler } from './asyncMiddleware.mjs';
+import { requireMemberTab } from './tabAccessGuard.mjs';
 import { getLeaderboardsWithSync } from './leaderboardService.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 
@@ -23,6 +24,7 @@ export async function handleLeaderboardRequest(req, res) {
   }
   try {
     checkRateLimit(`leaderboards:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+    await requireMemberTab(req, 'leaderboard');
     const data = await getLeaderboardsWithSync();
     sendJson(res, 200, data);
   } catch (e) {

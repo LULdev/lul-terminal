@@ -10,7 +10,13 @@ import { countAccountsByCreator } from '../premiumAccountsService.mjs';
 import { getAcceptedNotWorkingForCreator } from '../premiumAccountsReports.mjs';
 import { saveUserAvatar } from './avatarStore.mjs';
 import { buildUnlockPayload } from '../achievementCoinRewards.mjs';
-import { ACHIEVEMENT_PROOF_INELIGIBLE_TABS, consumeAchievementProof, mintAchievementProof } from './achievementProof.mjs';
+import {
+  ACHIEVEMENT_PROOF_INELIGIBLE_TABS,
+  clearAchievementProofFlags,
+  consumeAchievementProof,
+  hasValidAchievementProof,
+  mintAchievementProof,
+} from './achievementProof.mjs';
 import { applyActivityCtx, ensureActivity, grantFirstLogin, normalizeSocialLinks, syncAchievements } from './achievements.mjs';
 import { sanitizeAvatarUrl, sanitizeCoverUrl, sanitizeExternalUrl } from './safeMediaUrl.mjs';
 import { countActiveAdmins, enrichUserForClient, isEffectivelyActive, publicProfileView } from './permissions.mjs';
@@ -313,6 +319,14 @@ export async function logoutUser(token) {
       console.warn('[auth] logout arcade cleanup incomplete', { userId, errors: cleanup.errors });
       throw new Error(arcadeCleanupError(cleanup));
     }
+    await withUsersWrite(async () => {
+      const db = await loadUsersDb();
+      const user = db.users.find((u) => u.id === userId);
+      if (user) {
+        clearAchievementProofFlags(user);
+        await saveUsersDb(db);
+      }
+    });
   }
 
   await withSessionsWrite(async () => {
@@ -405,7 +419,7 @@ export async function uploadUserAvatar(userId, { mime, buffer }) {
 }
 
 /** Server-only tab visit recording (analytics tab_visit pipeline; activity tallies only). */
-export async function recordTabVisitFromAnalytics(userId, tab) {
+export async function recordTabVisitFromAnalytics(userId, tab, { forceRemint = false } = {}) {
   const safeTab = String(tab ?? '').slice(0, 24);
   if (!ALL_MANAGEABLE_TAB_IDS.includes(safeTab)) return null;
   return runCoinTransaction(async () => {
@@ -414,8 +428,11 @@ export async function recordTabVisitFromAnalytics(userId, tab) {
     if (!user || user.role === 'bot') return null;
     if (safeTab === 'admin' && !canAccessAdmin(user)) return null;
     const touched = applyActivityCtx(user, { visitedTab: safeTab });
+    const missingProof = !hasValidAchievementProof(user, safeTab);
+    const shouldMint = !ACHIEVEMENT_PROOF_INELIGIBLE_TABS.has(safeTab)
+      && (touched || forceRemint || missingProof);
     let proof = null;
-    if (touched) {
+    if (shouldMint) {
       try {
         checkRateLimit(`ach-proof-mint:${userId}`, { max: 10, windowMs: 60_000 });
         proof = mintAchievementProof(user, safeTab);

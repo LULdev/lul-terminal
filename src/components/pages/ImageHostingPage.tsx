@@ -71,6 +71,10 @@ export function ImageHostingPage() {
     return pollImageMeta(result.id, (m) => setLiveViews(m.views ?? 0), 3000);
   }, [result?.id]);
 
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview);
+  }, [preview]);
+
   const reset = useCallback(() => {
     setPhase('idle');
     setProgress(0);

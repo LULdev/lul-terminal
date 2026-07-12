@@ -56,7 +56,7 @@ import {
   InviteFriendsPage,
 } from './components/pages';
 import * as authApi from './lib/auth';
-import { setAchievementProof, takeAchievementProof } from './lib/achievementProof';
+import { commitAchievementProof, peekAchievementProof, setAchievementProof } from './lib/achievementProof';
 import { trackEvent } from './lib/analytics';
 import { collectVisitorContext, visitorContextToMeta } from './lib/visitorContext';
 
@@ -163,8 +163,11 @@ export default function App() {
   const isLoggedInRef = useRef(isLoggedIn);
   isLoggedInRef.current = isLoggedIn;
   useEffect(() => {
+    if (authLoading || visibilityLoading) return;
+    if (activeTab !== renderTab) return;
+    const trackedTab = renderTab;
     const prevTab = lastTrackedTabRef.current;
-    if (prevTab !== null && prevTab !== activeTab) {
+    if (prevTab !== null && prevTab !== trackedTab) {
       const dwellSec = Math.round((Date.now() - tabEnteredAtRef.current) / 1000);
       if (dwellSec >= 2) {
         trackEvent('tab_dwell', { tab: prevTab, meta: { dwellSec } }).catch(() => {});
@@ -172,19 +175,19 @@ export default function App() {
     }
     const forceTrack = tabTrackForceRef.current;
     if (forceTrack) tabTrackForceRef.current = false;
-    if (!forceTrack && lastTrackedTabRef.current === activeTab) return;
-    lastTrackedTabRef.current = activeTab;
+    if (!forceTrack && lastTrackedTabRef.current === trackedTab) return;
+    lastTrackedTabRef.current = trackedTab;
     tabEnteredAtRef.current = Date.now();
-    const type = activeTab === 'faq' ? 'faq_visit' : 'tab_visit';
+    const type = trackedTab === 'faq' ? 'faq_visit' : 'tab_visit';
     const baseMeta = visitorCtxRef.current ? visitorContextToMeta(visitorCtxRef.current) : {};
-    if (activeTab === 'news' || activeTab === 'changelog') {
-      notifyFeedRead(activeTab);
+    if (trackedTab === 'news' || trackedTab === 'changelog') {
+      notifyFeedRead(trackedTab);
       if (isLoggedIn && user) {
-        if (activeTab === 'changelog' && user.changelogLastReadVersion !== APP_VERSION) {
+        if (trackedTab === 'changelog' && user.changelogLastReadVersion !== APP_VERSION) {
           markLocalChangelogRead();
           patchUser((prev) => (prev ? { ...prev, changelogLastReadVersion: APP_VERSION } : prev));
         } else if (
-          activeTab === 'news'
+          trackedTab === 'news'
           && newsFeedVersion !== '0.0.0'
           && user.newsLastReadVersion !== newsFeedVersion
         ) {
@@ -194,14 +197,21 @@ export default function App() {
       }
     }
     const trackGen = ++tabTrackGenRef.current;
-    trackEvent(type, { tab: activeTab, meta: { ...baseMeta, visitCount: visitorCtxRef.current?.visitCount } })
+    trackEvent(type, {
+      tab: trackedTab,
+      meta: {
+        ...baseMeta,
+        visitCount: visitorCtxRef.current?.visitCount,
+        ...(forceTrack ? { forceRemint: true } : {}),
+      },
+    })
       .then((r) => {
         if (trackGen !== tabTrackGenRef.current || !isLoggedInRef.current) return;
-        if (r?.proof) setAchievementProof(r.proof);
+        if (r?.proof && r.proof.tab === trackedTab) setAchievementProof(r.proof);
         if (r?.user) patchUser(r.user);
       })
       .catch(() => {});
-  }, [activeTab, patchUser, isLoggedIn, user, newsFeedVersion]);
+  }, [activeTab, renderTab, authLoading, visibilityLoading, patchUser, isLoggedIn, user, newsFeedVersion]);
 
   useEffect(() => {
     if (authSuccessTick < 1 || !isLoggedIn) return;
@@ -210,19 +220,19 @@ export default function App() {
   }, [authSuccessTick, isLoggedIn]);
 
   useEffect(() => {
-    if (!isLoggedIn || !user || activeTab !== 'news') return;
+    if (!isLoggedIn || !user || renderTab !== 'news') return;
     if (newsFeedVersion === '0.0.0') return;
     if (user.newsLastReadVersion === newsFeedVersion) return;
     markLocalNewsRead(newsFeedVersion);
     patchUser((prev) => (prev ? { ...prev, newsLastReadVersion: newsFeedVersion } : prev));
-  }, [activeTab, isLoggedIn, user, newsFeedVersion, patchUser]);
+  }, [renderTab, isLoggedIn, user, newsFeedVersion, patchUser]);
 
   const changelogVisitSynced = useRef(false);
   useEffect(() => {
-    if (activeTab !== 'changelog' || changelogVisitSynced.current) return;
+    if (renderTab !== 'changelog' || changelogVisitSynced.current) return;
     changelogVisitSynced.current = true;
     markChangelogVisited(isLoggedIn);
-  }, [activeTab, isLoggedIn]);
+  }, [renderTab, isLoggedIn]);
 
   // Cursor coordinate tracking (relative to viewport)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -389,7 +399,7 @@ export default function App() {
 
   // Tracking mouse position for fun tab only, throttled via requestAnimationFrame
   useEffect(() => {
-    if (activeTab !== 'fun') return;
+    if (renderTab !== 'fun') return;
 
     let rafId = 0;
     let latest = { x: 0, y: 0 };
@@ -407,7 +417,7 @@ export default function App() {
       window.removeEventListener('mousemove', setFromEvent);
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [activeTab]);
+  }, [renderTab]);
 
   // Self-destruct countdown tick timer
   useEffect(() => {
@@ -445,10 +455,11 @@ export default function App() {
     setCursorGrabbed(true);
     recordCatch();
     if (isLoggedIn) {
-      const proof = takeAchievementProof('fun');
+      const proof = peekAchievementProof('fun');
       if (proof) {
         authApi.recordAchievementEvent('claw_victim', proof)
           .then((data) => {
+            commitAchievementProof('fun');
             handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
             if (data.user) patchUser(data.user);
           })
@@ -470,19 +481,19 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (activeTab !== 'fun') {
+    if (renderTab !== 'fun') {
       setClawThreatLevel(0);
     }
-  }, [activeTab]);
+  }, [renderTab]);
 
   useEffect(() => {
     const wasGrabbed = prevCursorGrabbed.current;
     prevCursorGrabbed.current = cursorGrabbed;
-    if (wasGrabbed && !cursorGrabbed && clawThreatLevel >= 1 && activeTab === 'fun' && !gameOver) {
+    if (wasGrabbed && !cursorGrabbed && clawThreatLevel >= 1 && renderTab === 'fun' && !gameOver) {
       const regrabTimer = setTimeout(() => handleCursorGrabbed(), 1000);
       return () => clearTimeout(regrabTimer);
     }
-  }, [cursorGrabbed, clawThreatLevel, activeTab, gameOver]);
+  }, [cursorGrabbed, clawThreatLevel, renderTab, gameOver]);
 
   useEffect(() => {
     return () => {
@@ -613,7 +624,7 @@ export default function App() {
   const lastSyncedTabRef = useRef<TabId | null>(null);
 
   const handleTabClick = useCallback((tab: TabId, opts?: { profileUsername?: string }) => {
-    if (visibilityLoading) return;
+    if (authLoading || visibilityLoading) return;
     if (tab === 'admin' && !isAdmin) {
       playBeep(520, 0.06, 'sine');
       return;
@@ -637,7 +648,7 @@ export default function App() {
       lastSyncedTabRef.current = tab;
     }
     playBeep(740, 0.08, 'sine');
-  }, [activeTab, isLoggedIn, isAdmin, isPublicTab, requiresLogin, openLoginGate, profileUsername, playBeep, visibilityLoading]);
+  }, [activeTab, isLoggedIn, isAdmin, isPublicTab, requiresLogin, openLoginGate, profileUsername, playBeep, authLoading, visibilityLoading]);
 
 
   return (
@@ -679,7 +690,7 @@ export default function App() {
               activeTab={renderTab}
               onTabClick={handleTabClick}
               hudPanel={
-                activeTab === 'fun' ? (
+                renderTab === 'fun' ? (
                   <div
                     className="mt-6 mb-4 mx-1 bg-slate-950/80 border border-slate-800/80 p-3.5 rounded-lg font-mono text-[10px] leading-relaxed select-none text-slate-400 shadow-md"
                     id="debug-hud-panel"
@@ -866,7 +877,7 @@ export default function App() {
             />
 
             {/* Mount custom tracking physical claw inside sandbox bounds! */}
-            {activeTab === 'fun' && (
+            {renderTab === 'fun' && (
               <div className="grab-zone-wrapper">
                 <GrabZone 
                   cursorGrabbed={cursorGrabbed}

@@ -14,6 +14,7 @@ import {
   updateArticle,
 } from './newsStore.mjs';
 import { wrapAsyncHandler } from './asyncMiddleware.mjs';
+import { requireMemberTab } from './tabAccessGuard.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 
 function sendJson(res, status, body) {
@@ -41,12 +42,14 @@ export async function handleNewsRequest(req, res) {
   try {
     if (req.method === 'GET' && pathname === '/api/news/meta') {
       checkRateLimit(`news-meta:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await requireMemberTab(req, 'news');
       const feedVersion = await getNewsFeedVersion();
       return sendJson(res, 200, { feedVersion });
     }
 
     if (req.method === 'GET' && pathname === '/api/news') {
       checkRateLimit(`news-feed:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await requireMemberTab(req, 'news');
       const data = await listPublishedArticles();
       return sendJson(res, 200, data);
     }

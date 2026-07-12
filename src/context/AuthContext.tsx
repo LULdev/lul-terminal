@@ -149,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     return onSessionInvalidated(() => {
+      clearAchievementProofs();
       setUser(null);
       setPermissions(defaultPermissions);
       setAccountsSubmitted(0);

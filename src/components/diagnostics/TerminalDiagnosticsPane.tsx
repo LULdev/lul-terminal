@@ -15,7 +15,7 @@ import { formatTerminalCommand, isTerminalCommand, parseTerminalCommand } from '
 import { registerShoutboxDraft } from '../../lib/shoutboxDraft';
 import { registerShoutboxSend } from '../../lib/shoutboxSend';
 import { registerTerminalAppend } from '../../lib/terminalLogBridge';
-import { takeAchievementProof } from '../../lib/achievementProof';
+import { commitAchievementProof, peekAchievementProof } from '../../lib/achievementProof';
 import { getLiveStats } from '../../lib/liveStatsStore';
 import {
   ALL_COMMANDS_ALIASES,
@@ -114,13 +114,14 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
 
   const recordTerminalAchievement = useCallback((command: string) => {
     if (!isLoggedIn) return;
-    const proof = takeAchievementProof();
+    const proof = peekAchievementProof();
     if (!proof) {
       appendLogRef.current('⚠️ Achievement proof expired — switch tabs to refresh proof.', 'warn');
       return;
     }
     authApi.recordTerminalCommand(command, proof)
       .then((data) => {
+        commitAchievementProof();
         handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
         if (data.user) patchUser(data.user);
       })
@@ -137,6 +138,14 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [tempInput, setTempInput] = useState('');
+
+  useEffect(() => {
+    if (isLoggedIn) return;
+    setCommandHistory([]);
+    setHistoryIndex(-1);
+    setCommandInput('');
+    setTempInput('');
+  }, [isLoggedIn]);
 
   const appendLogRef = useRef<(msg: string, type?: LogLine['type'], commandToRun?: string) => void>(() => {});
   const sendChatRef = useRef<
@@ -526,6 +535,7 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
       setBsodActive,
       setIsShaking,
       commandHistory,
+      recordTerminalAchievement,
     ],
   );
 

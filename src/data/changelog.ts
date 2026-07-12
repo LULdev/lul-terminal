@@ -23,6 +23,26 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.86',
+    title: 'Extreme deep audit — round 26 (server/client/chat/news/paste)',
+    date: 'Jul 12, 2026 - 13:00',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — Tab analytics/proof keyed to renderTab (not spoofable activeTab deep links); forceRemint on login.' },
+      { priority: 'P1', text: 'P1 — Proof remint when missing/expired even on revisits; server forceRemint via meta.forceRemint.' },
+      { priority: 'P2', text: 'P2 — Claw/GrabZone mounts only on renderTab===fun; proof peek/commit (not burned on API failure).' },
+      { priority: 'P2', text: 'P2 — Server clears achProof* on logout; /api/analytics/me strips proof flags from activity.' },
+      { priority: 'P3', text: 'P3 — News/chat/leaderboard APIs gated with requireMemberTab (visibility bypass closed).' },
+      { priority: 'P3', text: 'P3 — Session invalidation clears proofs; shoutbox command history cleared on logout.' },
+      { priority: 'P3', text: 'P3 — Feed read side effects keyed to renderTab; handleTabClick blocks during authLoading.' },
+      { priority: 'P4', text: 'P4 — AVIF/BMP magic-byte validation enforced; ImageHosting preview blob revoked on unmount.' },
+      { priority: 'P4', text: 'P4 — MemeEditor shoutbox announce once per template per session (no download spam).' },
+      { priority: 'P5', text: 'P5 — Analytics unknown errors return 500; tab-visit failures logged (not silently swallowed).' },
+      { priority: 'P7', text: 'P7 — SSRF abbreviated IPv4 (127.1) normalized in assertSafeFetchUrl.' },
+      { priority: 'P9', text: 'P9 — Round 26 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.85',
     title: 'Extreme deep audit — round 25 (server/client/chat/news/paste)',
     date: 'Jul 12, 2026 - 12:00',

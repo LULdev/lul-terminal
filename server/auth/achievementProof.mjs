@@ -18,6 +18,25 @@ function safeCompareNonce(a, b) {
   return crypto.timingSafeEqual(left, right);
 }
 
+/** Whether user still has an unexpired proof nonce (optionally for a specific tab). */
+export function hasValidAchievementProof(user, tab = null) {
+  const act = ensureActivity(user);
+  const exp = Number(act.flags?.achProofExp) || 0;
+  const nonce = String(act.flags?.achProofNonce ?? '');
+  const proofTab = String(act.flags?.achProofTab ?? '');
+  if (!nonce || Date.now() > exp) return false;
+  if (tab && proofTab !== String(tab).slice(0, 24)) return false;
+  return true;
+}
+
+export function clearAchievementProofFlags(user) {
+  const act = ensureActivity(user);
+  if (!act.flags) return;
+  delete act.flags.achProofNonce;
+  delete act.flags.achProofExp;
+  delete act.flags.achProofTab;
+}
+
 /** Mint a single-use proof nonce after a server-recorded tab visit. */
 export function mintAchievementProof(user, tab) {
   const safeTab = String(tab ?? '').slice(0, 24);

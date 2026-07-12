@@ -80,11 +80,15 @@ export async function handleAnalyticsRequest(req, res) {
         try {
           await requireMemberTab(req, tab);
           checkRateLimit(`analytics-tab-visit:${req.auth.user.id}`, { max: 24, windowMs: 60_000 });
-          const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, tab);
+          const forceRemint = Boolean(body.meta?.forceRemint);
+          const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, tab, { forceRemint });
           userPayload = visitResult?.user ?? null;
           proofPayload = visitResult?.proof ?? null;
-        } catch {
-          /* analytics event recorded; tab visit / proof gated */
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : '';
+          if (!isRateLimitError(e) && msg !== 'Permission denied') {
+            console.warn('[analytics] tab visit side effect failed', e);
+          }
         }
       }
 
@@ -162,7 +166,7 @@ export async function handleAnalyticsRequest(req, res) {
           ? 401
           : e instanceof SyntaxError || msg === 'Payload too large'
             ? 400
-            : 400;
+            : 500;
     return sendJson(res, status, { error: msg });
   }
 }

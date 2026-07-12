@@ -174,6 +174,14 @@ function analyzeUserEvents(events) {
   };
 }
 
+function sanitizeActivityFlags(flags) {
+  const out = { ...(flags ?? {}) };
+  delete out.achProofNonce;
+  delete out.achProofExp;
+  delete out.achProofTab;
+  return out;
+}
+
 function userActivityRow(user) {
   const act = ensureActivity(user);
   return {
@@ -207,7 +215,7 @@ function userActivityRow(user) {
       newsReads: act.newsReads,
       newsLastReadVersion: act.newsLastReadVersion,
       tabsVisited: act.tabsVisited ?? [],
-      flags: act.flags ?? {},
+      flags: sanitizeActivityFlags(act.flags),
     },
     achievements: userAchievementIds(user.achievements).length,
     achievementIds: userAchievementIds(user.achievements),

@@ -9,6 +9,7 @@ import { handleChatActivity } from './chatActivity.mjs';
 import { listLobbyMessages, postLobbyMessage } from './chatService.mjs';
 import { getEmoteFile, listPublicEmotes } from './chatEmotesStore.mjs';
 import { wrapAsyncHandler } from './asyncMiddleware.mjs';
+import { requireMemberTab } from './tabAccessGuard.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 
 function sendJson(res, status, body) {
@@ -36,12 +37,14 @@ export async function handleChatRequest(req, res) {
   try {
     if (req.method === 'GET' && pathname === '/api/chat/emotes') {
       checkRateLimit(`chat-emotes:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
+      await requireMemberTab(req, 'fun');
       return sendJson(res, 200, await listPublicEmotes());
     }
 
     const fileMatch = pathname.match(/^\/api\/chat\/emotes\/files\/([a-f0-9]{12}\.(?:png|jpg|jpeg|gif|webp|svg))$/i);
     if (req.method === 'GET' && fileMatch) {
       checkRateLimit(`chat-emote-file:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
+      await requireMemberTab(req, 'fun');
       const hit = await getEmoteFile(fileMatch[1]);
       if (!hit) {
         res.statusCode = 404;
@@ -57,6 +60,7 @@ export async function handleChatRequest(req, res) {
 
     if (req.method === 'GET' && pathname === '/api/chat/lobby/messages') {
       checkRateLimit(`chat-poll:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
+      await requireMemberTab(req, 'fun');
       const since = Number(url.searchParams.get('since') ?? 0);
       const limit = Number(url.searchParams.get('limit') ?? 80);
       const data = await listLobbyMessages({ since, limit });

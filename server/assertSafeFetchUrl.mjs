@@ -62,8 +62,21 @@ function decodeIpLiteral(host) {
   return h;
 }
 
+function normalizeDottedIpv4(host) {
+  if (net.isIP(host)) return host;
+  const parts = String(host).split('.');
+  if (parts.length > 0 && parts.length < 4 && parts.every((p) => /^\d+$/.test(p))) {
+    const nums = parts.map(Number);
+    if (!nums.some((n) => n < 0 || n > 255)) {
+      while (nums.length < 4) nums.push(0);
+      return nums.join('.');
+    }
+  }
+  return host;
+}
+
 function assertHostAllowed(host) {
-  const decoded = decodeIpLiteral(host);
+  const decoded = normalizeDottedIpv4(decodeIpLiteral(host));
   if (BLOCKED_HOSTS.has(decoded)) throw new Error('Blocked URL host');
   if (decoded.endsWith('.local') || decoded.endsWith('.internal')) throw new Error('Blocked URL host');
   if (net.isIP(decoded) && isPrivateIp(decoded)) throw new Error('Blocked private IP');

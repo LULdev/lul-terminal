@@ -15,6 +15,11 @@ export function detectImageMime(buffer) {
   ) {
     return 'image/webp';
   }
+  if (buffer[0] === 0x42 && buffer[1] === 0x4d) return 'image/bmp';
+  if (buffer.length >= 12 && buffer.toString('ascii', 4, 8) === 'ftyp') {
+    const brand = buffer.toString('ascii', 8, 12);
+    if (brand === 'avif' || brand === 'avis') return 'image/avif';
+  }
   return null;
 }
 
