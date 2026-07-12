@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { attachAuth, requireRole } from './auth/authApi.mjs';
 import { canAccessAdmin } from './auth/permissions.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
@@ -359,17 +360,11 @@ export async function handleAdminRequest(req, res) {
 }
 
 export function createAdminMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname.startsWith('/api/admin/')) {
-      handleAdminRequest(req, res).catch((e) => {
-        if (!res.headersSent) {
-          const msg = e instanceof Error ? e.message : 'Server error';
-          sendJson(res, 500, { error: msg });
-        }
-      });
-      return;
+      return handleAdminRequest(req, res);
     }
     next();
-  };
+  });
 }

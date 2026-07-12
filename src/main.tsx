@@ -14,13 +14,17 @@ const pasteViewerId = parsePasteViewerId();
 
 createRoot(document.getElementById('root')!).render(
   imageViewerId ? (
-    <AuthProvider>
-      <ImageHostViewer id={imageViewerId} />
-    </AuthProvider>
+    <StrictMode>
+      <AuthProvider>
+        <ImageHostViewer id={imageViewerId} />
+      </AuthProvider>
+    </StrictMode>
   ) : pasteViewerId ? (
-    <AuthProvider>
-      <PasteViewer id={pasteViewerId} />
-    </AuthProvider>
+    <StrictMode>
+      <AuthProvider>
+        <PasteViewer id={pasteViewerId} />
+      </AuthProvider>
+    </StrictMode>
   ) : (
     <StrictMode>
       <AuthProvider>

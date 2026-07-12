@@ -511,9 +511,11 @@ export function AdminAnalyticsPanel() {
       const data = await exportAdminAnalytics();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
+      const blobUrl = URL.createObjectURL(blob);
+      a.href = blobUrl;
       a.download = `lul-analytics-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
+      URL.revokeObjectURL(blobUrl);
       setMsg('Export downloaded');
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Export failed');

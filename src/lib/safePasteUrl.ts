@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-const PASTE_ID_RE = /^[a-zA-Z0-9_-]{4,64}$/;
+export const PASTE_ID_RE = /^[a-zA-Z0-9_-]{4,64}$/;
 
 export function safePasteAssetUrl(url: string | undefined): string | null {
   const raw = String(url ?? '').trim();

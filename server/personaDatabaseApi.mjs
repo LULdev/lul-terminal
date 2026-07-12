@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { requireMemberTab } from './tabAccessGuard.mjs';
 import { getPersonaStats, listCountries, pickRandomEntry } from './personaDatabaseStore.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
@@ -54,14 +55,12 @@ export async function handlePersonaDatabaseRequest(req, res) {
 }
 
 export function createPersonaDatabaseMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (!pathname.startsWith('/api/persona-db')) {
       next();
       return;
     }
-    handlePersonaDatabaseRequest(req, res).catch((e) => {
-      sendJson(res, 500, { error: e instanceof Error ? e.message : 'Server error' });
-    });
-  };
+    return handlePersonaDatabaseRequest(req, res);
+  });
 }

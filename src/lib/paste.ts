@@ -4,6 +4,7 @@
  */
 
 import type { PasteExpiry, PasteVisibility } from '../data/pasteLanguages';
+import { PASTE_ID_RE } from './safePasteUrl';
 import { sessionFetch } from './sessionFetch';
 
 const API = '/api/paste';
@@ -85,9 +86,14 @@ export type CreatePasteInput = {
 
 export function parsePasteViewerId(): string | null {
   const hash = window.location.hash.replace(/^#/, '');
-  if (hash.startsWith('p/')) return hash.slice(2).split(/[?#]/)[0] || null;
-  const match = window.location.pathname.match(/^\/p\/([^/]+)\/?$/);
-  return match?.[1] ?? null;
+  let raw: string | null = null;
+  if (hash.startsWith('p/')) raw = hash.slice(2).split(/[?#]/)[0] || null;
+  else {
+    const match = window.location.pathname.match(/^\/p\/([^/]+)\/?$/);
+    raw = match?.[1] ?? null;
+  }
+  if (!raw || !PASTE_ID_RE.test(raw)) return null;
+  return raw;
 }
 
 export function buildPasteUrl(id: string): string {

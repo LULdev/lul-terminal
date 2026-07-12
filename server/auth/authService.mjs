@@ -10,7 +10,7 @@ import { countAccountsByCreator } from '../premiumAccountsService.mjs';
 import { getAcceptedNotWorkingForCreator } from '../premiumAccountsReports.mjs';
 import { saveUserAvatar } from './avatarStore.mjs';
 import { buildUnlockPayload } from '../achievementCoinRewards.mjs';
-import { consumeAchievementProof, mintAchievementProof } from './achievementProof.mjs';
+import { ACHIEVEMENT_PROOF_INELIGIBLE_TABS, consumeAchievementProof, mintAchievementProof } from './achievementProof.mjs';
 import { applyActivityCtx, ensureActivity, grantFirstLogin, normalizeSocialLinks, syncAchievements } from './achievements.mjs';
 import { sanitizeAvatarUrl, sanitizeCoverUrl, sanitizeExternalUrl } from './safeMediaUrl.mjs';
 import { countActiveAdmins, enrichUserForClient, isEffectivelyActive, publicProfileView } from './permissions.mjs';
@@ -33,6 +33,7 @@ import {
 } from './referral.mjs';
 import { postBotReferralJoined, postBotWelcomeMember, notifyBotAchievements } from '../chatBot.mjs';
 import { runCoinTransaction } from '../gamesCoinLock.mjs';
+import { checkRateLimit, isRateLimitError } from '../rateLimit.mjs';
 import { refundUserEscrows } from '../gamesEscrow.mjs';
 import { buildProfileStats } from '../profileStats.mjs';
 
@@ -411,8 +412,17 @@ export async function recordTabVisitFromAnalytics(userId, tab) {
     const db = await loadUsersDb();
     const user = db.users.find((u) => u.id === userId);
     if (!user || user.role === 'bot') return null;
-    const proof = mintAchievementProof(user, safeTab);
+    if (safeTab === 'admin' && !canAccessAdmin(user)) return null;
     const touched = applyActivityCtx(user, { visitedTab: safeTab });
+    let proof = null;
+    if (touched) {
+      try {
+        checkRateLimit(`ach-proof-mint:${userId}`, { max: 10, windowMs: 60_000 });
+        proof = mintAchievementProof(user, safeTab);
+      } catch (e) {
+        if (!isRateLimitError(e)) throw e;
+      }
+    }
     let newUnlocks = [];
     if (touched) {
       user.updatedAt = Date.now();
@@ -421,10 +431,10 @@ export async function recordTabVisitFromAnalytics(userId, tab) {
       if (newUnlocks.length) {
         notifyBotAchievements(user.username, newUnlocks).catch(() => {});
       }
-    } else {
-      user.updatedAt = Date.now();
     }
-    await saveUsersDb(db);
+    if (touched || proof) {
+      await saveUsersDb(db);
+    }
     const { accountsSubmitted, reportedNotWorkingAccounts, profileStats } = await profileExtrasForUser(user);
     return {
       user: enrichUserForClient(user, accountsSubmitted, reportedNotWorkingAccounts, profileStats),
@@ -510,7 +520,10 @@ export async function recordTerminalCommand(userId, command, proofNonce) {
     const db = await loadUsersDb();
     const user = db.users.find((u) => u.id === userId);
     if (!user) throw new Error('User not found');
-    consumeAchievementProof(user, { nonce: proofNonce });
+    consumeAchievementProof(user, {
+      nonce: proofNonce,
+      excludedTabs: ACHIEVEMENT_PROOF_INELIGIBLE_TABS,
+    });
     const act = ensureActivity(user);
     const now = Date.now();
     const lastAt = Number(act.flags?.lastTerminalCommandAt) || 0;

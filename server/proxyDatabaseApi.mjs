@@ -11,6 +11,7 @@ import {
   getProxiesGrouped,
   runDailyCheck,
 } from './proxyDatabaseService.mjs';
+import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 
 function sendJson(res, status, body) {
@@ -88,12 +89,11 @@ export async function handleProxyDatabaseRequest(req, res) {
 }
 
 export function createProxyDatabaseMiddleware() {
-  return (req, res, next) => {
+  return wrapAsyncHandler((req, res, next) => {
     const pathname = req.url?.split('?')[0] ?? '';
     if (pathname.startsWith('/api/proxy-db')) {
-      handleProxyDatabaseRequest(req, res);
-      return;
+      return handleProxyDatabaseRequest(req, res);
     }
     next();
-  };
+  });
 }

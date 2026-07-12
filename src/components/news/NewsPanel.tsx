@@ -20,6 +20,7 @@ import { PostViewTracker } from '../feeds/PostViewTracker';
 import { usePostViews } from '../../hooks/usePostViews';
 import { useAuth } from '../../context/AuthContext';
 import { markNewsVisited } from '../../hooks/useFeedUnread';
+import type { TabId } from '../../config/menuItems';
 import { NewsArticleCard } from './NewsArticleCard';
 import { NewsPagination } from './NewsPagination';
 
@@ -51,9 +52,10 @@ type NewsPanelProps = {
   isActive?: boolean;
   /** Global feed version from useFeedUnread — triggers soft refresh while tab is open. */
   liveFeedVersion?: string;
+  onNavigateTab?: (tab: TabId, opts?: { profileUsername?: string }) => void;
 };
 
-export const NewsPanel = memo(function NewsPanel({ isActive = true, liveFeedVersion }: NewsPanelProps) {
+export const NewsPanel = memo(function NewsPanel({ isActive = true, liveFeedVersion, onNavigateTab }: NewsPanelProps) {
   const { isLoggedIn, loading: authLoading } = useAuth();
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [feedVersion, setFeedVersion] = useState('');
@@ -390,7 +392,7 @@ export const NewsPanel = memo(function NewsPanel({ isActive = true, liveFeedVers
                       enabled={isActive}
                       hideFooter
                     >
-                      <NewsArticleCard article={item} variant={variant} views={views[item.id] ?? 0} />
+                      <NewsArticleCard article={item} variant={variant} views={views[item.id] ?? 0} onNavigateTab={onNavigateTab} />
                     </PostViewTracker>
                   </React.Fragment>
                 );

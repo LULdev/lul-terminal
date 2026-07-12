@@ -20,6 +20,7 @@ import {
   type PinnedMessage,
   type SendChatResult,
 } from '../../lib/chat';
+import { useAuth } from '../../context/AuthContext';
 import type { LogLine } from '../../types';
 
 const DISPLAY_LIMIT = 30;
@@ -115,6 +116,7 @@ export function UnifiedTerminalPanel({
   onOpenProfile,
   onChatUnlocks,
 }: UnifiedTerminalPanelProps) {
+  const { isLoggedIn } = useAuth();
   const [pinned, setPinned] = useState<PinnedMessage | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,6 +136,17 @@ export function UnifiedTerminalPanel({
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
+
+  useEffect(() => {
+    if (isLoggedIn) return;
+    setMessages([]);
+    setPinned(null);
+    knownIdsRef.current.clear();
+    hadMessagesRef.current = false;
+    lastTsRef.current = 0;
+    lobbyUpdatedAtRef.current = null;
+    initialDoneRef.current = false;
+  }, [isLoggedIn]);
 
   useEffect(() => {
     isMutedRef.current = isMuted;

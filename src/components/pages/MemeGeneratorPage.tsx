@@ -125,6 +125,7 @@ export function MemeGeneratorPage() {
 
   const handleUpload = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) return;
+    if (customUpload?.mediaUrl) URL.revokeObjectURL(customUpload.mediaUrl);
     const url = URL.createObjectURL(file);
     const custom: MemeTemplate = {
       id: `upload-${Date.now()}`,
@@ -136,7 +137,11 @@ export function MemeGeneratorPage() {
     };
     setCustomUpload(custom);
     setSelected(custom);
-  }, []);
+  }, [customUpload]);
+
+  useEffect(() => () => {
+    if (customUpload?.mediaUrl) URL.revokeObjectURL(customUpload.mediaUrl);
+  }, [customUpload]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

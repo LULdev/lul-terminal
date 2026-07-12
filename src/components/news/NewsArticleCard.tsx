@@ -17,6 +17,7 @@ type Props = {
   article: NewsArticle;
   variant?: 'featured' | 'standard' | 'compact';
   views?: number;
+  onNavigateTab?: (tab: TabId, opts?: { profileUsername?: string }) => void;
 };
 
 const BODY_CLAMP = 220;
@@ -40,6 +41,7 @@ function renderBodyText(
     isLoggedIn: boolean;
     requiresLogin: (tab: TabId) => boolean;
     onLoginGate?: (tab: TabId) => void;
+    onNavigateTab?: (tab: TabId, opts?: { profileUsername?: string }) => void;
   },
 ) {
   const parts = text.split(LINK_SPLIT_RE);
@@ -63,13 +65,26 @@ function renderBodyText(
               e.preventDefault();
               const tab = parseTabFromHref(href);
               const profileMatch = href.match(/^\/profile\/([a-zA-Z0-9_]+)/);
-              if (profileMatch && !opts.isLoggedIn && opts.requiresLogin('profile')) {
-                opts.onLoginGate?.('profile');
-                return;
+              if (profileMatch) {
+                const username = profileMatch[1];
+                if (opts.onNavigateTab) {
+                  opts.onNavigateTab('profile', { profileUsername: username });
+                  return;
+                }
+                if (!opts.isLoggedIn && opts.requiresLogin('profile')) {
+                  opts.onLoginGate?.('profile');
+                  return;
+                }
               }
-              if (tab && !opts.isLoggedIn && opts.requiresLogin(tab)) {
-                opts.onLoginGate?.(tab);
-                return;
+              if (tab) {
+                if (opts.onNavigateTab) {
+                  opts.onNavigateTab(tab);
+                  return;
+                }
+                if (!opts.isLoggedIn && opts.requiresLogin(tab)) {
+                  opts.onLoginGate?.(tab);
+                  return;
+                }
               }
               const path = href.startsWith('/') ? href : `/${href}`;
               window.history.pushState(null, '', path);
@@ -87,7 +102,7 @@ function renderBodyText(
   });
 }
 
-export function NewsArticleCard({ article, variant = 'standard', views }: Props) {
+export function NewsArticleCard({ article, variant = 'standard', views, onNavigateTab }: Props) {
   const { isLoggedIn, openLoginGate } = useAuth();
   const { requiresLogin } = usePageVisibility();
   const [expanded, setExpanded] = useState(false);
@@ -164,7 +179,7 @@ export function NewsArticleCard({ article, variant = 'standard', views }: Props)
             isFeatured ? 'text-[12px] sm:text-[13px]' : isCompact ? 'text-[10px] line-clamp-3' : 'text-[11px]'
           } ${showClamp ? 'line-clamp-4' : ''}`}
         >
-          {renderBodyText(article.body, { isLoggedIn, requiresLogin, onLoginGate: openLoginGate })}
+          {renderBodyText(article.body, { isLoggedIn, requiresLogin, onLoginGate: openLoginGate, onNavigateTab })}
         </p>
 
         {showClamp && (

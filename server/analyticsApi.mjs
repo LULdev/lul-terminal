@@ -11,6 +11,7 @@ import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { recordTabVisitFromAnalytics } from './auth/authService.mjs';
+import { requireMemberTab } from './tabAccessGuard.mjs';
 import {
   buildAdminOverview,
   buildUserActivitySummary,
@@ -45,9 +46,15 @@ export async function handleAnalyticsRequest(req, res) {
 
   try {
     if (req.method === 'POST' && pathname === '/api/analytics/track') {
-      checkRateLimit(`analytics:${clientIp(req)}`, { max: 90, windowMs: 60_000 });
       const body = await readJsonBody(req);
       await attachAuth(req);
+      const rateKey = req.auth?.user?.id
+        ? `analytics:${req.auth.user.id}`
+        : `analytics-guest:${clientIp(req)}`;
+      checkRateLimit(rateKey, {
+        max: req.auth?.user?.id ? 90 : 30,
+        windowMs: 60_000,
+      });
 
       const eventType = String(body.type ?? '').slice(0, 48);
       const ip = clientIp(req);
@@ -70,9 +77,15 @@ export async function handleAnalyticsRequest(req, res) {
       let proofPayload = null;
       if (req.auth?.user?.id && (eventType === 'tab_visit' || eventType === 'faq_visit')) {
         const tab = eventType === 'faq_visit' ? 'faq' : String(body.tab ?? '').slice(0, 24);
-        const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, tab);
-        userPayload = visitResult?.user ?? null;
-        proofPayload = visitResult?.proof ?? null;
+        try {
+          await requireMemberTab(req, tab);
+          checkRateLimit(`analytics-tab-visit:${req.auth.user.id}`, { max: 24, windowMs: 60_000 });
+          const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, tab);
+          userPayload = visitResult?.user ?? null;
+          proofPayload = visitResult?.proof ?? null;
+        } catch {
+          /* analytics event recorded; tab visit / proof gated */
+        }
       }
 
       return sendJson(res, 201, {

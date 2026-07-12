@@ -115,7 +115,10 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
   const recordTerminalAchievement = useCallback((command: string) => {
     if (!isLoggedIn) return;
     const proof = takeAchievementProof();
-    if (!proof) return;
+    if (!proof) {
+      appendLogRef.current('⚠️ Achievement proof expired — switch tabs to refresh proof.', 'warn');
+      return;
+    }
     authApi.recordTerminalCommand(command, proof)
       .then((data) => {
         handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);

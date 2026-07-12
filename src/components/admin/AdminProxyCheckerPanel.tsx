@@ -259,9 +259,11 @@ export function AdminProxyCheckerPanel({ onGoToScraper }: AdminProxyCheckerPanel
   const downloadBlob = (content: string, filename: string, mime: string) => {
     const blob = new Blob([content], { type: mime });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    const blobUrl = URL.createObjectURL(blob);
+    a.href = blobUrl;
     a.download = filename;
     a.click();
+    URL.revokeObjectURL(blobUrl);
   };
 
   const exportTxt = () => downloadBlob(exportCheckedTxt(filtered, viewTab !== 'dead'), viewTab === 'working' ? 'proxies-working.txt' : 'proxies-all.txt', 'text/plain');

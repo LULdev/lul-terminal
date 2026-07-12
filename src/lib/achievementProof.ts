@@ -9,20 +9,34 @@ export type AchievementProof = {
   exp: number;
 };
 
-let cached: AchievementProof | null = null;
+const cache = new Map<string, AchievementProof>();
 
 export function setAchievementProof(proof: AchievementProof | null | undefined) {
-  if (!proof?.nonce || !proof.exp) {
+  if (!proof?.nonce || !proof.exp || !proof.tab) {
     return;
   }
-  cached = proof;
+  cache.set(proof.tab, proof);
 }
 
 /** Take proof for an action; optionally require it was minted on a specific tab. */
 export function takeAchievementProof(requiredTab?: string): string | null {
-  if (!cached || Date.now() > cached.exp) return null;
-  if (requiredTab && cached.tab !== requiredTab) return null;
-  const nonce = cached.nonce;
-  cached = null;
-  return nonce;
+  const now = Date.now();
+  if (requiredTab) {
+    const entry = cache.get(requiredTab);
+    if (!entry || now > entry.exp) return null;
+    cache.delete(requiredTab);
+    return entry.nonce;
+  }
+  for (const [tab, entry] of cache) {
+    if (now <= entry.exp) {
+      cache.delete(tab);
+      return entry.nonce;
+    }
+    cache.delete(tab);
+  }
+  return null;
+}
+
+export function clearAchievementProofs() {
+  cache.clear();
 }

@@ -135,7 +135,8 @@ export function PastePage() {
     setTitle(payload.title);
     setContent(payload.content);
     setLanguage(payload.language);
-    setVisibility((payload.visibility as PasteVisibility) || 'private');
+    const vis = PASTE_VISIBILITY_OPTIONS.find((o) => o.id === payload.visibility)?.id;
+    setVisibility(vis ?? 'private');
     setPassword('');
     setError('');
   }, []);

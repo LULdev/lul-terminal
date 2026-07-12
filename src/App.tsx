@@ -159,6 +159,7 @@ export default function App() {
   const lastTrackedTabRef = useRef<TabId | null>(null);
   const tabEnteredAtRef = useRef(Date.now());
   const tabTrackGenRef = useRef(0);
+  const tabTrackForceRef = useRef(false);
   const isLoggedInRef = useRef(isLoggedIn);
   isLoggedInRef.current = isLoggedIn;
   useEffect(() => {
@@ -169,7 +170,9 @@ export default function App() {
         trackEvent('tab_dwell', { tab: prevTab, meta: { dwellSec } }).catch(() => {});
       }
     }
-    if (lastTrackedTabRef.current === activeTab) return;
+    const forceTrack = tabTrackForceRef.current;
+    if (forceTrack) tabTrackForceRef.current = false;
+    if (!forceTrack && lastTrackedTabRef.current === activeTab) return;
     lastTrackedTabRef.current = activeTab;
     tabEnteredAtRef.current = Date.now();
     const type = activeTab === 'faq' ? 'faq_visit' : 'tab_visit';
@@ -199,6 +202,12 @@ export default function App() {
       })
       .catch(() => {});
   }, [activeTab, patchUser, isLoggedIn, user, newsFeedVersion]);
+
+  useEffect(() => {
+    if (authSuccessTick < 1 || !isLoggedIn) return;
+    tabTrackForceRef.current = true;
+    lastTrackedTabRef.current = null;
+  }, [authSuccessTick, isLoggedIn]);
 
   useEffect(() => {
     if (!isLoggedIn || !user || activeTab !== 'news') return;
@@ -444,6 +453,8 @@ export default function App() {
             if (data.user) patchUser(data.user);
           })
           .catch(() => {});
+      } else {
+        terminalAppend('⚠️ Achievement proof expired — revisit Fun tab to earn claw credit.', 'warn');
       }
     }
     terminalAppend('🎯 CURSOR SNATCHED! Gravity core localized. Escape probability: < 0.1%', 'alert');
@@ -788,7 +799,7 @@ export default function App() {
                 }`}
                 aria-hidden={renderTab !== 'news'}
               >
-                <NewsPanel isActive={renderTab === 'news'} liveFeedVersion={newsFeedVersion} />
+                <NewsPanel isActive={renderTab === 'news'} liveFeedVersion={newsFeedVersion} onNavigateTab={handleTabClick} />
               </div>
 
               {renderTab === 'tools' && <NetToolkitPage />}

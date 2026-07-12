@@ -23,6 +23,31 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.85',
+    title: 'Extreme deep audit — round 25 (server/client/chat/news/paste)',
+    date: 'Jul 12, 2026 - 12:00',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — Login on same tab re-mints achievement proof (forced tab_visit track after auth).' },
+      { priority: 'P2', text: 'P2 — Achievement proof cached per-tab (Map); fast tab switches no longer drop valid proofs.' },
+      { priority: 'P2', text: 'P2 — Proof minted only on first genuine tab touch; repeat visits cannot farm nonces.' },
+      { priority: 'P2', text: 'P2 — Terminal proof rejects faq/changelog/news tabs; parsePasteViewerId validates PASTE_ID_RE.' },
+      { priority: 'P3', text: 'P3 — Claw/terminal show terminal feedback when proof missing or expired.' },
+      { priority: 'P3', text: 'P3 — Shoutbox messages cleared on logout; achievement proofs cleared on logout.' },
+      { priority: 'P3', text: 'P3 — News autolinks route through handleTabClick (visibility + login gates).' },
+      { priority: 'P4', text: 'P4 — tab_visit gated with requireMemberTab; admin tab visits require canAccessAdmin.' },
+      { priority: 'P4', text: 'P4 — Admin export blob URLs revoked; PastePage fork visibility validated against options.' },
+      { priority: 'P4', text: 'P4 — MemeGenerator custom upload blob URLs revoked on replace/unmount.' },
+      { priority: 'P1', text: 'P1 — Tab-visit side effects rate-limited (24/min); proof mint capped (10/min) to slow API tab spoof farms.' },
+      { priority: 'P3', text: 'P3 — Meme shoutbox bot links restricted to /i/ and /hosting/ only (no arbitrary same-origin paths).' },
+      { priority: 'P4', text: 'P4 — adminApi + personaDatabaseApi middleware wrapped with wrapAsyncHandler.' },
+      { priority: 'P5', text: 'P5 — Guest analytics rate limit lowered (30/min per IP vs 90 for members).' },
+      { priority: 'P7', text: 'P7 — CGNAT 100.64.0.0/10 blocked in SSRF isPrivateIp; proxyDatabaseApi wrapAsyncHandler.' },
+      { priority: 'P9', text: 'P9 — Proof nonce compare uses crypto.timingSafeEqual; standalone viewers wrapped in StrictMode.' },
+      { priority: 'P9', text: 'P9 — Round 25 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.84',
     title: 'Achievement proof tokens — claw & terminal game-proof',
     date: 'Jul 12, 2026 - 11:00',
