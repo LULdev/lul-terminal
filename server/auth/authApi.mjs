@@ -210,7 +210,7 @@ export async function handleAuthRequest(req, res) {
       const user = requireAuth(req);
       checkRateLimit(`ach-event:${user.id}`, { max: 20, windowMs: 60_000 });
       const body = await readJsonBody(req);
-      const result = await recordAchievementEvent(user.id, String(body.event ?? ''));
+      const result = await recordAchievementEvent(user.id, String(body.event ?? ''), body.proof);
       return sendJson(res, 200, { user: result.user, newUnlocks: result.newUnlocks ?? [] });
     }
 
@@ -218,7 +218,7 @@ export async function handleAuthRequest(req, res) {
       const user = requireAuth(req);
       checkRateLimit(`ach-cmd:${user.id}`, { max: 40, windowMs: 60_000 });
       const body = await readJsonBody(req);
-      const result = await recordTerminalCommand(user.id, String(body.command ?? ''));
+      const result = await recordTerminalCommand(user.id, String(body.command ?? ''), body.proof);
       return sendJson(res, 200, { user: result.user, newUnlocks: result.newUnlocks ?? [] });
     }
 
@@ -312,6 +312,9 @@ export async function handleAuthRequest(req, res) {
         : msg === 'Not logged in' || msg === 'Invalid login credentials'
           ? 401
           : e instanceof SyntaxError || msg === 'Payload too large'
+            || msg === 'Achievement proof required'
+            || msg === 'Achievement proof expired'
+            || msg === 'Achievement proof invalid for this action'
             ? 400
             : 500;
     return sendJson(res, status, { error: msg });

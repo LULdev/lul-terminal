@@ -23,6 +23,18 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.84',
+    title: 'Achievement proof tokens — claw & terminal game-proof',
+    date: 'Jul 12, 2026 - 11:00',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — Achievement events require server-minted proof nonce (single-use, 120s TTL) from tab_visit analytics.' },
+      { priority: 'P2', text: 'P2 — claw_victim proof must be minted on fun tab; terminal commands consume any tab proof.' },
+      { priority: 'P2', text: 'P2 — Direct API calls without proof return 400; curl/script farms blocked.' },
+      { priority: 'P3', text: 'P3 — Client caches proof from analytics track; claw/terminal pass proof on claim.' },
+    ],
+  },
+  {
     version: '3.36.83',
     title: 'Extreme deep audit — round 24 (server/client/chat/news/paste)',
     date: 'Jul 12, 2026 - 10:00',

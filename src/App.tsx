@@ -56,6 +56,7 @@ import {
   InviteFriendsPage,
 } from './components/pages';
 import * as authApi from './lib/auth';
+import { setAchievementProof, takeAchievementProof } from './lib/achievementProof';
 import { trackEvent } from './lib/analytics';
 import { collectVisitorContext, visitorContextToMeta } from './lib/visitorContext';
 
@@ -193,6 +194,7 @@ export default function App() {
     trackEvent(type, { tab: activeTab, meta: { ...baseMeta, visitCount: visitorCtxRef.current?.visitCount } })
       .then((r) => {
         if (trackGen !== tabTrackGenRef.current || !isLoggedInRef.current) return;
+        if (r?.proof) setAchievementProof(r.proof);
         if (r?.user) patchUser(r.user);
       })
       .catch(() => {});
@@ -434,12 +436,15 @@ export default function App() {
     setCursorGrabbed(true);
     recordCatch();
     if (isLoggedIn) {
-      authApi.recordAchievementEvent('claw_victim')
-        .then((data) => {
-          handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
-          if (data.user) patchUser(data.user);
-        })
-        .catch(() => {});
+      const proof = takeAchievementProof('fun');
+      if (proof) {
+        authApi.recordAchievementEvent('claw_victim', proof)
+          .then((data) => {
+            handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
+            if (data.user) patchUser(data.user);
+          })
+          .catch(() => {});
+      }
     }
     terminalAppend('🎯 CURSOR SNATCHED! Gravity core localized. Escape probability: < 0.1%', 'alert');
     playBeep(440, 0.4, 'triangle');

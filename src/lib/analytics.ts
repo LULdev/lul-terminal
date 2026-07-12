@@ -234,7 +234,11 @@ export async function trackEvent(
       }),
     });
     if (!res.ok) return { ok: false };
-    return res.json() as Promise<{ ok: boolean; user?: import('../types/auth').AuthUser | null }>;
+    return res.json() as Promise<{
+      ok: boolean;
+      user?: import('../types/auth').AuthUser | null;
+      proof?: import('./achievementProof').AchievementProof | null;
+    }>;
   } catch (e) {
     if (e instanceof SessionExpiredError) return { ok: false };
     return { ok: false };

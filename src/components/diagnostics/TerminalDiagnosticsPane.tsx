@@ -15,6 +15,7 @@ import { formatTerminalCommand, isTerminalCommand, parseTerminalCommand } from '
 import { registerShoutboxDraft } from '../../lib/shoutboxDraft';
 import { registerShoutboxSend } from '../../lib/shoutboxSend';
 import { registerTerminalAppend } from '../../lib/terminalLogBridge';
+import { takeAchievementProof } from '../../lib/achievementProof';
 import { getLiveStats } from '../../lib/liveStatsStore';
 import {
   ALL_COMMANDS_ALIASES,
@@ -110,6 +111,19 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
   onNavigateProfile,
 }: TerminalDiagnosticsPaneProps) {
   const { handleUnlocks, user, patchUser } = useAuth();
+
+  const recordTerminalAchievement = useCallback((command: string) => {
+    if (!isLoggedIn) return;
+    const proof = takeAchievementProof();
+    if (!proof) return;
+    authApi.recordTerminalCommand(command, proof)
+      .then((data) => {
+        handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
+        if (data.user) patchUser(data.user);
+      })
+      .catch(() => {});
+  }, [isLoggedIn, handleUnlocks, patchUser]);
+
   const [commandInput, setCommandInput] = useState('');
   const [commandLogs, setCommandLogs] = useState<LogLine[]>(() => getCompactCommandHintLogs('08:14:04'));
   const [baudRate, setBaudRate] = useState(0);
@@ -293,14 +307,7 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
       setTempInput('');
 
       if (ALL_COMMANDS_ALIASES.has(query)) {
-        if (isLoggedIn) {
-          authApi.recordTerminalCommand(query)
-            .then((data) => {
-              handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
-              if (data.user) patchUser(data.user);
-            })
-            .catch(() => {});
-        }
+        recordTerminalAchievement(query);
         printCompactCommandReference(appendLog);
       } else if (query === 'stats') {
         const stats = getLiveStats();
@@ -362,14 +369,7 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
           appendLog('❌ Error: Allowed colors are: indigo, emerald, amber, cyan, rose', 'warn');
         }
       } else if (query === 'matrix') {
-        if (isLoggedIn) {
-          authApi.recordTerminalCommand(query)
-            .then((data) => {
-              handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
-              if (data.user) patchUser(data.user);
-            })
-            .catch(() => {});
-        }
+        recordTerminalAchievement(query);
         appendLog('🟢 INITIALIZING MATRIX PROTOCOL CODES...', 'success');
         setIsMatrixOverlayActive(true);
         playBeep(400, 0.1, 'sawtooth');
@@ -475,14 +475,7 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
         if (selfDestructCountdown > 0) {
           appendLog('🚨 Self-destruct sequence is already active!', 'warn');
         } else {
-          if (isLoggedIn) {
-          authApi.recordTerminalCommand(query)
-            .then((data) => {
-              handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
-              if (data.user) patchUser(data.user);
-            })
-            .catch(() => {});
-        }
+          recordTerminalAchievement(query);
           setSelfDestructCountdown(10);
           appendLog('🚨 WARNING: SELF-DESTRUCT INITIATED BY OPERATOR! T-MINUS 10 SECONDS...', 'alert');
           playBeep(440, 0.4, 'sawtooth');

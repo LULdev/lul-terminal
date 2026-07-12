@@ -67,13 +67,20 @@ export async function handleAnalyticsRequest(req, res) {
       });
 
       let userPayload = null;
+      let proofPayload = null;
       if (req.auth?.user?.id && (eventType === 'tab_visit' || eventType === 'faq_visit')) {
         const tab = eventType === 'faq_visit' ? 'faq' : String(body.tab ?? '').slice(0, 24);
         const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, tab);
         userPayload = visitResult?.user ?? null;
+        proofPayload = visitResult?.proof ?? null;
       }
 
-      return sendJson(res, 201, { ok: true, eventId: event?.id ?? null, user: userPayload });
+      return sendJson(res, 201, {
+        ok: true,
+        eventId: event?.id ?? null,
+        user: userPayload,
+        proof: proofPayload,
+      });
     }
 
     if (req.method === 'GET' && pathname === '/api/analytics/me') {

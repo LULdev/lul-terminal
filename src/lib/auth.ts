@@ -162,17 +162,17 @@ export async function syncAchievements(opts: SyncAchievementsOpts = {}) {
   });
 }
 
-export async function recordAchievementEvent(event: 'claw_victim') {
+export async function recordAchievementEvent(event: 'claw_victim', proof: string) {
   return api<AuthUnlockResponse>('/achievements/event', {
     method: 'POST',
-    body: JSON.stringify({ event }),
+    body: JSON.stringify({ event, proof }),
   });
 }
 
-export async function recordTerminalCommand(command: string) {
+export async function recordTerminalCommand(command: string, proof: string) {
   return api<AuthUnlockResponse>('/achievements/terminal-command', {
     method: 'POST',
-    body: JSON.stringify({ command }),
+    body: JSON.stringify({ command, proof }),
   });
 }
 

@@ -10,6 +10,7 @@ import { countAccountsByCreator } from '../premiumAccountsService.mjs';
 import { getAcceptedNotWorkingForCreator } from '../premiumAccountsReports.mjs';
 import { saveUserAvatar } from './avatarStore.mjs';
 import { buildUnlockPayload } from '../achievementCoinRewards.mjs';
+import { consumeAchievementProof, mintAchievementProof } from './achievementProof.mjs';
 import { applyActivityCtx, ensureActivity, grantFirstLogin, normalizeSocialLinks, syncAchievements } from './achievements.mjs';
 import { sanitizeAvatarUrl, sanitizeCoverUrl, sanitizeExternalUrl } from './safeMediaUrl.mjs';
 import { countActiveAdmins, enrichUserForClient, isEffectivelyActive, publicProfileView } from './permissions.mjs';
@@ -410,6 +411,7 @@ export async function recordTabVisitFromAnalytics(userId, tab) {
     const db = await loadUsersDb();
     const user = db.users.find((u) => u.id === userId);
     if (!user || user.role === 'bot') return null;
+    const proof = mintAchievementProof(user, safeTab);
     const touched = applyActivityCtx(user, { visitedTab: safeTab });
     let newUnlocks = [];
     if (touched) {
@@ -419,12 +421,15 @@ export async function recordTabVisitFromAnalytics(userId, tab) {
       if (newUnlocks.length) {
         notifyBotAchievements(user.username, newUnlocks).catch(() => {});
       }
-      await saveUsersDb(db);
+    } else {
+      user.updatedAt = Date.now();
     }
+    await saveUsersDb(db);
     const { accountsSubmitted, reportedNotWorkingAccounts, profileStats } = await profileExtrasForUser(user);
     return {
       user: enrichUserForClient(user, accountsSubmitted, reportedNotWorkingAccounts, profileStats),
       newUnlocks,
+      proof,
     };
   });
 }
@@ -453,7 +458,7 @@ export async function syncUserAchievements(userId, ctx = {}) {
 
 const ACHIEVEMENT_EVENT_FLAGS = new Set(['claw_victim']);
 
-export async function recordAchievementEvent(userId, event) {
+export async function recordAchievementEvent(userId, event, proofNonce) {
   const flag = String(event ?? '').trim().slice(0, 32);
   if (!ACHIEVEMENT_EVENT_FLAGS.has(flag)) {
     throw new Error('Unknown achievement event');
@@ -462,6 +467,10 @@ export async function recordAchievementEvent(userId, event) {
     const db = await loadUsersDb();
     const user = db.users.find((u) => u.id === userId);
     if (!user) throw new Error('User not found');
+    consumeAchievementProof(user, {
+      nonce: proofNonce,
+      requiredTab: flag === 'claw_victim' ? 'fun' : null,
+    });
     const act = ensureActivity(user);
     const now = Date.now();
     const lastAt = Number(act.flags?.lastAchievementEventAt) || 0;
@@ -493,7 +502,7 @@ const RECOGNIZED_TERMINAL_COMMANDS = new Set([
   'matrix', 'self-destruct', 'reboot self-destruct',
 ]);
 
-export async function recordTerminalCommand(userId, command) {
+export async function recordTerminalCommand(userId, command, proofNonce) {
   const cmd = String(command ?? '').trim().toLowerCase().slice(0, 48);
   if (!cmd) throw new Error('Command required');
   if (!RECOGNIZED_TERMINAL_COMMANDS.has(cmd)) throw new Error('Unrecognized command');
@@ -501,6 +510,7 @@ export async function recordTerminalCommand(userId, command) {
     const db = await loadUsersDb();
     const user = db.users.find((u) => u.id === userId);
     if (!user) throw new Error('User not found');
+    consumeAchievementProof(user, { nonce: proofNonce });
     const act = ensureActivity(user);
     const now = Date.now();
     const lastAt = Number(act.flags?.lastTerminalCommandAt) || 0;
