@@ -23,6 +23,24 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.36.89',
+    title: 'Extreme deep audit — round 29 (server/client/chat/news/paste)',
+    date: 'Jul 12, 2026 - 16:00',
+    highlight: true,
+    items: [
+      { priority: 'P0', text: 'P0 — Session tab-visit integrity: dwell-before-visit chain blocks spoofed tab achievement farm.' },
+      { priority: 'P1', text: 'P1 — requireMemberTab(admin) requires canAccessAdmin; admin tab visits not persisted for non-admins.' },
+      { priority: 'P1', text: 'P1 — Terminal-command/achievements-sync/referral APIs gated; TERMINAL_PROOF_ELIGIBLE_TABS narrowed to dashboard.' },
+      { priority: 'P1', text: 'P1 — Failed force-remint keeps lastTrackedTab; client awaits dwell before visit; remint uses counter.' },
+      { priority: 'P1', text: 'P1 — recordPageView coalesces null fetch to 0 (Promise<number> contract).' },
+      { priority: 'P2', text: 'P2 — meme_created requires imageHost source:meme; memegen tab gate on chat activity.' },
+      { priority: 'P2', text: 'P2 — ChatGatedError on 403 send/poll; chatStatus reset on logout.' },
+      { priority: 'P3', text: 'P3 — Terminal diagnostics peek/commit proof on dashboard tab; AdminNewsPanel save/delete race guard.' },
+      { priority: 'P4', text: 'P4 — Guests skip tab_dwell analytics; logout clears lul_profile_view_ dedup keys.' },
+      { priority: 'P9', text: 'P9 — Round 29 audit: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.36.88',
     title: 'Extreme deep audit — round 28 (server/client/chat/news/paste)',
     date: 'Jul 12, 2026 - 15:00',

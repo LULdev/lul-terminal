@@ -11,12 +11,8 @@ const PROOF_TTL_MS = 120_000;
 /** Read-only / milestone tabs must not mint claw/terminal proof (faq → terminal farm). */
 export const ACHIEVEMENT_PROOF_INELIGIBLE_TABS = new Set(['faq', 'changelog', 'news']);
 
-/** Terminal commands require proof minted on an interactive tab (not stats/status/leaderboard intel). */
-export const TERMINAL_PROOF_ELIGIBLE_TABS = new Set([
-  'fun', 'dashboard', 'games', 'invite', 'memegen', 'imagehost', 'paste',
-  'proxydatabase', 'premiumaccounts', 'tools', 'identity', 'textlab', 'colorlab',
-  'meme', 'toolvault', 'profile', 'activity',
-]);
+/** Terminal commands require proof minted on the dashboard tab only. */
+export const TERMINAL_PROOF_ELIGIBLE_TABS = new Set(['dashboard']);
 
 function safeCompareNonce(a, b) {
   const left = Buffer.from(String(a ?? ''), 'utf8');

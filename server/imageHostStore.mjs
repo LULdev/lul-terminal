@@ -86,7 +86,7 @@ function withImageWrite(task) {
   return run;
 }
 
-export async function saveImage({ name, mime, size, width, height, buffer, userId }) {
+export async function saveImage({ name, mime, size, width, height, buffer, userId, source }) {
   if (!ALLOWED_MIME.has(mime)) throw new Error('Invalid file type');
   if (size > MAX_BYTES || buffer.length > MAX_BYTES) throw new Error('File too large (max 10 MB)');
   if (!buffer?.length) throw new Error('Empty file');
@@ -113,6 +113,7 @@ export async function saveImage({ name, mime, size, width, height, buffer, userI
       userId: userId ? String(userId).slice(0, 32) : undefined,
       favorite: false,
       tags: [],
+      ...(source === 'meme' ? { source: 'meme' } : {}),
     };
 
     const fileTmp = `${filePath}.tmp`;

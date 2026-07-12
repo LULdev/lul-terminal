@@ -12,6 +12,11 @@ import { wrapAsyncHandler } from './asyncMiddleware.mjs';
 import { checkRateLimit, clientIp, isRateLimitError } from './rateLimit.mjs';
 import { ALL_MANAGEABLE_TAB_IDS } from './accessControlStore.mjs';
 import { recordTabVisitFromAnalytics } from './auth/authService.mjs';
+import {
+  canCreditTabVisit,
+  commitTabVisitIntegrity,
+  markTabDwellIntegrity,
+} from './analyticsTabIntegrity.mjs';
 import { requireMemberTab } from './tabAccessGuard.mjs';
 import {
   buildAdminOverview,
@@ -76,9 +81,15 @@ export async function handleAnalyticsRequest(req, res) {
       if (tabGatedTypes.has(eventType) && safeTab) {
         try {
           await requireMemberTab(req, safeTab);
+          if (safeTab === 'admin' && !canAccessAdmin(req.auth?.user)) {
+            persistTab = null;
+          }
         } catch {
           persistTab = null;
         }
+      }
+      if (eventType === 'tab_dwell' && persistTab && req.auth?.token) {
+        await markTabDwellIntegrity(req.auth.token, persistTab);
       }
       const event = await recordEvent({
         type: eventType,
@@ -101,9 +112,21 @@ export async function handleAnalyticsRequest(req, res) {
           const forceRemint = Boolean(body.meta?.forceRemint)
             && sessionCreated > 0
             && (Date.now() - sessionCreated) < 120_000;
+          const integrityOk = canCreditTabVisit(req.auth.session, persistTab, { forceRemint });
+          if (!integrityOk) {
+            return sendJson(res, 201, {
+              ok: true,
+              eventId: event?.id ?? null,
+              user: null,
+              proof: null,
+            });
+          }
           const visitResult = await recordTabVisitFromAnalytics(req.auth.user.id, persistTab, { forceRemint });
           userPayload = visitResult?.user ?? null;
           proofPayload = visitResult?.proof ?? null;
+          if (req.auth.token) {
+            await commitTabVisitIntegrity(req.auth.token, persistTab);
+          }
         } catch (e) {
           const msg = e instanceof Error ? e.message : '';
           if (!isRateLimitError(e) && msg !== 'Permission denied') {

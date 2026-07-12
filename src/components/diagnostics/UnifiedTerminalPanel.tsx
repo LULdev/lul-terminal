@@ -12,6 +12,7 @@ import { ChatMessageBody, isBotSpeaker } from './ChatMessageBody';
 import {
   ChatAuthRequiredError,
   ChatFetchError,
+  ChatGatedError,
   ChatRateLimitError,
   fetchLobbyMessages,
   playChatNotification,
@@ -141,6 +142,7 @@ export function UnifiedTerminalPanel({
     if (isLoggedIn) return;
     setMessages([]);
     setPinned(null);
+    setChatStatus('ok');
     knownIdsRef.current.clear();
     hadMessagesRef.current = false;
     lastTsRef.current = 0;
@@ -235,7 +237,7 @@ export function UnifiedTerminalPanel({
       if (e instanceof ChatFetchError && e.status === 429) {
         setChatStatus('rate_limited');
         pollBackoffRef.current = Math.min(pollBackoffRef.current * 2, 60_000);
-      } else if (e instanceof ChatFetchError && e.status === 403) {
+      } else if (e instanceof ChatGatedError || (e instanceof ChatFetchError && e.status === 403)) {
         setChatStatus('gated');
       } else {
         setChatStatus('offline');
@@ -295,6 +297,10 @@ export function UnifiedTerminalPanel({
       }
       if (err instanceof ChatRateLimitError) {
         return { ok: false, error: err.message, retryAfterMs: err.retryAfterMs };
+      }
+      if (err instanceof ChatGatedError) {
+        setChatStatus('gated');
+        return { ok: false, error: err.message };
       }
       return { ok: false, error: err instanceof Error ? err.message : 'Send failed' };
     }

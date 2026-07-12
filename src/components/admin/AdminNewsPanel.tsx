@@ -44,6 +44,7 @@ export function AdminNewsPanel() {
   const [form, setForm] = useState<FormState>(emptyForm());
   const [saving, setSaving] = useState(false);
   const loadGenRef = useRef(0);
+  const actionGenRef = useRef(0);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -90,6 +91,7 @@ export function AdminNewsPanel() {
       return;
     }
 
+    const gen = ++actionGenRef.current;
     setSaving(true);
     setError('');
     setSuccess('');
@@ -97,30 +99,36 @@ export function AdminNewsPanel() {
       const payload = { ...form, title, body };
       if (form.id) {
         await updateNewsArticle(form.id, payload);
+        if (gen !== actionGenRef.current || !mountedRef.current) return;
         setSuccess(`"${title}" updated`);
       } else {
         await createNewsArticle(payload);
+        if (gen !== actionGenRef.current || !mountedRef.current) return;
         setSuccess(`"${title}" published`);
       }
       resetForm();
       await load();
     } catch (e) {
+      if (gen !== actionGenRef.current || !mountedRef.current) return;
       setError(e instanceof Error ? e.message : 'Save failed');
     } finally {
-      setSaving(false);
+      if (gen === actionGenRef.current && mountedRef.current) setSaving(false);
     }
   };
 
   const remove = async (a: NewsArticle) => {
     if (!confirm(`Really delete article "${a.title}"?`)) return;
+    const gen = ++actionGenRef.current;
     setError('');
     setSuccess('');
     try {
       await deleteNewsArticle(a.id);
+      if (gen !== actionGenRef.current || !mountedRef.current) return;
       if (form.id === a.id) resetForm();
       setSuccess('Article deleted');
       await load();
     } catch (e) {
+      if (gen !== actionGenRef.current || !mountedRef.current) return;
       setError(e instanceof Error ? e.message : 'Delete failed');
     }
   };

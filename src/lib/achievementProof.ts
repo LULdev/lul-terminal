@@ -11,16 +11,16 @@ export type AchievementProof = {
 
 /** Server stores one proof at a time — client mirrors with a single slot. */
 let cached: AchievementProof | null = null;
-let remintRequested = false;
+let remintRequestCount = 0;
 
 /** Signal App to force a tab_visit track after proof was consumed on the same tab. */
 export function requestAchievementProofRemint() {
-  remintRequested = true;
+  remintRequestCount += 1;
 }
 
 export function takeAchievementProofRemintRequest(): boolean {
-  if (!remintRequested) return false;
-  remintRequested = false;
+  if (remintRequestCount <= 0) return false;
+  remintRequestCount -= 1;
   return true;
 }
 

@@ -29,5 +29,5 @@ export async function recordPageView(pageId: string): Promise<number> {
       }
     } catch { /* fall through */ }
   }
-  return fetchPageViews(pageId);
+  return (await fetchPageViews(pageId)) ?? 0;
 }

@@ -60,6 +60,7 @@ import {
   commitAchievementProof,
   peekAchievementProof,
   setAchievementProof,
+  requestAchievementProofRemint,
   takeAchievementProofRemintRequest,
 } from './lib/achievementProof';
 import { trackEvent } from './lib/analytics';
@@ -173,51 +174,70 @@ export default function App() {
     if (authLoading || visibilityLoading) return;
     if (activeTab !== renderTab) return;
     const trackedTab = renderTab;
-    const prevTab = lastTrackedTabRef.current;
-    if (prevTab !== null && prevTab !== trackedTab) {
-      const dwellSec = Math.round((Date.now() - tabEnteredAtRef.current) / 1000);
-      if (dwellSec >= 2) {
-        trackEvent('tab_dwell', { tab: prevTab, meta: { dwellSec } }).catch(() => {});
-      }
-    }
-    const forceTrack = tabTrackForceRef.current || takeAchievementProofRemintRequest();
-    if (tabTrackForceRef.current) tabTrackForceRef.current = false;
-    if (!forceTrack && lastTrackedTabRef.current === trackedTab) return;
-    lastTrackedTabRef.current = trackedTab;
-    tabEnteredAtRef.current = Date.now();
-    const type = trackedTab === 'faq' ? 'faq_visit' : 'tab_visit';
-    const baseMeta = visitorCtxRef.current ? visitorContextToMeta(visitorCtxRef.current) : {};
-    if (trackedTab === 'news' || trackedTab === 'changelog') {
-      notifyFeedRead(trackedTab);
-      if (isLoggedIn && user) {
-        if (trackedTab === 'changelog' && user.changelogLastReadVersion !== APP_VERSION) {
-          markLocalChangelogRead();
-          patchUser((prev) => (prev ? { ...prev, changelogLastReadVersion: APP_VERSION } : prev));
-        } else if (
-          trackedTab === 'news'
-          && newsFeedVersion !== '0.0.0'
-          && user.newsLastReadVersion !== newsFeedVersion
-        ) {
-          markLocalNewsRead(newsFeedVersion);
-          patchUser((prev) => (prev ? { ...prev, newsLastReadVersion: newsFeedVersion } : prev));
+    const trackGen = ++tabTrackGenRef.current;
+
+    void (async () => {
+      const prevTab = lastTrackedTabRef.current;
+      if (prevTab !== null && prevTab !== trackedTab) {
+        const dwellSec = Math.round((Date.now() - tabEnteredAtRef.current) / 1000);
+        if (dwellSec >= 2 && isLoggedInRef.current) {
+          await trackEvent('tab_dwell', { tab: prevTab, meta: { dwellSec } }).catch(() => {});
         }
       }
-    }
-    const trackGen = ++tabTrackGenRef.current;
-    trackEvent(type, {
-      tab: trackedTab,
-      meta: {
-        ...baseMeta,
-        visitCount: visitorCtxRef.current?.visitCount,
-        ...(forceTrack ? { forceRemint: true } : {}),
-      },
-    })
-      .then((r) => {
+      if (trackGen !== tabTrackGenRef.current) return;
+
+      const forceTrack = tabTrackForceRef.current || takeAchievementProofRemintRequest();
+      if (tabTrackForceRef.current) tabTrackForceRef.current = false;
+      if (!forceTrack && lastTrackedTabRef.current === trackedTab) return;
+      const prevTrackedTab = lastTrackedTabRef.current;
+      if (!forceTrack) {
+        lastTrackedTabRef.current = trackedTab;
+        tabEnteredAtRef.current = Date.now();
+      }
+
+      const type = trackedTab === 'faq' ? 'faq_visit' : 'tab_visit';
+      const baseMeta = visitorCtxRef.current ? visitorContextToMeta(visitorCtxRef.current) : {};
+      if (trackedTab === 'news' || trackedTab === 'changelog') {
+        notifyFeedRead(trackedTab);
+        if (isLoggedIn && user) {
+          if (trackedTab === 'changelog' && user.changelogLastReadVersion !== APP_VERSION) {
+            markLocalChangelogRead();
+            patchUser((prev) => (prev ? { ...prev, changelogLastReadVersion: APP_VERSION } : prev));
+          } else if (
+            trackedTab === 'news'
+            && newsFeedVersion !== '0.0.0'
+            && user.newsLastReadVersion !== newsFeedVersion
+          ) {
+            markLocalNewsRead(newsFeedVersion);
+            patchUser((prev) => (prev ? { ...prev, newsLastReadVersion: newsFeedVersion } : prev));
+          }
+        }
+      }
+
+      try {
+        const r = await trackEvent(type, {
+          tab: trackedTab,
+          meta: {
+            ...baseMeta,
+            visitCount: visitorCtxRef.current?.visitCount,
+            ...(forceTrack ? { forceRemint: true } : {}),
+          },
+        });
         if (trackGen !== tabTrackGenRef.current || !isLoggedInRef.current) return;
+        if (forceTrack) {
+          lastTrackedTabRef.current = trackedTab;
+          tabEnteredAtRef.current = Date.now();
+        }
         if (r?.proof && r.proof.tab === trackedTab) setAchievementProof(r.proof);
         if (r?.user && (r.proof?.tab === trackedTab || forceTrack)) patchUser(r.user);
-      })
-      .catch(() => {});
+      } catch {
+        if (trackGen !== tabTrackGenRef.current || !isLoggedInRef.current) return;
+        if (forceTrack) {
+          lastTrackedTabRef.current = prevTrackedTab;
+          requestAchievementProofRemint();
+        }
+      }
+    })();
   }, [activeTab, renderTab, authLoading, visibilityLoading, patchUser, isLoggedIn, user, newsFeedVersion]);
 
   useEffect(() => {

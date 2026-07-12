@@ -76,6 +76,13 @@ export class ChatFetchError extends Error {
   }
 }
 
+export class ChatGatedError extends Error {
+  constructor(message = 'Permission denied') {
+    super(message);
+    this.name = 'ChatGatedError';
+  }
+}
+
 export async function fetchLobbyMessages(opts: { since?: number; limit?: number } = {}): Promise<LobbyMessagesResponse> {
   const params = new URLSearchParams();
   if (opts.since) params.set('since', String(opts.since));
@@ -88,6 +95,10 @@ export async function fetchLobbyMessages(opts: { since?: number; limit?: number 
   if (res.status === 401) {
     invalidateSession();
     throw new ChatAuthRequiredError();
+  }
+  if (res.status === 403) {
+    const err = await res.json().catch(() => ({}));
+    throw new ChatGatedError((err as { error?: string }).error ?? 'Permission denied');
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -127,6 +138,10 @@ export async function sendLobbyMessage(text: string): Promise<SendLobbyMessageRe
       }
     }
     throw new ChatRateLimitError(retryAfterMs);
+  }
+  if (res.status === 403) {
+    const err = await res.json().catch(() => ({}));
+    throw new ChatGatedError((err as { error?: string }).error ?? 'Permission denied');
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

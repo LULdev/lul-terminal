@@ -149,6 +149,7 @@ export async function handleAuthRequest(req, res) {
 
     if (req.method === 'GET' && pathname === '/api/auth/referral/me') {
       const user = requireAuth(req);
+      await requireMemberTab(req, 'invite');
       checkRateLimit(`referral-read:${user.id}`, { max: 30, windowMs: 60_000 });
       const info = await getReferralInfo(user.id, req);
       return sendJson(res, 200, info);
@@ -202,6 +203,7 @@ export async function handleAuthRequest(req, res) {
 
     if (req.method === 'POST' && pathname === '/api/auth/achievements/sync') {
       const user = requireAuth(req);
+      await requireMemberTab(req, 'dashboard');
       checkRateLimit(`ach-sync:${user.id}`, { max: 30, windowMs: 60_000 });
       const result = await syncUserAchievements(user.id, {});
       return sendJson(res, 200, { user: result.user, newUnlocks: result.newUnlocks ?? [] });
@@ -218,6 +220,7 @@ export async function handleAuthRequest(req, res) {
 
     if (req.method === 'POST' && pathname === '/api/auth/achievements/terminal-command') {
       const user = requireAuth(req);
+      await requireMemberTab(req, 'dashboard');
       checkRateLimit(`ach-cmd:${user.id}`, { max: 40, windowMs: 60_000 });
       const body = await readJsonBody(req);
       const result = await recordTerminalCommand(user.id, String(body.command ?? ''), body.proof);

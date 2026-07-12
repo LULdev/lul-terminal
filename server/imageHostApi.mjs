@@ -93,6 +93,7 @@ export async function handleImageHostRequest(req, res) {
         height: body.height,
         buffer,
         userId,
+        source: body.source === 'meme' ? 'meme' : undefined,
       });
       const isMemeExport = body.source === 'meme';
       if (userId && !isMemeExport) await incrementUserImageUpload(userId);
