@@ -207,6 +207,8 @@ export function GamesPage() {
   const loadGenRef = useRef(0);
   const stateRef = useRef(state);
   stateRef.current = state;
+  const waitingRef = useRef(waiting);
+  waitingRef.current = waiting;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -387,16 +389,19 @@ export function GamesPage() {
     if (authLoading) return;
     if (!isLoggedIn && wasLoggedInRef.current) {
       const snap = stateRef.current;
-      if (snap) {
-        void (async () => {
+      void (async () => {
+        if (waitingRef.current) {
+          try { await leaveGameQueue(selectedGameRef.current); } catch { /* best-effort */ }
+        }
+        if (snap) {
           for (const g of GAME_CATALOG) {
             const slice = getGameSlice(snap, g.id);
             if (slice?.inQueue) {
               try { await leaveGameQueue(g.id); } catch { /* best-effort */ }
             }
           }
-        })();
-      }
+        }
+      })();
     }
     wasLoggedInRef.current = isLoggedIn;
   }, [isLoggedIn, authLoading]);
@@ -404,6 +409,8 @@ export function GamesPage() {
   useEffect(() => {
     if (isLoggedIn) return;
     initialLoadDoneRef.current = false;
+    celebratedMatches.current.clear();
+    dismissedMatches.current.clear();
     setLoading(false);
     setState(null);
     setBoards(null);

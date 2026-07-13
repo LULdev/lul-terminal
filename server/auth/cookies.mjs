@@ -52,7 +52,7 @@ export function setRegistrationLockCookie(res, token) {
     ...cookieBaseParts(),
     `Max-Age=${REG_LOCK_MAX_AGE_SEC}`,
   ].join('; ');
-  const hintParts = ['Path=/', 'SameSite=Lax', `Max-Age=${REG_LOCK_MAX_AGE_SEC}`];
+  const hintParts = ['Path=/', 'HttpOnly', 'SameSite=Lax', `Max-Age=${REG_LOCK_MAX_AGE_SEC}`];
   if (process.env.NODE_ENV === 'production') hintParts.push('Secure');
   const hint = [`${REG_HINT_COOKIE}=${encoded}`, ...hintParts].join('; ');
   res.setHeader('Set-Cookie', [lock, hint]);

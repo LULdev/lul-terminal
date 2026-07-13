@@ -577,7 +577,7 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
       return;
     }
     if (result.error === 'CHAT_AUTH_REQUIRED') {
-      openAuth('login');
+      void refresh().finally(() => openAuth('login'));
       return;
     }
     if (result.retryAfterMs) {

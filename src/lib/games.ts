@@ -320,6 +320,10 @@ export function fetchGamesState() {
   return api<GamesState>('/state');
 }
 
+export function fetchGamesStateRead() {
+  return apiRead<GamesState>('/state');
+}
+
 export function fetchGamesLeaderboard() {
   return apiRead<GamesLeaderboard>('/leaderboard');
 }

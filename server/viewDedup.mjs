@@ -73,8 +73,7 @@ async function loadGuestViews() {
 }
 
 const guestViewsReady = loadGuestViews().catch((err) => {
-  console.error('[view-dedup] initial load failed — dedup disabled until restart', err);
-  loaded = true;
+  console.error('[view-dedup] initial load failed — will retry on next claim', err);
 });
 
 function pruneStale() {

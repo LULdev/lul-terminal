@@ -1,6 +1,6 @@
 # LUL Terminal
 
-[![Version](https://img.shields.io/badge/version-3.41.0-blue)](package.json)
+[![Version](https://img.shields.io/badge/version-3.42.0-blue)](package.json)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-green)](package.json)
 [![License](https://img.shields.io/badge/license-Apache--2.0-orange)](LICENSE)
 
@@ -287,12 +287,13 @@ npm run build && npm start
 
 ## Sicherheit & Härtung (v3.36.x)
 
-Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Aktuelle Version: **3.41.0**. Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
+Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Aktuelle Version: **3.42.0**. Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
 
 ### Letzte 10 Audit-Runden (Kurzüberblick)
 
 | Version | Runde | Schwerpunkte |
 |---------|-------|--------------|
+| **3.42.0** | 42 | Login gate preservation, guest shoutbox stale cookie, arcade waiting logout, soft401 parity |
 | **3.41.0** | 41 | Paste burn atomicity, session race guards, login session revoke, arcade queue/orphan fixes |
 | **3.40.0** | 40 | Shoutbox guest read, paste deadlock, escrow logout parity, chat 401 refresh |
 | **3.39.0** | 39 | Queue heartbeatAt, logout arcade cleanup, analytics proof remint |
@@ -303,6 +304,8 @@ Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client).
 | **3.36.98** | 36 | Analytics ordering, tab_visit ok:false rollback, view session keys |
 | **3.36.97** | 35 | Tab ref integrity, image upload cap, guest dedup TOCTOU |
 | **3.36.96** | 34 | profileTabReadyTick proof gate, shoutbox gated poll, view inflight coalesce |
+
+> **Round 42 Hinweis:** `/me` nutzt soft-401 (kein Login-Gate-Wipe bei Tab-Fokus); Gäste mit abgelaufenem Session-Cookie können Shoutbox weiter lesen (Retry ohne Credentials).
 
 ### Wichtige Sicherheitsmaßnahmen
 

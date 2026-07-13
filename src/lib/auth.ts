@@ -59,7 +59,7 @@ export async function fetchMe(): Promise<{
   permissions: AuthPermissions;
   stats: { accountsSubmitted: number } | null;
 }> {
-  return api('/me');
+  return api('/me', undefined, { soft401: true });
 }
 
 export async function fetchPublicProfile(username: string): Promise<PublicProfile> {
@@ -99,9 +99,10 @@ export async function recordProfileView(
   const pending = profileViewInflight.get(uname);
   if (pending) return pending;
 
+  const canUseSession = typeof sessionStorage !== 'undefined';
   const run = (async (): Promise<ProfileViewResult> => {
     const sessionKey = `${PROFILE_VIEW_PREFIX}${uname}`;
-    if (!sessionStorage.getItem(sessionKey)) {
+    if (!canUseSession || !sessionStorage.getItem(sessionKey)) {
       if (!opts.skipDwell) await waitForProfileDwell();
       for (let attempt = 0; attempt < 5; attempt++) {
         try {
@@ -120,7 +121,7 @@ export async function recordProfileView(
           }
           if (res.ok) {
             const data = await res.json() as { user: PublicProfile; credited?: boolean };
-            sessionStorage.setItem(sessionKey, '1');
+            if (canUseSession) sessionStorage.setItem(sessionKey, '1');
             return { user: data.user, credited: Boolean(data.credited) };
           }
         } catch { /* fall through */ }

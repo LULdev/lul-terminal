@@ -131,6 +131,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshGenRef = useRef(0);
+  const userRef = useRef(user);
+  userRef.current = user;
 
   const refresh = useCallback(async () => {
     const gen = ++refreshGenRef.current;
@@ -160,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     void boot();
     const retryAuth = () => {
-      if (mounted) void refresh();
+      if (mounted && userRef.current) void refresh();
     };
     window.addEventListener('online', retryAuth);
     const onVisible = () => {
@@ -181,8 +183,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       closeChatAudioContext();
       clearViewDedupSessionKeys();
       setUser(null);
-      setLoginGate(null);
-      setPendingTabAfterLogin(null);
       setPermissions(defaultPermissions);
       setAccountsSubmitted(0);
       setPendingUnlocks([]);

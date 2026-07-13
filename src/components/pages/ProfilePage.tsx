@@ -26,7 +26,7 @@ import { LulCoinAmount } from '../games/LulCoinAmount';
 import { CoinEarningsFeed } from '../games/CoinEarningsFeed';
 import {
   fetchGamesLeaderboard,
-  fetchGamesState,
+  fetchGamesStateRead,
   type DailyBonusInfo,
   type GamesLeaderboard,
   type GamesState,
@@ -169,7 +169,7 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
     }
     if (activeTab === 'arcade' && customization.privacy.showActivityStats) return;
     let cancelled = false;
-    fetchGamesState()
+    fetchGamesStateRead()
       .then((s) => {
         if (!cancelled) setDailyBonus(s.dailyBonus);
       })
@@ -184,7 +184,7 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
     const gen = ++arcadeLoadGenRef.current;
     setGamesLoading(true);
     setGamesError('');
-    Promise.all([fetchGamesState(), fetchGamesLeaderboard()])
+    Promise.all([fetchGamesStateRead(), fetchGamesLeaderboard()])
       .then(([s, lb]) => {
         if (gen !== arcadeLoadGenRef.current) return;
         setGamesState(s);
@@ -206,7 +206,7 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
     if (!isOwnProfile || !isLoggedIn || authLoading || activeTab !== 'arcade' || !customization.privacy.showActivityStats) return;
     if (coinFeedTick === 0) return;
     const gen = ++arcadeLoadGenRef.current;
-    fetchGamesState()
+    fetchGamesStateRead()
       .then((s) => { if (gen === arcadeLoadGenRef.current) setGamesState(s); })
       .catch(() => { if (gen === arcadeLoadGenRef.current) setGamesState(null); });
   }, [coinFeedTick, isOwnProfile, isLoggedIn, authLoading, activeTab, customization.privacy.showActivityStats]);
@@ -416,7 +416,7 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
                     const gen = ++arcadeLoadGenRef.current;
                     setGamesError('');
                     setGamesLoading(true);
-                    Promise.all([fetchGamesState(), fetchGamesLeaderboard()])
+                    Promise.all([fetchGamesStateRead(), fetchGamesLeaderboard()])
                       .then(([s, lb]) => {
                         if (gen !== arcadeLoadGenRef.current) return;
                         setGamesState(s);

@@ -88,11 +88,19 @@ export async function fetchLobbyMessages(opts: { since?: number; limit?: number 
   if (opts.since) params.set('since', String(opts.since));
   if (opts.limit) params.set('limit', String(opts.limit));
   const q = params.toString();
-  const res = await fetch(`${API}/lobby/messages${q ? `?${q}` : ''}`, {
+  const url = `${API}/lobby/messages${q ? `?${q}` : ''}`;
+  const res = await fetch(url, {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
   });
-  if (res.status === 401) throw new ChatAuthRequiredError();
+  if (res.status === 401) {
+    const guestRes = await fetch(url, {
+      credentials: 'omit',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (guestRes.ok) return guestRes.json() as Promise<LobbyMessagesResponse>;
+    throw new ChatAuthRequiredError();
+  }
   if (res.status === 403) {
     const err = await res.json().catch(() => ({}));
     throw new ChatGatedError((err as { error?: string }).error ?? 'Permission denied');

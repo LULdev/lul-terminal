@@ -238,12 +238,12 @@ async function analyticsJson<T>(path: string): Promise<T> {
 }
 
 export async function fetchMyActivity(): Promise<UserActivitySummary> {
-  return analyticsJson<UserActivitySummary>('/me');
+  return sessionJson<UserActivitySummary>(`${API}/me`);
 }
 
 export async function fetchActiveTodayUsers(limit = 48): Promise<ActiveTodayResponse> {
   const q = new URLSearchParams({ limit: String(limit) });
-  return analyticsJson<ActiveTodayResponse>(`/active-today?${q}`);
+  return sessionJson<ActiveTodayResponse>(`${API}/active-today?${q}`);
 }
 
 export async function fetchAdminOverview(): Promise<AdminOverview> {

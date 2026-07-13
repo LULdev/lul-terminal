@@ -612,6 +612,8 @@ export default function App() {
   useEffect(() => {
     if (authLoading || !isLoggedIn || didBootstrapAuthTab.current) return;
     if (initialProfileRoute || initialDeepLink.tab) return;
+    const path = window.location.pathname.replace(/\/+$/, '') || '/';
+    if (path === '/') return;
     didBootstrapAuthTab.current = true;
     setActiveTab('dashboard');
     setProfileUsername(null);

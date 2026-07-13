@@ -5,6 +5,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Coins, RefreshCw, Sparkles, TrendingUp } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { ACHIEVEMENT_BY_ID } from '../../data/achievements';
 import {
   COIN_FEED_KIND_STYLES,
@@ -50,6 +51,7 @@ type Props = {
 };
 
 export function CoinEarningsFeed({ compact = false, refreshKey = 0, className = '' }: Props) {
+  const { isLoggedIn } = useAuth();
   const [feed, setFeed] = useState<Awaited<ReturnType<typeof fetchCoinFeed>> | null>(null);
   const [filter, setFilter] = useState<FilterKind>('all');
   const [loading, setLoading] = useState(true);
@@ -63,6 +65,7 @@ export function CoinEarningsFeed({ compact = false, refreshKey = 0, className = 
   }, []);
 
   const load = useCallback(async () => {
+    if (!isLoggedIn) return;
     const gen = ++loadGenRef.current;
     try {
       const data = await fetchCoinFeed(compact ? 20 : 40);
@@ -75,9 +78,14 @@ export function CoinEarningsFeed({ compact = false, refreshKey = 0, className = 
     } finally {
       if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
     }
-  }, [compact]);
+  }, [compact, isLoggedIn]);
 
   useEffect(() => {
+    if (!isLoggedIn) {
+      setFeed(null);
+      setLoading(false);
+      return;
+    }
     const tick = () => {
       if (document.hidden) return;
       void load();
@@ -92,7 +100,7 @@ export function CoinEarningsFeed({ compact = false, refreshKey = 0, className = 
       clearInterval(t);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [load, refreshKey]);
+  }, [load, refreshKey, isLoggedIn]);
 
   const items = useMemo(() => {
     const list = feed?.items ?? [];

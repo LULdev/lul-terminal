@@ -23,6 +23,35 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.42.0',
+    title: 'Extreme deep audit — round 42 (login gate + session probe parity)',
+    date: 'Jul 13, 2026 - 16:00',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — fetchMe soft401: visibility/online /me no longer invalidates session or wipes login gate.' },
+      { priority: 'P1', text: 'P1 — Session invalidation preserves loginGate + pendingTabAfterLogin (explicit logout still clears).' },
+      { priority: 'P1', text: 'P1 — GamesPage logout leaves queue when local waiting=true (not only server inQueue slice).' },
+      { priority: 'P1', text: 'P1 — pasteStore listAllPastes uses filterAliveMeta (admin list purge race fixed).' },
+      { priority: 'P2', text: 'P2 — imageHostApi member views cross-dedup guest IP (paste parity).' },
+      { priority: 'P2', text: 'P2 — Chat send 401 calls refresh() before openAuth (poll/send parity).' },
+      { priority: 'P2', text: 'P2 — fetchMyActivity/fetchActiveTodayUsers use sessionJson (401 syncs session).' },
+      { priority: 'P2', text: 'P2 — fetchGamesStateRead soft401 for ProfilePage arcade tab (no surprise global logout).' },
+      { priority: 'P2', text: 'P2 — fetchLobbyMessages retries credentials:omit on 401 (stale cookie guest read).' },
+      { priority: 'P3', text: 'P3 — App bootstrap respects / changelog for logged-in users (no dashboard hijack).' },
+      { priority: 'P3', text: 'P3 — sessionStorage guards: imageHosting, premiumAccounts, recordProfileView.' },
+      { priority: 'P3', text: 'P3 — GamesPage clears celebratedMatches/dismissedMatches Sets on logout.' },
+      { priority: 'P3', text: 'P3 — CoinEarningsFeed gated on isLoggedIn.' },
+      { priority: 'P3', text: 'P3 — REG_HINT_COOKIE HttpOnly; viewDedup load failure retries instead of permanent disable.' },
+      { priority: 'P4', text: 'P4 — Auth visibility refresh only when user is logged in.' },
+      { priority: 'P8', text: 'P8 — Vault plaintext API exposure, email-change password step-up, X-Forwarded-Host allowlist deferred.' },
+      { priority: 'P9', text: 'P9 — Round 42 audit pass 1+2: lint + build verified.' },
+      {
+        priority: 'P9',
+        text: 'Last 10 audit rounds (v3.41→3.32): R42 login gate/session probe; R41 paste burn+session revoke; R40 shoutbox+escrow; R39 queue heartbeat; R38.1 burn sweep; R38 session-bus; R37 invalidateSession; R36.99 Redis limits; R36 analytics integrity; R35 tab tracking.',
+      },
+    ],
+  },
+  {
     version: '3.41.0',
     title: 'Extreme deep audit — round 41 (session races + paste burn atomicity)',
     date: 'Jul 13, 2026 - 14:30',

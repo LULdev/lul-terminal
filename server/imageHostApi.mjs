@@ -169,6 +169,24 @@ export async function handleImageHostRequest(req, res) {
               return { views: meta.views ?? 0, deduped: true };
             }
           }
+          if (!(await claimGuestView('image', clientIp(req), imageId))) {
+            const meta = await getMeta(imageId);
+            if (!meta) return null;
+            if (viewerId) {
+              const db = await loadUsersDb();
+              const viewer = db.users.find((u) => u.id === viewerId);
+              if (viewer) {
+                const flagKey = `image_meta_view_${imageId}`;
+                const act = ensureActivity(viewer);
+                if (!act.flags[flagKey]) {
+                  act.flags[flagKey] = true;
+                  viewer.updatedAt = Date.now();
+                  await saveUsersDb(db);
+                }
+              }
+            }
+            return { views: meta.views ?? 0, deduped: true };
+          }
         } else if (!(await claimGuestView('image', clientIp(req), imageId))) {
           const meta = await getMeta(imageId);
           if (!meta) return null;

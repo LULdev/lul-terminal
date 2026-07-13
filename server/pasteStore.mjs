@@ -492,7 +492,7 @@ export async function listAllPastes({
     if (!file.endsWith('.json')) continue;
     try {
       const meta = JSON.parse(await fs.readFile(path.join(META_DIR, file), 'utf8'));
-      const alive = await purgeIfExpired(meta, { inWrite: true });
+      const alive = filterAliveMeta(meta);
       if (!alive) continue;
       if (visFilter && alive.visibility !== visFilter) continue;
       if (needle) {

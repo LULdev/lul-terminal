@@ -230,9 +230,10 @@ export async function recordImageView(id: string): Promise<number> {
   const pending = viewInflight.get(id);
   if (pending) return pending;
 
+  const canUseSession = typeof sessionStorage !== 'undefined';
   const run = (async () => {
     const sessionKey = `${VIEW_SESSION_PREFIX}${id}`;
-    if (!sessionStorage.getItem(sessionKey)) {
+    if (!canUseSession || !sessionStorage.getItem(sessionKey)) {
       try {
         const res = await fetch(`${API}/${id}/view`, {
           method: 'POST',
@@ -241,7 +242,7 @@ export async function recordImageView(id: string): Promise<number> {
         });
         if (res.ok) {
           const data = await res.json() as { views: number; deduped?: boolean };
-          sessionStorage.setItem(sessionKey, '1');
+          if (canUseSession) sessionStorage.setItem(sessionKey, '1');
           return data.views;
         }
       } catch { /* fall through */ }

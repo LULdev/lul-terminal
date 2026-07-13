@@ -233,8 +233,9 @@ export async function rejectAccountReport(reportId: string): Promise<void> {
 }
 
 export async function recordAccountView(id: string, currentViews = 0): Promise<number> {
+  const canUseSession = typeof sessionStorage !== 'undefined';
   const sessionKey = `${ACCOUNT_VIEW_PREFIX}${id}`;
-  if (!sessionStorage.getItem(sessionKey)) {
+  if (!canUseSession || !sessionStorage.getItem(sessionKey)) {
     try {
       const res = await fetch(`${API}/accounts/${id}/view`, {
         method: 'POST',
@@ -242,7 +243,7 @@ export async function recordAccountView(id: string, currentViews = 0): Promise<n
         headers: { 'Content-Type': 'application/json' },
       });
       if (res.ok) {
-        sessionStorage.setItem(sessionKey, '1');
+        if (canUseSession) sessionStorage.setItem(sessionKey, '1');
         const data = await res.json() as { views: number };
         return data.views;
       }
