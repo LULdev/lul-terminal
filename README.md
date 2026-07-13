@@ -23,9 +23,10 @@ Community arcade, profiles, tools, and terminal hub — built with **React 19**,
 9. [Rate Limits & Multi-Process](#rate-limits--multi-process)
 10. [Scripts & Umgebungsvariablen](#scripts)
 11. [Projektstruktur](#project-structure)
-12. [Deployment & Checkliste](#github--deployment)
-13. [Fehlerbehebung](#fehlerbehebung)
-14. [Quick start (English)](#quick-start-english)
+12. [Docker-Anleitung](#docker-anleitung)
+13. [Deployment & Checkliste](#github--deployment)
+14. [Fehlerbehebung](#fehlerbehebung)
+15. [Quick start (English)](#quick-start-english)
 
 ---
 
@@ -916,6 +917,9 @@ lul-terminal/
 │   └── data/          # Changelog, setup notes
 ├── scripts/           # Seed & maintenance scripts
 ├── dist/              # Build output (gitignored)
+├── Dockerfile         # Production container image
+├── docker-compose.yml # App + optional Redis
+├── .dockerignore
 ├── .env.example       # Environment template
 └── vercel.json        # SPA rewrites for static deploy
 ```
@@ -928,14 +932,113 @@ In der laufenden App: **Admin Dashboard → Setup Notes** — spiegelt Deploymen
 
 ---
 
+## Docker-Anleitung
+
+Einfacher Weg, LUL Terminal **ohne Node auf dem Host** zu betreiben. Image baut Frontend + startet Express; `data/` liegt in einem Docker-Volume.
+
+### Voraussetzungen
+
+- [Docker](https://docs.docker.com/get-docker/) + Docker Compose v2 (`docker compose`)
+- Git (zum Klonen) oder nur `Dockerfile` + `docker-compose.yml` aus dem Repo
+
+### Schritt 1 — Projekt & `.env`
+
+```bash
+git clone https://github.com/LULdev/lul-terminal.git
+cd lul-terminal
+copy .env.example .env          # Windows — macOS/Linux: cp .env.example .env
+```
+
+**Mindestens in `.env` setzen (Produktion):**
+
+```env
+NODE_ENV=production
+TRUST_PROXY=1
+PUBLIC_BASE_URL=https://deine-domain.de
+PREMIUM_VAULT_KEY=<langer-zufälliger-string>
+SEED_ADMIN_PASSWORD=<starkes-passwort>
+SEED_VIP_PASSWORD=<starkes-passwort>
+```
+
+Hinter nginx/Caddy: `TRUST_PROXY=1` und `PUBLIC_BASE_URL` oder `ALLOWED_PUBLIC_HOSTS`.
+
+### Schritt 2 — Image bauen & starten
+
+```bash
+docker compose up -d --build
+```
+
+- App: **http://localhost:3000** (Port über `PORT` in `.env` änderbar)
+- Daten: Volume `lul-data` → `/app/data` im Container
+- Logs: `docker compose logs -f lul-terminal`
+
+### Schritt 3 — Erster Login
+
+Beim ersten Start wird bei leerer `users.json` automatisch `admin` + `vipdemo` angelegt (Passwörter aus `SEED_*` in `.env`).
+
+### Optional — Redis im Compose
+
+Für Load-Balancer / mehrere App-Container:
+
+```bash
+# In .env ergänzen:
+# REDIS_URL=redis://redis:6379
+
+docker compose --profile with-redis up -d --build
+```
+
+### nginx vor Docker (empfohlen für HTTPS)
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+### Wartung mit Docker
+
+| Aufgabe | Befehl |
+|---------|--------|
+| Stoppen | `docker compose down` |
+| Neustart | `docker compose restart lul-terminal` |
+| Update | `git pull && docker compose up -d --build` |
+| Logs | `docker compose logs -f lul-terminal` |
+| Shell im Container | `docker compose exec lul-terminal sh` |
+| Seed Auth (leere DB) | `docker compose exec lul-terminal npm run seed:auth` |
+| Backup `data/` | `docker run --rm -v lul-terminal_lul-data:/data -v $(pwd):/backup alpine tar czf /backup/lul-data.tar.gz -C /data .` |
+
+> **Volume-Name:** `docker volume ls` — oft `lul-terminal_lul-data` (Projektordner-Präfix).
+
+### Nur Dockerfile (ohne Compose)
+
+```bash
+docker build -t lul-terminal .
+docker run -d --name lul-terminal -p 3000:3000 --env-file .env -v lul-data:/app/data lul-terminal
+```
+
+### Dateien im Repo
+
+| Datei | Zweck |
+|-------|-------|
+| `Dockerfile` | Multi-Stage Build (Vite → Express) |
+| `docker-compose.yml` | App + optionales Redis-Profil |
+| `.dockerignore` | Schnellerer Build, kein `data/` im Image |
+
+---
+
 ## GitHub / deployment
 
 | Ziel | Hinweis |
 |------|---------|
+| **Docker (empfohlen)** | `docker compose up -d --build` — siehe [Docker-Anleitung](#docker-anleitung) |
 | **Self-hosted VPS** | `npm run build && npm start` + nginx + `TRUST_PROXY=1` + `PUBLIC_BASE_URL` |
 | **PM2 / Cluster (1 Host)** | `NODE_ENV=production` (auto File-Rate-Limits) + `data/` persistent mounten |
 | **Multi-Instance / LB** | `REDIS_URL=redis://…` — Rate-Limits + Guest-Dedup (siehe [Redis-Anleitung](#redis-anleitung-redis_url)) |
-| **Docker** | Mount `data/`, set env from `.env.example` |
 | **Vercel (static only)** | `vercel.json` rewrites SPA routes; **API requires Node server** — use VPS or split frontend/API |
 
 ### Produktions-Checkliste

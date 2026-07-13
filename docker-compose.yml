@@ -1,0 +1,38 @@
+# LUL Terminal — Docker Compose
+# Usage: copy .env.example → .env, then: docker compose up -d --build
+
+services:
+  lul-terminal:
+    build: .
+    container_name: lul-terminal
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    volumes:
+      - lul-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+  # Optional Redis for multi-instance / load balancer setups:
+  # docker compose --profile with-redis up -d --build
+  # Set in .env: REDIS_URL=redis://redis:6379
+  redis:
+    image: redis:7-alpine
+    container_name: lul-redis
+    profiles: [with-redis]
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+
+volumes:
+  lul-data:
+  redis-data:
