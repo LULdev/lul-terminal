@@ -40,7 +40,7 @@ type AuthContextValue = {
   clearPendingTabAfterLogin: () => void;
   closeAuth: () => void;
   login: (email: string, password: string, remember: boolean) => Promise<void>;
-  register: (input: { email: string; password: string; username?: string; displayName?: string; referralCode?: string }) => Promise<void>;
+  register: (input: { email: string; password: string; username?: string; displayName?: string; referralCode?: string; website?: string }) => Promise<void>;
   logout: () => Promise<boolean>;
   refresh: () => Promise<void>;
   patchUser: (user: AuthUser | ((prev: AuthUser | null) => AuthUser | null)) => void;
@@ -222,7 +222,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       collectRegistrationContext,
       fetchRegistrationChallenge,
-      markRegistrationHint,
     } = await import('../lib/registrationContext');
     const [registrationContext, challenge] = await Promise.all([
       collectRegistrationContext(),
@@ -234,7 +233,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       registrationChallenge: challenge.challenge,
       registrationContext,
     });
-    markRegistrationHint(registrationContext.installId);
     clearStoredReferralCode();
     try {
       await login(input.email, input.password, true);

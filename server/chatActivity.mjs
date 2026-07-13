@@ -23,7 +23,7 @@ export async function handleChatActivity(user, body) {
       const memeImageId = String(body.memeImageId ?? body.imageId ?? '').trim();
       if (!memeImageId) throw new Error('Meme image id required');
       const imageMeta = await getMeta(memeImageId);
-      if (!imageMeta || imageMeta.userId !== user.id || imageMeta.source !== 'meme') {
+      if (!imageMeta || String(imageMeta.userId) !== String(user.id) || imageMeta.source !== 'meme') {
         throw new Error('Meme image not found');
       }
 

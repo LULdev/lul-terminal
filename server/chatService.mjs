@@ -293,9 +293,19 @@ export async function adminModerateShoutboxUser(actor, { action, username, minut
   });
 
   if (act === 'ban') {
-    await revokeUserSessions(target.user.id);
+    const userId = target.user.id;
+    await revokeUserSessions(userId);
+    const { leaveAllGameQueues, userHasActiveArcadeSession } = await import('./gamesService.mjs');
+    const cleanup = await leaveAllGameQueues(userId);
+    const stillActive = await userHasActiveArcadeSession(userId).catch(() => true);
+    if (!stillActive && !cleanup.ok) {
+      const { refundUserEscrows } = await import('./gamesEscrow.mjs');
+      await refundUserEscrows(userId).catch((e) => {
+        console.warn('[chat] escrow refund on admin ban failed', userId, e);
+      });
+    }
     await blockRegistrationSignalsForUser(target.user);
-    await incrementAbuseWarnings(target.user.id, 1);
+    await incrementAbuseWarnings(userId, 1);
   } else if (act === 'unban') {
     await unblockRegistrationSignalsForUser(target.user);
   }

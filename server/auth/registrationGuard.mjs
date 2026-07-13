@@ -129,7 +129,6 @@ function isUserRegistrationBlocked(user) {
 const BLOCKED_MSG = 'Registration is not available for this device or network.';
 const ONE_ACCOUNT_MSG = 'Only one account is allowed. Please sign in with your existing account.';
 const BROWSER_MSG = 'Registration requires a supported browser environment.';
-const BOT_MSG = 'Please wait a moment before creating an account.';
 const DISPOSABLE_MSG = 'Disposable email addresses are not allowed.';
 
 export async function assertRegistrationAllowed(payload, signals, usersDb, req) {
@@ -145,11 +144,6 @@ export async function assertRegistrationAllowed(payload, signals, usersDb, req) 
 
   if (!signals.canvasHash && !signals.webglHash) {
     throw new Error(BROWSER_MSG);
-  }
-
-  const now = Date.now();
-  if (signals.firstVisitAt > 0 && now - signals.firstVisitAt < 15_000) {
-    throw new Error(BOT_MSG);
   }
 
   if (payload?.email && isDisposableEmail(payload.email)) {

@@ -78,11 +78,10 @@ export async function handlePageViewsRequest(req, res) {
       if (!id) return sendJson(res, 400, { error: 'Invalid page id' });
       await attachAuth(req);
       requireAuth(req);
-      if (ALL_MANAGEABLE_TAB_IDS.includes(id)) {
-        await requireMemberTab(req, id);
-      } else {
-        await requireMemberTab(req, 'stats');
+      if (!ALL_MANAGEABLE_TAB_IDS.includes(id)) {
+        return sendJson(res, 404, { error: 'Page not found' });
       }
+      await requireMemberTab(req, id);
       return sendJson(res, 200, { pageId: id, views: await getPageViews(id) });
     }
 

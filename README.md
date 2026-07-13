@@ -1,6 +1,6 @@
 # LUL Terminal
 
-[![Version](https://img.shields.io/badge/version-3.43.0-blue)](package.json)
+[![Version](https://img.shields.io/badge/version-3.44.0-blue)](package.json)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-green)](package.json)
 [![License](https://img.shields.io/badge/license-Apache--2.0-orange)](LICENSE)
 
@@ -287,12 +287,13 @@ npm run build && npm start
 
 ## Sicherheit & Härtung (v3.36.x)
 
-Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Aktuelle Version: **3.43.0**. Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
+Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Aktuelle Version: **3.44.0**. Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
 
 ### Letzte 10 Audit-Runden (Kurzüberblick)
 
 | Version | Runde | Schwerpunkte |
 |---------|-------|--------------|
+| **3.44.0** | 44 | Paste deep-link views+auth, ban arcade cleanup, reg challenge timing, email step-up |
 | **3.43.0** | 43 | Arcade cleanup on 401, password step-up, meme notify session bus, admin paste stats |
 | **3.42.0** | 42 | Login gate preservation, guest shoutbox stale cookie, arcade waiting logout, soft401 parity |
 | **3.41.0** | 41 | Paste burn atomicity, session race guards, login session revoke, arcade queue/orphan fixes |
@@ -305,6 +306,8 @@ Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client).
 | **3.36.98** | 36 | Analytics ordering, tab_visit ok:false rollback, view session keys |
 | **3.36.97** | 35 | Tab ref integrity, image upload cap, guest dedup TOCTOU |
 | **3.36.96** | 34 | profileTabReadyTick proof gate, shoutbox gated poll, view inflight coalesce |
+
+> **Round 44 Hinweis:** `/p/:id` Deep-Links zählen Views und öffnen AuthModal; Registrierungs-Bot-Gate nutzt Challenge-`issuedAt` (nicht forgeable `firstVisitAt`); `/ban` räumt Arcade-Queues + Escrow auf; E-Mail-Änderung erfordert `currentPassword`.
 
 > **Round 43 Hinweis:** Passwortänderung erfordert `currentPassword`; passive Session-Invalidierung triggert Arcade-Queue-Cleanup; Stale-Cookie-Shoutbox-Read invalidiert Session sauber.
 

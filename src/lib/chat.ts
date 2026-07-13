@@ -135,7 +135,10 @@ export async function sendLobbyMessage(text: string): Promise<SendLobbyMessageRe
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text: body }),
   });
-  if (res.status === 401) throw new ChatAuthRequiredError();
+  if (res.status === 401) {
+    invalidateSession();
+    throw new ChatAuthRequiredError();
+  }
   if (res.status === 429) {
     throw new ChatRateLimitError(parseRetryAfterMs(res.headers.get('Retry-After'), 60_000));
   }

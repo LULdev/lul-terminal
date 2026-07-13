@@ -484,7 +484,9 @@ export async function handlePasteRequest(req, res) {
       await checkRateLimit(`paste-rate:${user.id}`, { max: 20, windowMs: 60_000 });
       const meta = await loadAlive(rateMatch[1]);
       if (!meta) return sendJson(res, 404, { error: 'Not found' });
-      if (meta.userId === user.id) return sendJson(res, 403, { error: 'Cannot rate own paste' });
+      if (meta.userId && String(meta.userId) === String(user.id)) {
+        return sendJson(res, 403, { error: 'Cannot rate own paste' });
+      }
       const access = await resolvePasteAccess(req, meta, '');
       if (!access.allowed) {
         if (access.notFound) return sendJson(res, 404, { error: 'Not found' });

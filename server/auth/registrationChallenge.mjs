@@ -77,6 +77,10 @@ export function consumeRegistrationChallenge(challengeId, req) {
   if (row.ip && row.ip !== 'unknown' && ip !== 'unknown' && row.ip !== ip) {
     throw new Error('Registration challenge invalid for this network');
   }
+  const now = Date.now();
+  if (now - row.issuedAt < 15_000) {
+    throw new Error('Please wait a moment before creating an account.');
+  }
   row.used = true;
   challenges.delete(id);
   return true;

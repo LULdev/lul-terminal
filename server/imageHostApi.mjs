@@ -153,7 +153,7 @@ export async function handleImageHostRequest(req, res) {
       const viewerId = req.auth?.user?.id ?? null;
       const ownerMeta = await getMeta(imageId);
       if (!ownerMeta) return sendJson(res, 404, { error: 'Not found' });
-      if (viewerId && ownerMeta.userId === viewerId) {
+      if (viewerId && String(ownerMeta.userId) === String(viewerId)) {
         return sendJson(res, 200, { views: ownerMeta.views ?? 0, deduped: true, selfView: true });
       }
       const result = await runCoinTransaction(async () => {

@@ -67,6 +67,7 @@ type Props = {
   onUploadAvatar: (f: File) => void;
   onSave: () => void;
   onDeleteAccount: (password: string) => Promise<void>;
+  emailChanged?: boolean;
 };
 
 export function ProfileSettingsTab(props: Props) {
@@ -284,8 +285,8 @@ export function ProfileSettingsTab(props: Props) {
         <SettingsCard title="Account security">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Email" value={props.email} onChange={props.onEmail} type="email" icon={<Mail size={11} />} />
-            {props.password ? (
-              <Field label="Current password" value={props.currentPassword} onChange={props.onCurrentPassword} type="password" icon={<KeyRound size={11} />} hint="Required to set a new password" />
+            {(props.password || props.emailChanged) ? (
+              <Field label="Current password" value={props.currentPassword} onChange={props.onCurrentPassword} type="password" icon={<KeyRound size={11} />} hint={props.password ? 'Required to set a new password' : 'Required to change email'} />
             ) : null}
             <Field label="New password" value={props.password} onChange={props.onPassword} type="password" icon={<KeyRound size={11} />} hint="Leave blank = unchanged" />
           </div>

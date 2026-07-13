@@ -146,6 +146,7 @@ export async function bulkImportVaultAccounts(opts: BulkImportVaultOptions): Pro
 }
 
 const ACCOUNT_VIEW_PREFIX = 'lul_acct_view_';
+const accountViewInflight = new Map<string, Promise<number>>();
 
 export type AccountReport = {
   id: string;
@@ -233,21 +234,33 @@ export async function rejectAccountReport(reportId: string): Promise<void> {
 }
 
 export async function recordAccountView(id: string, currentViews = 0): Promise<number> {
+  const pending = accountViewInflight.get(id);
+  if (pending) return pending;
+
   const canUseSession = typeof sessionStorage !== 'undefined';
-  const sessionKey = `${ACCOUNT_VIEW_PREFIX}${id}`;
-  if (!canUseSession || !sessionStorage.getItem(sessionKey)) {
-    try {
-      const res = await fetch(`${API}/accounts/${id}/view`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        if (canUseSession) sessionStorage.setItem(sessionKey, '1');
-        const data = await res.json() as { views: number };
-        return data.views;
-      }
-    } catch { /* fall through */ }
+  const run = (async () => {
+    const sessionKey = `${ACCOUNT_VIEW_PREFIX}${id}`;
+    if (!canUseSession || !sessionStorage.getItem(sessionKey)) {
+      try {
+        const res = await fetch(`${API}/accounts/${id}/view`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (res.ok) {
+          if (canUseSession) sessionStorage.setItem(sessionKey, '1');
+          const data = await res.json() as { views: number };
+          return data.views;
+        }
+      } catch { /* fall through */ }
+    }
+    return currentViews;
+  })();
+
+  accountViewInflight.set(id, run);
+  try {
+    return await run;
+  } finally {
+    if (accountViewInflight.get(id) === run) accountViewInflight.delete(id);
   }
-  return currentViews;
 }

@@ -25,8 +25,6 @@ function getOrCreateGuestId() {
 const STORAGE_DB = 'lul_terminal_reg';
 const STORAGE_STORE = 'device';
 const STORAGE_KEY = 'storage_id';
-const REG_HINT_KEY = 'lul_reg_hint';
-
 async function sha256Hex(text: string): Promise<string> {
   try {
     const enc = new TextEncoder().encode(text);
@@ -153,20 +151,6 @@ export async function buildDeviceFingerprint(): Promise<string> {
   return sha256Hex(parts.join('|'));
 }
 
-export function getRegistrationHintToken(): string {
-  try {
-    return localStorage.getItem(REG_HINT_KEY) ?? '';
-  } catch {
-    return '';
-  }
-}
-
-export function markRegistrationHint(token: string) {
-  try {
-    localStorage.setItem(REG_HINT_KEY, token);
-  } catch { /* ignore */ }
-}
-
 export type RegistrationContext = {
   installId: string;
   storageId: string;
@@ -184,7 +168,6 @@ export type RegistrationContext = {
   deviceMemory: number;
   firstVisitAt: number;
   visitCount: number;
-  regHint: string;
 };
 
 export async function collectRegistrationContext(): Promise<RegistrationContext> {
@@ -213,7 +196,6 @@ export async function collectRegistrationContext(): Promise<RegistrationContext>
     deviceMemory: nav.deviceMemory ?? 0,
     firstVisitAt: visitor.firstVisitAt,
     visitCount: visitor.visitCount,
-    regHint: getRegistrationHintToken(),
   };
 }
 

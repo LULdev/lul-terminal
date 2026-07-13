@@ -242,6 +242,12 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
     setSaving(true);
     setError('');
     setSuccess('');
+    const emailChanged = email.trim().toLowerCase() !== user.email.trim().toLowerCase();
+    if (emailChanged && !currentPassword) {
+      setError('Current password required to change email');
+      setSaving(false);
+      return;
+    }
     try {
       const result = await authApi.updateProfile({
         displayName,
@@ -252,7 +258,8 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
         coverUrl,
         socialLinks: socialLinks.filter((l) => l.url.trim()),
         profileCustomization: customization,
-        ...(password ? { password, currentPassword } : {}),
+        ...((password || emailChanged) ? { currentPassword } : {}),
+        ...(password ? { password } : {}),
       });
       handleUnlocks(result.newUnlocks ?? [], result.unlockRewards);
       setCustomization(resolveCustomization(result.user.profileCustomization));
@@ -508,6 +515,7 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
                 onSocialLinks={setSocialLinks}
                 onCustomization={setCustomization}
                 onUploadAvatar={uploadAvatar}
+                emailChanged={email.trim().toLowerCase() !== user.email.trim().toLowerCase()}
                 onSave={save}
                 onDeleteAccount={async (password) => {
                   await authApi.deleteAccount(password);

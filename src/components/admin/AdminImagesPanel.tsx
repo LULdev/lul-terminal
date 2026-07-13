@@ -168,7 +168,7 @@ export function AdminImagesPanel() {
                   <a
                     href={previewView}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="p-1.5 rounded border border-slate-700 text-slate-400 hover:text-cyan-300"
                   >
                     <ExternalLink size={12} />

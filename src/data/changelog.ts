@@ -23,6 +23,30 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.44.0',
+    title: 'Extreme deep audit — round 44 (paste deep-links + ban cleanup + email step-up)',
+    date: 'Jul 13, 2026 - 20:00',
+    highlight: true,
+    items: [
+      { priority: 'P0', text: 'P0 — chatCommands/chatService ban cleanup: fix gamesService/gamesEscrow import paths (build + runtime 500).' },
+      { priority: 'P1', text: 'P1 — registrationChallenge: 15s bot gate bound to challenge issuedAt (forgeable firstVisitAt removed).' },
+      { priority: 'P1', text: 'P1 — PasteViewer: recordPasteView on /p/:id; credentialed fetch + refetch after login; AuthModal on deep-link routes.' },
+      { priority: 'P2', text: 'P2 — /ban + adminModerateShoutboxUser ban: leaveAllGameQueues + escrow refund (logout parity).' },
+      { priority: 'P2', text: 'P2 — GamesPage unmount leaves arcade queues; sendLobbyMessage 401 calls invalidateSession().' },
+      { priority: 'P2', text: 'P2 — updateProfile email change requires currentPassword (server + Profile + Dashboard UI).' },
+      { priority: 'P3', text: 'P3 — paste/image/chat ownership checks use String() coercion; pageViews GET restricted to tab allowlist.' },
+      { priority: 'P3', text: 'P3 — CoinEarningsFeed spinner fix; premiumAccounts recordAccountView inflight dedup; AdminImagesPanel noopener.' },
+      { priority: 'P3', text: 'P3 — registrationContext drops body regHint (HttpOnly cookie only); AuthContext register website honeypot type.' },
+      { priority: 'P4', text: 'P4 — main.tsx /p/ and /i/ routes mount FeatureLoginGate + AuthModal (sign-in dead-end fixed).' },
+      { priority: 'P8', text: 'P8 — Vault plaintext API, disposable email expansion, X-Forwarded-Host allowlist, multi-worker rate limits deferred.' },
+      { priority: 'P9', text: 'P9 — Round 44 audit pass 1+2: lint + build verified.' },
+      {
+        priority: 'P9',
+        text: 'Last 10 audit rounds (v3.43→3.34): R44 paste deep-links+ban cleanup+email step-up; R43 arcade cleanup+password step-up; R42 login gate/session probe; R41 paste burn+revoke; R40 shoutbox+escrow; R39 queue heartbeat; R38.1 burn sweep; R38 session-bus; R37 invalidateSession; R36.99 Redis limits.',
+      },
+    ],
+  },
+  {
     version: '3.43.0',
     title: 'Extreme deep audit — round 43 (arcade cleanup + password step-up)',
     date: 'Jul 13, 2026 - 18:00',

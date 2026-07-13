@@ -387,6 +387,12 @@ export async function updateProfile(userId, payload, { keepToken = null } = {}) 
     if (payload.email != null) {
       const email = normalizeEmail(payload.email);
       if (!email.includes('@')) throw new Error('Invalid email');
+      if (email !== normalizeEmail(user.email)) {
+        const current = String(payload.currentPassword ?? '');
+        if (!current || !(await verifyPassword(current, user.passwordHash))) {
+          throw new Error('Current password required to change email');
+        }
+      }
       if (db.users.some((u) => u.id !== userId && u.email === email)) throw new Error('Email taken');
       user.email = email;
     }

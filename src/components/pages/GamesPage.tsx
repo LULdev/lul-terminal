@@ -218,7 +218,10 @@ export function GamesPage() {
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+      void import('../../lib/arcadeCleanup').then((m) => m.leaveAllArcadeQueuesBestEffort());
+    };
   }, []);
 
   useEffect(() => {

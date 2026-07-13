@@ -22,6 +22,7 @@ import {
   dedupePasteLines,
   expiryLabel,
   fetchPaste,
+  recordPasteView,
   findPasteSearchMatches,
   formatPasteBytes,
   formatPasteDate,
@@ -40,7 +41,7 @@ import { PasteStarRating } from './PasteStarRating';
 type Props = { id: string };
 
 export function PasteViewer({ id }: Props) {
-  const { user } = useAuth();
+  const { user, isLoggedIn, openAuth } = useAuth();
   const [paste, setPaste] = useState<PasteRecord | null>(null);
   const [views, setViews] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -92,8 +93,9 @@ export function PasteViewer({ id }: Props) {
     setDedupeRemoved(0);
     setSearch('');
 
-    fetchPaste(id, { credentialed: false })
-      .then((data) => {
+    (async () => {
+      try {
+        const data = await fetchPaste(id, { credentialed: isLoggedIn });
         if (cancelled) return;
         if ((data.requiresPassword || data.requiresLogin) && !data.content) {
           setPaste(data);
@@ -112,20 +114,22 @@ export function PasteViewer({ id }: Props) {
         setRatingAvg(data.ratingAvg ?? 0);
         setRatingCount(data.ratingCount ?? 0);
         setUserRating(data.userRating ?? null);
+        const viewResult = await recordPasteView(id);
+        if (cancelled) return;
+        setViews(viewResult.views);
         setViewsReady(true);
-        if (data.burned) {
+        if (viewResult.burned || data.burned) {
           setError('This paste was burn-after-read and has been consumed.');
         }
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) setError('Could not load paste — is the server running?');
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
 
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, isLoggedIn, user?.id]);
 
   useEffect(() => {
     if (!paste?.content || paste.burned) return;
@@ -156,8 +160,11 @@ export function PasteViewer({ id }: Props) {
       setRatingAvg(data.ratingAvg ?? 0);
       setRatingCount(data.ratingCount ?? 0);
       setUserRating(data.userRating ?? null);
+      const viewResult = await recordPasteView(id);
+      if (!mountedRef.current) return;
+      setViews(viewResult.views);
       setViewsReady(true);
-      if (data.burned) {
+      if (viewResult.burned || data.burned) {
         setError('This paste was burn-after-read and has been consumed.');
       }
     } catch (err) {
@@ -203,12 +210,13 @@ export function PasteViewer({ id }: Props) {
           <p className="text-[10px] font-mono text-slate-400 leading-relaxed mb-4">
             This paste is private — only the author can view it. Sign in with your account to open it.
           </p>
-          <a
-            href="/?tab=paste"
+          <button
+            type="button"
+            onClick={() => openAuth('login')}
             className="inline-flex items-center justify-center gap-1.5 w-full text-[10px] font-mono font-bold border px-3 py-2 rounded transition bg-violet-500/10 hover:bg-violet-500/20 text-violet-300 border-violet-500/30"
           >
-            <LogIn size={12} /> Sign in at LUL Terminal
-          </a>
+            <LogIn size={12} /> Sign in
+          </button>
         </div>
       </div>
     );

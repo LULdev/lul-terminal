@@ -195,7 +195,7 @@ export async function listImagesByUser(userId) {
   if (!userId) return [];
   const uid = String(userId).slice(0, 32);
   const all = await listAllMeta();
-  return all.filter((m) => m.userId === uid);
+  return all.filter((m) => String(m.userId) === uid);
 }
 
 export async function computeUserGalleryStats(userId) {

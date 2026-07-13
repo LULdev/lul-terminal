@@ -77,7 +77,7 @@ export function CoinEarningsFeed({ compact = false, refreshKey = 0, className = 
       setErr(e instanceof Error ? e.message : 'Failed to load');
     } finally {
       if (gen === loadGenRef.current && mountedRef.current) {
-        setLoading(isLoggedIn);
+        setLoading(false);
       }
     }
   }, [compact, isLoggedIn]);

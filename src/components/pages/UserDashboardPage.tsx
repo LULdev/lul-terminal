@@ -127,14 +127,20 @@ export function UserDashboardPage({ onNavigate }: UserDashboardPageProps) {
   }, [earnedSorted]);
 
   const saveSecurity = async () => {
-    if (!email.trim()) return;
+    if (!email.trim() || !user) return;
+    const emailChanged = email.trim().toLowerCase() !== user.email.trim().toLowerCase();
+    if (emailChanged && !currentPassword) {
+      setErr('Current password required to change email');
+      return;
+    }
     setSaving(true);
     setErr('');
     setMsg('');
     try {
       const result = await authApi.updateProfile({
         email: email.trim(),
-        ...(password ? { password, currentPassword } : {}),
+        ...((password || emailChanged) ? { currentPassword } : {}),
+        ...(password ? { password } : {}),
       });
       handleUnlocks(result.newUnlocks ?? [], result.unlockRewards);
       await refresh();
@@ -254,13 +260,14 @@ export function UserDashboardPage({ onNavigate }: UserDashboardPageProps) {
                   className="mt-1 w-full bg-black/40 border border-slate-800 rounded-lg px-3 py-2 text-[10px] text-slate-200 focus:border-rose-500/40 focus:outline-none"
                 />
               </label>
-              {password ? (
+              {(password || (user && email.trim().toLowerCase() !== user.email.trim().toLowerCase())) ? (
                 <label className="block text-[9px] font-mono text-slate-500">
                   <KeyRound size={10} className="inline mr-1" /> Current password
                   <input
                     type="password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder={password ? 'Required to set a new password' : 'Required to change email'}
                     className="mt-1 w-full bg-black/40 border border-slate-800 rounded-lg px-3 py-2 text-[10px] text-slate-200 focus:border-rose-500/40 focus:outline-none"
                   />
                 </label>
