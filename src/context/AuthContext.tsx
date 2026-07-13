@@ -178,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     return onSessionInvalidated(() => {
+      void import('../lib/arcadeCleanup').then((m) => m.leaveAllArcadeQueuesBestEffort());
       refreshGenRef.current += 1;
       clearAchievementProofs();
       closeChatAudioContext();
@@ -267,6 +268,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAccountsSubmitted(0);
     setPendingUnlocks([]);
     setPendingUnlockRewards({});
+    resetSessionInvalidation();
     return true;
   }, []);
 

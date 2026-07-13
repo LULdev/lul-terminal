@@ -227,9 +227,10 @@ export async function recordPasteView(id: string): Promise<{ views: number; burn
   const pending = viewInflight.get(id);
   if (pending) return pending;
 
+  const canUseSession = typeof sessionStorage !== 'undefined';
   const run = (async () => {
     const sessionKey = `${VIEW_SESSION_PREFIX}${id}`;
-    if (!sessionStorage.getItem(sessionKey)) {
+    if (!canUseSession || !sessionStorage.getItem(sessionKey)) {
       try {
         const res = await fetch(`${API}/${id}/view`, {
           method: 'POST',
@@ -238,7 +239,7 @@ export async function recordPasteView(id: string): Promise<{ views: number; burn
         });
         if (res.ok) {
           const data = await res.json() as { views: number; burned: boolean; deduped?: boolean };
-          sessionStorage.setItem(sessionKey, '1');
+          if (canUseSession) sessionStorage.setItem(sessionKey, '1');
           return data;
         }
       } catch { /* fall through */ }

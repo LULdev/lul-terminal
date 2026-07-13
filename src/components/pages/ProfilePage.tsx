@@ -57,6 +57,7 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
   const [website, setWebsite] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [coverUrl, setCoverUrl] = useState('');
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
@@ -251,12 +252,13 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
         coverUrl,
         socialLinks: socialLinks.filter((l) => l.url.trim()),
         profileCustomization: customization,
-        ...(password ? { password } : {}),
+        ...(password ? { password, currentPassword } : {}),
       });
       handleUnlocks(result.newUnlocks ?? [], result.unlockRewards);
       setCustomization(resolveCustomization(result.user.profileCustomization));
       await refresh();
       setPassword('');
+      setCurrentPassword('');
       flashSuccess(<span className="inline-flex items-center gap-1"><Check size={11} /> Profile saved</span>);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
@@ -485,6 +487,7 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
                 website={website}
                 email={email}
                 password={password}
+                currentPassword={currentPassword}
                 avatarUrl={avatarUrl}
                 coverUrl={coverUrl}
                 socialLinks={socialLinks}
@@ -499,6 +502,7 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
                 onWebsite={setWebsite}
                 onEmail={setEmail}
                 onPassword={setPassword}
+                onCurrentPassword={setCurrentPassword}
                 onAvatarUrl={setAvatarUrl}
                 onCoverUrl={setCoverUrl}
                 onSocialLinks={setSocialLinks}
@@ -508,7 +512,10 @@ export function ProfilePage({ routeUsername, profileTabReadyTick = 0, onNavigate
                 onDeleteAccount={async (password) => {
                   await authApi.deleteAccount(password);
                   const ok = await logout();
-                  if (!ok) setError(LOGOUT_ARCADE_BLOCKED);
+                  if (!ok) {
+                    const { invalidateSession } = await import('../../lib/sessionEvents');
+                    invalidateSession();
+                  }
                 }}
               />
             )}

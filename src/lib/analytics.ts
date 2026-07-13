@@ -225,18 +225,6 @@ export async function trackEvent(
   }
 }
 
-async function analyticsJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
-  }
-  return data as T;
-}
-
 export async function fetchMyActivity(): Promise<UserActivitySummary> {
   return sessionJson<UserActivitySummary>(`${API}/me`);
 }

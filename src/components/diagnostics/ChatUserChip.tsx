@@ -70,7 +70,7 @@ type ContextMenuState = {
 };
 
 export function ChatUserChip({ user, onOpenProfile, compact = false, modViaApi = false }: ChatUserChipProps) {
-  const { isLoggedIn, isAdmin, openAuth } = useAuth();
+  const { isLoggedIn, isAdmin, openAuth, refresh } = useAuth();
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [acting, setActing] = useState(false);
   const chipRef = useRef<HTMLButtonElement>(null);
@@ -112,7 +112,7 @@ export function ChatUserChip({ user, onOpenProfile, compact = false, modViaApi =
     try {
       const result = await sendShoutboxCommand(`/ping ${user.username}`);
       if (result.ok === false && result.error === 'CHAT_AUTH_REQUIRED') {
-        openAuth('login');
+        void refresh().finally(() => openAuth('login'));
         return;
       }
       if (result.ok === false) {
@@ -121,7 +121,7 @@ export function ChatUserChip({ user, onOpenProfile, compact = false, modViaApi =
     } finally {
       if (mountedRef.current) setActing(false);
     }
-  }, [requireLogin, user.username]);
+  }, [requireLogin, user.username, refresh, openAuth]);
 
   const runModAction = useCallback(async (
     action: 'ban' | 'unban' | 'mute' | 'unmute',
@@ -140,7 +140,7 @@ export function ChatUserChip({ user, onOpenProfile, compact = false, modViaApi =
         : `/${action} ${user.username}`;
       const result = await sendShoutboxCommand(command);
       if (result.ok === false && result.error === 'CHAT_AUTH_REQUIRED') {
-        openAuth('login');
+        void refresh().finally(() => openAuth('login'));
         return;
       }
       if (result.ok === false) {
@@ -151,7 +151,7 @@ export function ChatUserChip({ user, onOpenProfile, compact = false, modViaApi =
     } finally {
       if (mountedRef.current) setActing(false);
     }
-  }, [isAdmin, modViaApi, user.username]);
+  }, [isAdmin, modViaApi, user.username, refresh, openAuth]);
 
   const closeMenu = useCallback(() => setMenu(null), []);
 

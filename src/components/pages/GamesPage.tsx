@@ -211,6 +211,12 @@ export function GamesPage() {
   waitingRef.current = waiting;
 
   useEffect(() => {
+    void import('../../lib/arcadeCleanup').then((m) => {
+      m.registerArcadeSnapshot(state, { waiting, selectedGame });
+    });
+  }, [state, waiting, selectedGame]);
+
+  useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);

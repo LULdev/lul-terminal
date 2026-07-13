@@ -73,6 +73,7 @@ export function UserDashboardPage({ onNavigate }: UserDashboardPageProps) {
   const { user, permissions, accountsSubmitted, isLoggedIn, openAuth, logout, refresh, handleUnlocks } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
@@ -133,11 +134,12 @@ export function UserDashboardPage({ onNavigate }: UserDashboardPageProps) {
     try {
       const result = await authApi.updateProfile({
         email: email.trim(),
-        ...(password ? { password } : {}),
+        ...(password ? { password, currentPassword } : {}),
       });
       handleUnlocks(result.newUnlocks ?? [], result.unlockRewards);
       await refresh();
       setPassword('');
+      setCurrentPassword('');
       setMsg(password ? 'Email & password updated' : 'Email updated');
       setTimeout(() => setMsg(''), 4000);
     } catch (e) {
@@ -252,6 +254,17 @@ export function UserDashboardPage({ onNavigate }: UserDashboardPageProps) {
                   className="mt-1 w-full bg-black/40 border border-slate-800 rounded-lg px-3 py-2 text-[10px] text-slate-200 focus:border-rose-500/40 focus:outline-none"
                 />
               </label>
+              {password ? (
+                <label className="block text-[9px] font-mono text-slate-500">
+                  <KeyRound size={10} className="inline mr-1" /> Current password
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="mt-1 w-full bg-black/40 border border-slate-800 rounded-lg px-3 py-2 text-[10px] text-slate-200 focus:border-rose-500/40 focus:outline-none"
+                  />
+                </label>
+              ) : null}
               <label className="block text-[9px] font-mono text-slate-500">
                 <KeyRound size={10} className="inline mr-1" /> New password (optional)
                 <input

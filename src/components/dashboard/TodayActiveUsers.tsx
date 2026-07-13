@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useVisibilityAwarePoll } from '../../hooks/useVisibilityAwarePoll';
 import { Radio, Users } from 'lucide-react';
 import { fetchActiveTodayUsers, formatRelativeTime, type ActiveTodayUser } from '../../lib/analytics';
@@ -25,6 +26,7 @@ const ROLE_RING: Record<UserRole, string> = {
 };
 
 export function TodayActiveUsers({ onNavigate, currentUsername }: TodayActiveUsersProps) {
+  const { isLoggedIn } = useAuth();
   const [data, setData] = useState<{
     date: string;
     count: number;
@@ -42,6 +44,7 @@ export function TodayActiveUsers({ onNavigate, currentUsername }: TodayActiveUse
   }, []);
 
   const load = useCallback(() => {
+    if (!isLoggedIn) return;
     const gen = ++loadGenRef.current;
     fetchActiveTodayUsers()
       .then((d) => {
@@ -57,11 +60,18 @@ export function TodayActiveUsers({ onNavigate, currentUsername }: TodayActiveUse
       .finally(() => {
         if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
       });
-  }, []);
+  }, [isLoggedIn]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setData(null);
+      setLoading(false);
+      return;
+    }
+    load();
+  }, [load, isLoggedIn]);
 
-  useVisibilityAwarePoll(load, 60_000);
+  useVisibilityAwarePoll(load, 60_000, isLoggedIn);
 
   const users = data?.users ?? [];
   const onlineNow = data?.onlineNow ?? 0;

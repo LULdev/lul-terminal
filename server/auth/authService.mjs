@@ -392,6 +392,10 @@ export async function updateProfile(userId, payload, { keepToken = null } = {}) 
     }
 
     if (payload.password) {
+      const current = String(payload.currentPassword ?? '');
+      if (!current || !(await verifyPassword(current, user.passwordHash))) {
+        throw new Error('Current password required to change password');
+      }
       const pw = String(payload.password);
       if (pw.length < 6) throw new Error('Password min. 6 characters');
       user.passwordHash = await hashPassword(pw);

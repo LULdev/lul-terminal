@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { sessionFetch } from './sessionFetch';
+
 const API = '/api/chat/activity';
 
 export type MemeCreatedPayload = {
@@ -12,9 +14,8 @@ export type MemeCreatedPayload = {
 };
 
 export async function notifyMemeCreated(payload: MemeCreatedPayload): Promise<void> {
-  const res = await fetch(API, {
+  const res = await sessionFetch(API, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       type: 'meme_created',

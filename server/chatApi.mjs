@@ -60,12 +60,16 @@ export async function handleChatRequest(req, res) {
     }
 
     if (req.method === 'GET' && pathname === '/api/chat/lobby/messages') {
-      await checkRateLimit(`chat-poll:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
       const since = Number(url.searchParams.get('since') ?? 0);
       const limit = Number(url.searchParams.get('limit') ?? 80);
       await attachAuth(req);
       const user = req.auth?.user;
       const hadToken = Boolean(req.auth?.token);
+      const pollKey = user && isEffectivelyActive(user)
+        ? `chat-poll:${user.id}`
+        : `chat-poll-guest:${clientIp(req)}`;
+      const pollMax = user && isEffectivelyActive(user) ? 120 : 30;
+      await checkRateLimit(pollKey, { max: pollMax, windowMs: 60_000 });
       if (!user || !isEffectivelyActive(user)) {
         if (hadToken) {
           return sendJson(res, 401, { error: 'Not logged in' });

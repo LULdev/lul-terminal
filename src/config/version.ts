@@ -3,4 +3,4 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export const APP_VERSION = '3.42.0';
+export const APP_VERSION = '3.43.0';

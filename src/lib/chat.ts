@@ -5,6 +5,7 @@
 
 import type { UserRole } from '../types/auth';
 import { parseRetryAfterMs } from './retryAfter';
+import { invalidateSession } from './sessionEvents';
 
 const API = '/api/chat';
 
@@ -98,7 +99,10 @@ export async function fetchLobbyMessages(opts: { since?: number; limit?: number 
       credentials: 'omit',
       headers: { 'Content-Type': 'application/json' },
     });
-    if (guestRes.ok) return guestRes.json() as Promise<LobbyMessagesResponse>;
+    if (guestRes.ok) {
+      invalidateSession();
+      return guestRes.json() as Promise<LobbyMessagesResponse>;
+    }
     throw new ChatAuthRequiredError();
   }
   if (res.status === 403) {

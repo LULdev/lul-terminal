@@ -330,7 +330,7 @@ export async function listByUser(userId, sort = 'newest') {
     try {
       const meta = JSON.parse(await fs.readFile(path.join(META_DIR, file), 'utf8'));
       const alive = filterAliveMeta(meta);
-      if (!alive || alive.userId !== userId) continue;
+      if (!alive || String(alive.userId) !== String(userId)) continue;
       out.push(alive);
     } catch { /* skip */ }
   }
@@ -450,7 +450,7 @@ export async function updatePaste(id, userId, patch) {
   return withPasteWrite(async () => {
     const meta = await purgeIfExpired(await getMeta(id), { inWrite: true });
     if (!meta) throw new Error('Paste not found');
-    if (meta.userId !== userId) throw new Error('Not allowed');
+    if (String(meta.userId) !== String(userId)) throw new Error('Not allowed');
     return applyPastePatch(meta, patch);
   });
 }
@@ -513,19 +513,28 @@ export async function listAllPastes({
 }
 
 export async function computeAdminPasteStats() {
-  const { pastes, total } = await listAllPastes({ limit: 5000, offset: 0 });
+  await ensureDirs();
+  const files = await fs.readdir(META_DIR);
   const byVisibility = {};
+  let total = 0;
   let burnAfterRead = 0;
   let protectedCount = 0;
   let totalViews = 0;
   let totalBytes = 0;
-  for (const m of pastes) {
-    const vis = m.visibility ?? 'public';
-    byVisibility[vis] = (byVisibility[vis] ?? 0) + 1;
-    if (m.burnAfterRead) burnAfterRead += 1;
-    if (m.visibility === 'protected') protectedCount += 1;
-    totalViews += m.views ?? 0;
-    totalBytes += m.size ?? 0;
+  for (const file of files) {
+    if (!file.endsWith('.json')) continue;
+    try {
+      const meta = JSON.parse(await fs.readFile(path.join(META_DIR, file), 'utf8'));
+      const m = filterAliveMeta(meta);
+      if (!m) continue;
+      total += 1;
+      const vis = m.visibility ?? 'public';
+      byVisibility[vis] = (byVisibility[vis] ?? 0) + 1;
+      if (m.burnAfterRead) burnAfterRead += 1;
+      if (m.visibility === 'protected') protectedCount += 1;
+      totalViews += m.views ?? 0;
+      totalBytes += m.size ?? 0;
+    } catch { /* skip */ }
   }
   return {
     total,
@@ -579,7 +588,7 @@ export async function deletePaste(id, userId) {
   return withPasteWrite(async () => {
     const meta = await getMeta(id);
     if (!meta) throw new Error('Paste not found');
-    if (meta.userId !== userId) throw new Error('Not allowed');
+    if (String(meta.userId) !== String(userId)) throw new Error('Not allowed');
     await deletePasteFiles(id);
     const stats = await readStats();
     stats.activePastes = await countActivePastes();

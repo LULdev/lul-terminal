@@ -252,6 +252,20 @@ export default function App() {
     trackEvent('session_start', { meta: visitorContextToMeta(visitorCtxRef.current) }).catch(() => {});
   }, [authSuccessTick, isLoggedIn, authLoading]);
 
+  const wasLoggedInForDwellRef = useRef(isLoggedIn);
+  useEffect(() => {
+    if (wasLoggedInForDwellRef.current && !isLoggedIn && !authLoading) {
+      const prevTab = lastTrackedTabRef.current;
+      if (prevTab !== null) {
+        const dwellSec = Math.round((Date.now() - tabEnteredAtRef.current) / 1000);
+        if (dwellSec >= 2) {
+          void trackEvent('tab_dwell', { tab: prevTab, meta: { dwellSec } }).catch(() => {});
+        }
+      }
+    }
+    wasLoggedInForDwellRef.current = isLoggedIn;
+  }, [isLoggedIn, authLoading]);
+
   useEffect(() => {
     if (renderTab !== 'profile') setProfileTabReadyTick(0);
   }, [renderTab]);

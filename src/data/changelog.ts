@@ -23,6 +23,33 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.43.0',
+    title: 'Extreme deep audit — round 43 (arcade cleanup + password step-up)',
+    date: 'Jul 13, 2026 - 18:00',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — arcadeCleanup: passive session invalidation leaves queues best-effort before cookie wipe.' },
+      { priority: 'P1', text: 'P1 — Stale-cookie shoutbox guest retry calls invalidateSession() (no logged-in/guest split-brain).' },
+      { priority: 'P1', text: 'P1 — updateProfile password change requires currentPassword server-side (session hijack hardening).' },
+      { priority: 'P2', text: 'P2 — chatActivity notifyMemeCreated uses sessionFetch (401 syncs session bus).' },
+      { priority: 'P2', text: 'P2 — ChatUserChip ping/mod 401: refresh() before openAuth (send/poll parity).' },
+      { priority: 'P2', text: 'P2 — TodayActiveUsers gated on isLoggedIn; deleteAccount forces invalidateSession when logout blocked.' },
+      { priority: 'P2', text: 'P2 — imageHostApi member guest-IP cross-dedup; /hosting/ responses get X-Content-Type-Options: nosniff.' },
+      { priority: 'P2', text: 'P2 — registrationGuard: regHint trusted from HttpOnly cookie only (body forgery removed).' },
+      { priority: 'P3', text: 'P3 — paste recordPasteView sessionStorage guard; computeAdminPasteStats scans all metas (not 500 cap).' },
+      { priority: 'P3', text: 'P3 — pasteStore ownership checks use String() coercion; premium vault DELETE requires member tab.' },
+      { priority: 'P3', text: 'P3 — Guest chat poll rate 30/min (members 120/min); App flushes tab_dwell on session loss.' },
+      { priority: 'P3', text: 'P3 — ProfileSettingsTab + Dashboard current password field; CoinEarningsFeed refresh gated.' },
+      { priority: 'P4', text: 'P4 — logout() calls resetSessionInvalidation(); dead analyticsJson helper removed.' },
+      { priority: 'P8', text: 'P8 — Vault plaintext API, email-change step-up, X-Forwarded-Host allowlist, escrow reconcile deferred.' },
+      { priority: 'P9', text: 'P9 — Round 43 audit pass 1+2: lint + build verified.' },
+      {
+        priority: 'P9',
+        text: 'Last 10 audit rounds (v3.42→3.33): R43 arcade cleanup+password step-up; R42 login gate/session probe; R41 paste burn+revoke; R40 shoutbox+escrow; R39 queue heartbeat; R38.1 burn sweep; R38 session-bus; R37 invalidateSession; R36.99 Redis limits; R36 analytics integrity.',
+      },
+    ],
+  },
+  {
     version: '3.42.0',
     title: 'Extreme deep audit — round 42 (login gate + session probe parity)',
     date: 'Jul 13, 2026 - 16:00',

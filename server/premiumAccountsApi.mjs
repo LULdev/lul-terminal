@@ -197,6 +197,7 @@ export async function handlePremiumAccountsRequest(req, res) {
     }
 
     if (accountIdMatch && req.method === 'DELETE') {
+      await requireMemberTab(req, 'premiumaccounts');
       requirePremiumDelete(req);
       await checkRateLimit(`premium-admin-act:${req.auth.user.id}`, { max: 20, windowMs: 60_000 });
       const result = await removeAccount(accountIdMatch[1]);

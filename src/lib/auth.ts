@@ -187,6 +187,7 @@ export async function updateProfile(input: Partial<{
   website: string;
   email: string;
   password: string;
+  currentPassword: string;
   avatarUrl: string;
   coverUrl: string;
   socialLinks: SocialLink[];

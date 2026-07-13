@@ -80,7 +80,7 @@ export function extractRegistrationSignals(payload, req) {
 
   const cookies = parseCookies(req);
   const regLockToken = String(cookies[REG_LOCK_COOKIE] ?? '').trim().slice(0, 64);
-  const regHintToken = String(cookies[REG_HINT_COOKIE] ?? ctx.regHint ?? '').trim().slice(0, 64);
+  const regHintToken = String(cookies[REG_HINT_COOKIE] ?? '').trim().slice(0, 64);
 
   const emailCanon = payload?.email ? canonicalEmail(payload.email) : null;
 

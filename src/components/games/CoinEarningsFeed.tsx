@@ -76,7 +76,9 @@ export function CoinEarningsFeed({ compact = false, refreshKey = 0, className = 
       if (gen !== loadGenRef.current || !mountedRef.current) return;
       setErr(e instanceof Error ? e.message : 'Failed to load');
     } finally {
-      if (gen === loadGenRef.current && mountedRef.current) setLoading(false);
+      if (gen === loadGenRef.current && mountedRef.current) {
+        setLoading(isLoggedIn);
+      }
     }
   }, [compact, isLoggedIn]);
 
@@ -131,7 +133,7 @@ export function CoinEarningsFeed({ compact = false, refreshKey = 0, className = 
         )}
         <button
           type="button"
-          onClick={() => { setLoading(true); void load(); }}
+          onClick={() => { if (!isLoggedIn) return; setLoading(true); void load(); }}
           className="p-1.5 rounded-lg border border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-600 transition"
           title="Refresh feed"
           aria-label="Refresh coin earnings feed"

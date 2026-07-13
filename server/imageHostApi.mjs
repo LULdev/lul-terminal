@@ -261,6 +261,7 @@ export async function handleImageHostRequest(req, res) {
       const buf = await fs.readFile(hit.filePath);
       res.statusCode = 200;
       res.setHeader('Content-Type', hit.meta.mime);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       res.end(buf);
       return;
