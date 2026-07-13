@@ -294,11 +294,20 @@ export async function sweepStaleQueueEntries(mm, { gameId, chatLabel }, maxAgeMs
       if (!released) {
         entry._sweepFail = (Number(entry._sweepFail) || 0) + 1;
         if (entry._sweepFail < 5) continue;
-        console.warn('[games] forcing stale queue removal after escrow failures', {
+        console.warn('[games] forcing stale queue removal after escrow failures — force-crediting bet', {
           userId: entry.userId,
           gameId,
           bet: entry.bet,
         });
+        logQueueRefund(user, { gameId, chatLabel, bet: entry.bet, amount: entry.bet });
+        if (Array.isArray(user.gameEscrows)) {
+          user.gameEscrows = user.gameEscrows.filter(
+            (e) => !(String(e.gameId) === String(gameId) && Number(e.amount) === Number(entry.bet)),
+          );
+          if (!user.gameEscrows.length) delete user.gameEscrows;
+        }
+        user.updatedAt = Date.now();
+        swept += 1;
         mm.queue.splice(i, 1);
         if (entry.roomCode) {
           for (const [code, room] of mm.rooms.entries()) {
@@ -903,15 +912,16 @@ export async function expireMatchWithRefund(m, activeMatches, expireMeta) {
   const base = { gameId, chatLabel, matchId: m.id, bet, amount: bet };
 
   const forceIds = m._expireCreditUserIds;
+  const forceAbandon = Boolean(expireMeta?.forceAbandon);
   const p1 = getUser(db, m.player1.userId);
   if (p1) {
-    refundBetOnExpire(p1, base, { forceCredit: forceIds?.has(m.player1.userId) });
+    refundBetOnExpire(p1, base, { forceCredit: forceAbandon || forceIds?.has(m.player1.userId) });
     p1.updatedAt = Date.now();
   }
   if (m.mode === 'pvp' && m.player2?.userId) {
     const p2 = getUser(db, m.player2.userId);
     if (p2) {
-      refundBetOnExpire(p2, base, { forceCredit: forceIds?.has(m.player2.userId) });
+      refundBetOnExpire(p2, base, { forceCredit: forceAbandon || forceIds?.has(m.player2.userId) });
       p2.updatedAt = Date.now();
     }
   }

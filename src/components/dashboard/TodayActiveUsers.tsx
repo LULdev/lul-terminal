@@ -116,7 +116,7 @@ export function TodayActiveUsers({ onNavigate, currentUsername }: TodayActiveUse
             <p className="text-[9px] font-mono text-rose-400/90">{error}</p>
             <button
               type="button"
-              onClick={() => { void load(); }}
+              onClick={() => { setLoading(true); void load(); }}
               className="text-[9px] font-mono text-emerald-400 hover:text-emerald-300"
             >
               Retry

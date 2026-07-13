@@ -216,8 +216,15 @@ export class ImageFetchError extends Error {
   }
 }
 
-export async function fetchHostedImage(id: string): Promise<HostedImageMeta | null> {
-  const res = await fetch(`${API}/${id}`);
+export async function fetchHostedImage(
+  id: string,
+  opts: { credentialed?: boolean } = {},
+): Promise<HostedImageMeta | null> {
+  const credentialed = opts.credentialed ?? false;
+  const init = { headers: { 'Content-Type': 'application/json' } };
+  const res = credentialed
+    ? await sessionFetch(`${API}/${id}`, init)
+    : await fetch(`${API}/${id}`, { ...init, credentials: 'omit' });
   if (res.status === 404) return null;
   if (res.status === 401 || res.status === 403) {
     throw new ImageFetchError(res.status, 'Sign in required');
@@ -226,7 +233,7 @@ export async function fetchHostedImage(id: string): Promise<HostedImageMeta | nu
   return res.json() as Promise<HostedImageMeta>;
 }
 
-export async function recordImageView(id: string): Promise<number> {
+export async function recordImageView(id: string, opts: { credentialed?: boolean } = {}): Promise<number> {
   const pending = viewInflight.get(id);
   if (pending) return pending;
 
@@ -247,7 +254,7 @@ export async function recordImageView(id: string): Promise<number> {
         }
       } catch { /* fall through */ }
     }
-    const meta = await fetchHostedImage(id);
+    const meta = await fetchHostedImage(id, { credentialed: opts.credentialed });
     return meta?.views ?? 0;
   })();
 
@@ -263,12 +270,13 @@ export function pollImageMeta(
   id: string,
   onUpdate: (meta: HostedImageMeta) => void,
   intervalMs = 4000,
+  opts: { credentialed?: boolean } = {},
 ): () => void {
   let active = true;
   const tick = async () => {
     if (!active || document.hidden) return;
     try {
-      const meta = await fetchHostedImage(id);
+      const meta = await fetchHostedImage(id, { credentialed: opts.credentialed });
       if (meta && active) onUpdate(meta);
     } catch { /* ignore */ }
   };

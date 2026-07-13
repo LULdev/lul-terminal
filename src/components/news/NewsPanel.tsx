@@ -72,7 +72,7 @@ export const NewsPanel = memo(function NewsPanel({ isActive = true, liveFeedVers
   const mountedRef = useRef(true);
   const visitMarkedOnEntryRef = useRef(false);
   const lastActiveRef = useRef(false);
-  const { views, registerView } = usePostViews('news', { enabled: isActive });
+  const { views, registerView } = usePostViews('news', { enabled: isActive && isLoggedIn });
 
   useEffect(() => {
     mountedRef.current = true;

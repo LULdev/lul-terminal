@@ -4,6 +4,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { LogIn } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { fetchHostedImage, ImageFetchError, pollImageMeta, recordImageView, type HostedImageMeta } from '../../lib/imageHosting';
 import { safeHostedImageUrl } from '../../lib/safeHostedImageUrl';
 
@@ -14,6 +16,7 @@ function formatViews(n: number) {
 }
 
 export function ImageHostViewer({ id }: Props) {
+  const { isLoggedIn, openAuth } = useAuth();
   const [meta, setMeta] = useState<HostedImageMeta | null>(null);
   const [views, setViews] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -28,8 +31,9 @@ export function ImageHostViewer({ id }: Props) {
     setNeedsLogin(false);
     setViewsReady(false);
 
-    fetchHostedImage(id)
-      .then(async (m) => {
+    (async () => {
+      try {
+        const m = await fetchHostedImage(id, { credentialed: isLoggedIn });
         if (cancelled) return;
         if (!m) {
           setError('Image not found — link invalid or expired.');
@@ -37,13 +41,12 @@ export function ImageHostViewer({ id }: Props) {
         }
         setMeta(m);
         setViews(m.views ?? 0);
-        const count = await recordImageView(id);
+        const count = await recordImageView(id, { credentialed: isLoggedIn });
         if (!cancelled) {
           setViews(count);
           setViewsReady(true);
         }
-      })
-      .catch((e) => {
+      } catch (e) {
         if (cancelled) return;
         if (e instanceof ImageFetchError && (e.status === 401 || e.status === 403)) {
           setNeedsLogin(true);
@@ -51,13 +54,13 @@ export function ImageHostViewer({ id }: Props) {
           return;
         }
         setError('Could not load image — is the server running?');
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
 
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, isLoggedIn]);
 
   useEffect(() => {
     if (!meta) return;
@@ -65,8 +68,8 @@ export function ImageHostViewer({ id }: Props) {
       setMeta(m);
       setViews(m.views ?? 0);
       setViewsReady(true);
-    });
-  }, [id, meta?.id]);
+    }, 4000, { credentialed: isLoggedIn });
+  }, [id, meta?.id, isLoggedIn]);
 
   useEffect(() => {
     if (meta?.name) document.title = `${meta.name} · ${formatViews(views)} views`;
@@ -89,12 +92,13 @@ export function ImageHostViewer({ id }: Props) {
         <p className="text-4xl opacity-40">🖼️</p>
         <p className="text-[12px] font-mono text-red-300/90 text-center max-w-sm">{error || 'Not found'}</p>
         {needsLogin && (
-          <a
-            href="/?tab=imagehost"
-            className="text-[10px] font-mono px-4 py-2 rounded-lg border border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20"
+          <button
+            type="button"
+            onClick={() => openAuth('login')}
+            className="inline-flex items-center justify-center gap-1.5 text-[10px] font-mono px-4 py-2 rounded-lg border border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20"
           >
-            Sign in at LUL Terminal ↗
-          </a>
+            <LogIn size={12} /> Sign in
+          </button>
         )}
       </div>
     );

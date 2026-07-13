@@ -204,9 +204,11 @@ export async function loginUser({ email, password, remember }) {
     if (expired.length) {
       const { leaveAllGameQueues } = await import('../gamesService.mjs');
       for (const s of expired) {
-        await leaveAllGameQueues(s.userId).catch((e) => {
+        const cleanup = await leaveAllGameQueues(s.userId).catch((e) => {
           console.warn('[auth] login expired-session arcade cleanup failed', s.userId, e);
+          return { ok: false, errors: [] };
         });
+        await refundOrphanEscrowsAfterCleanup(s.userId, cleanup);
       }
     }
     sessionsDb.sessions = sessionsDb.sessions.filter((s) => s.expiresAt > now);
@@ -272,6 +274,35 @@ function arcadeCleanupError(cleanup) {
   return `Cannot sign out: arcade cleanup failed (${games})`;
 }
 
+/** Refund persisted escrows when arcade RAM is clear but rows remain (orphan sweep / cleanup ok). */
+export async function refundOrphanEscrowsAfterCleanup(userId, cleanup) {
+  if (!userId) return;
+  const { userHasActiveArcadeSession } = await import('../gamesService.mjs');
+  const stillActive = await userHasActiveArcadeSession(userId).catch(() => true);
+  if (stillActive) {
+    if (!cleanup?.ok) {
+      console.warn('[auth] skipped escrow refund — arcade RAM state still active', {
+        userId,
+        errors: cleanup?.errors ?? [],
+      });
+    }
+    return;
+  }
+  const db = await loadUsersDb();
+  const user = db.users.find((u) => u.id === userId);
+  const hasEscrows = (user?.gameEscrows?.length ?? 0) > 0;
+  if (hasEscrows || !cleanup?.ok) {
+    console.warn('[auth] refunding orphan escrows after arcade cleanup', {
+      userId,
+      hasEscrows,
+      cleanupOk: cleanup?.ok ?? true,
+    });
+    await refundUserEscrows(userId).catch((e) => {
+      console.warn('[auth] escrow refund after cleanup failed', userId, e);
+    });
+  }
+}
+
 /** Expired session still in DB — release arcade state so escrow is not held until queue sweep. */
 export async function reconcileExpiredSession(token) {
   if (!token) return;
@@ -287,22 +318,7 @@ export async function reconcileExpiredSession(token) {
   if (cleanup && !cleanup.ok) {
     cleanup = await leaveAllGameQueues(session.userId).catch(() => cleanup);
   }
-  const stillActive = await userHasActiveArcadeSession(session.userId).catch(() => true);
-  if (!stillActive && cleanup && !cleanup.ok) {
-    console.error('[auth] reconcileExpiredSession cleanup failed — refunding escrows (no active RAM matches)', {
-      userId: session.userId,
-      errors: cleanup.errors,
-      reconcileCleanupFailed: true,
-    });
-    await refundUserEscrows(session.userId).catch((e) => {
-      console.warn('[auth] escrow refund after reconcile failed', session.userId, e);
-    });
-  } else if (stillActive) {
-    console.warn('[auth] reconcileExpiredSession skipped escrow refund — arcade RAM state still active', {
-      userId: session.userId,
-      errors: cleanup?.errors ?? [],
-    });
-  }
+  await refundOrphanEscrowsAfterCleanup(session.userId, cleanup);
   await withSessionsWrite(async () => {
     const sessionsDb = await loadSessionsDb();
     sessionsDb.sessions = sessionsDb.sessions.filter((s) => s.token !== token);
@@ -317,23 +333,9 @@ export async function logoutUser(token) {
   const userId = session?.userId;
 
   if (userId) {
-    const { leaveAllGameQueues, userHasActiveArcadeSession } = await import('../gamesService.mjs');
+    const { leaveAllGameQueues } = await import('../gamesService.mjs');
     const cleanup = await leaveAllGameQueues(userId);
-    const stillActive = await userHasActiveArcadeSession(userId).catch(() => true);
-    if (!stillActive && !cleanup.ok) {
-      console.warn('[auth] logout arcade cleanup incomplete — refunding escrows (no active RAM matches)', {
-        userId,
-        errors: cleanup.errors,
-      });
-      await refundUserEscrows(userId).catch((e) => {
-        console.warn('[auth] escrow refund on logout failed', userId, e);
-      });
-    } else if (!cleanup.ok) {
-      console.warn('[auth] logout skipped escrow refund — arcade RAM state still active', {
-        userId,
-        errors: cleanup.errors,
-      });
-    }
+    await refundOrphanEscrowsAfterCleanup(userId, cleanup);
     await withUsersWrite(async () => {
       const db = await loadUsersDb();
       const user = db.users.find((u) => u.id === userId);
@@ -832,7 +834,7 @@ export async function incrementUserMemeCreated(userId, memeImageId = '') {
 }
 
 export async function deleteOwnAccount(userId, password) {
-  const { leaveAllGameQueues, userHasActiveArcadeSession } = await import('../gamesService.mjs');
+  const { leaveAllGameQueues } = await import('../gamesService.mjs');
   const { blockRegistrationSignalsForUser } = await import('./registrationRegistry.mjs');
 
   const db = await loadUsersDb();
@@ -852,21 +854,10 @@ export async function deleteOwnAccount(userId, password) {
       throw new Error('Last admin cannot be deleted');
     }
     const cleanup = await leaveAllGameQueues(userId);
-    const stillActive = await userHasActiveArcadeSession(userId).catch(() => true);
-    if (!stillActive && !cleanup.ok) {
-      console.warn('[auth] delete account arcade cleanup incomplete — refunding escrows', {
-        userId,
-        errors: cleanup.errors,
-      });
-      await refundUserEscrows(userId).catch((e) => {
-        console.warn('[auth] escrow refund on delete failed', userId, e);
-      });
-    } else if (!cleanup.ok) {
-      console.warn('[auth] delete account skipped escrow refund — arcade RAM state still active', {
-        userId,
-        errors: cleanup.errors,
-      });
-    }
+    await refundOrphanEscrowsAfterCleanup(userId, cleanup);
+    await refundUserEscrows(userId).catch((e) => {
+      console.warn('[auth] final escrow refund before delete failed', userId, e);
+    });
     await blockRegistrationSignalsForUser(freshUser);
     freshUser.registrationBlocked = true;
     freshDb.users = freshDb.users.filter((u) => u.id !== userId);

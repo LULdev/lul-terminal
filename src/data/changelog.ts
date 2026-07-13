@@ -23,6 +23,30 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.45.0',
+    title: 'Extreme deep audit — round 45 (orphan escrow + deep-link parity)',
+    date: 'Jul 13, 2026 - 22:00',
+    highlight: true,
+    items: [
+      { priority: 'P0', text: 'P0 — gamesCore queue sweep: force-credit + strip escrow before forced removal (no permanent coin lock).' },
+      { priority: 'P1', text: 'P1 — refundOrphanEscrowsAfterCleanup: logout/ban/delete/deactivate/login-expired refund persisted escrows when RAM clear.' },
+      { priority: 'P1', text: 'P1 — deleteOwnAccount + admin delete: final refundUserEscrows before user row removed.' },
+      { priority: 'P1', text: 'P1 — ImageHostViewer: credentialed fetch + refetch after login; openAuth on /i/:id auth wall.' },
+      { priority: 'P2', text: 'P2 — pasteApi GET/raw: burn-after-read no longer consumed on metadata GET (POST /view + /unlock only).' },
+      { priority: 'P2', text: 'P2 — expireMatchWithRefund forceAbandon always force-credits bets; GamesPage unmount already covered R44.' },
+      { priority: 'P2', text: 'P2 — fetchLobbyMessages 401 always invalidateSession; chatEmotes 401 sync + EmoteMenuButton recovery.' },
+      { priority: 'P3', text: 'P3 — imageHostStore ownership String() coercion; paste fetchPasteResponse credentials:omit for guests.' },
+      { priority: 'P3', text: 'P3 — Changelog/News post-views gated on isLoggedIn; CoinEarningsFeed login spinner; TodayActiveUsers retry.' },
+      { priority: 'P3', text: 'P3 — ChatUserChip modViaApi SessionExpiredError → refresh + openAuth.' },
+      { priority: 'P8', text: 'P8 — Vault plaintext API, X-Forwarded-Host allowlist, multi-worker rate limits deferred.' },
+      { priority: 'P9', text: 'P9 — Round 45 audit pass 1+2: lint + build verified.' },
+      {
+        priority: 'P9',
+        text: 'Last 10 audit rounds (v3.44→3.35): R45 orphan escrow+burn GET fix; R44 paste/i deep-links; R43 arcade cleanup+password; R42 login gate; R41 paste burn; R40 shoutbox+escrow; R39 queue heartbeat; R38.1 burn sweep; R38 session-bus; R37 invalidateSession.',
+      },
+    ],
+  },
+  {
     version: '3.44.0',
     title: 'Extreme deep audit — round 44 (paste deep-links + ban cleanup + email step-up)',
     date: 'Jul 13, 2026 - 20:00',

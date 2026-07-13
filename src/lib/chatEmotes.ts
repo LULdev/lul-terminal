@@ -3,7 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { invalidateSession } from './sessionEvents';
+
 const API = '/api/chat/emotes';
+
+export class ChatEmotesAuthError extends Error {
+  constructor() {
+    super('CHAT_EMOTES_AUTH_REQUIRED');
+    this.name = 'ChatEmotesAuthError';
+  }
+}
 
 export type ChatEmote = {
   id: string;
@@ -21,6 +30,10 @@ export type ChatEmotesResponse = {
 
 export async function fetchChatEmotes(): Promise<ChatEmotesResponse> {
   const res = await fetch(API, { credentials: 'include' });
+  if (res.status === 401) {
+    invalidateSession();
+    throw new ChatEmotesAuthError();
+  }
   if (!res.ok) throw new Error('Emotes unavailable');
   return res.json() as Promise<ChatEmotesResponse>;
 }

@@ -172,10 +172,10 @@ export async function fetchTrendingPastes(limit = 12): Promise<PasteMeta[]> {
 }
 
 async function fetchPasteResponse(id: string, credentialed: boolean) {
-  const init = { credentials: 'include' as const, headers: { 'Content-Type': 'application/json' } };
+  const headers = { 'Content-Type': 'application/json' };
   return credentialed
-    ? sessionFetch(`${API}/${id}`, init)
-    : fetch(`${API}/${id}`, init);
+    ? sessionFetch(`${API}/${id}`, { credentials: 'include', headers })
+    : fetch(`${API}/${id}`, { credentials: 'omit', headers });
 }
 
 export async function fetchPaste(id: string, { credentialed = true } = {}): Promise<PasteRecord> {

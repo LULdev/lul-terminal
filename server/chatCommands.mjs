@@ -170,15 +170,10 @@ async function cmdBan(actor, args) {
   });
   const { revokeUserSessions } = await import('./auth/authService.mjs');
   await revokeUserSessions(target.id);
-  const { leaveAllGameQueues, userHasActiveArcadeSession } = await import('./gamesService.mjs');
+  const { leaveAllGameQueues } = await import('./gamesService.mjs');
   const cleanup = await leaveAllGameQueues(target.id);
-  const stillActive = await userHasActiveArcadeSession(target.id).catch(() => true);
-  if (!stillActive && !cleanup.ok) {
-    const { refundUserEscrows } = await import('./gamesEscrow.mjs');
-    await refundUserEscrows(target.id).catch((e) => {
-      console.warn('[chat] escrow refund on ban failed', target.id, e);
-    });
-  }
+  const { refundOrphanEscrowsAfterCleanup } = await import('./auth/authService.mjs');
+  await refundOrphanEscrowsAfterCleanup(target.id, cleanup);
   const { blockRegistrationSignalsForUser } = await import('./auth/registrationRegistry.mjs');
   await blockRegistrationSignalsForUser(target);
   const { incrementAbuseWarnings } = await import('./chatStats.mjs');

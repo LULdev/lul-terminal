@@ -103,6 +103,7 @@ export async function fetchLobbyMessages(opts: { since?: number; limit?: number 
       invalidateSession();
       return guestRes.json() as Promise<LobbyMessagesResponse>;
     }
+    invalidateSession();
     throw new ChatAuthRequiredError();
   }
   if (res.status === 403) {

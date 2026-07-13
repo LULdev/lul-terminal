@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ImageIcon, Smile } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { emoteToken, fetchChatEmotes, type ChatEmote } from '../../lib/chatEmotes';
+import { ChatEmotesAuthError, emoteToken, fetchChatEmotes, type ChatEmote } from '../../lib/chatEmotes';
 import { safeEmoteUrl } from './ChatMessageBody';
 import { focusShoutboxInput, insertShoutboxDraft } from '../../lib/shoutboxDraft';
 
@@ -15,7 +15,7 @@ type EmoteMenuButtonProps = {
 };
 
 export function EmoteMenuButton({ onEmotePicked }: EmoteMenuButtonProps) {
-  const { isLoggedIn, openAuth } = useAuth();
+  const { isLoggedIn, openAuth, refresh } = useAuth();
   const [open, setOpen] = useState(false);
   const [emotes, setEmotes] = useState<ChatEmote[]>([]);
   const [loading, setLoading] = useState(false);
@@ -34,13 +34,16 @@ export function EmoteMenuButton({ onEmotePicked }: EmoteMenuButtonProps) {
       const data = await fetchChatEmotes();
       if (!mountedRef.current) return;
       setEmotes(data.emotes.filter((e) => e.enabled !== false));
-    } catch {
+    } catch (e) {
       if (!mountedRef.current) return;
+      if (e instanceof ChatEmotesAuthError) {
+        void refresh().finally(() => openAuth('login'));
+      }
       setEmotes([]);
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, []);
+  }, [openAuth, refresh]);
 
   useEffect(() => {
     if (open) void load();

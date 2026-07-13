@@ -88,6 +88,7 @@ export function CoinEarningsFeed({ compact = false, refreshKey = 0, className = 
       setLoading(false);
       return;
     }
+    setLoading(true);
     const tick = () => {
       if (document.hidden) return;
       void load();

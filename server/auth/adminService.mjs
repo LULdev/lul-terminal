@@ -141,6 +141,8 @@ export async function updateUserAdmin(id, payload) {
         console.warn('[auth] deactivate arcade cleanup incomplete', { userId: id, errors: cleanup.errors });
         throw new Error(`Cannot deactivate user: arcade cleanup failed (${cleanup.errors.map((e) => e.gameId).join(', ')})`);
       }
+      const { refundOrphanEscrowsAfterCleanup } = await import('./authService.mjs');
+      await refundOrphanEscrowsAfterCleanup(id, cleanup);
     }
     user.active = nextActive;
     if (wasActive && nextActive === false) {
@@ -197,6 +199,12 @@ export async function deleteUserAdmin(id, actorId) {
     console.warn('[auth] admin delete arcade cleanup incomplete', { userId: id, errors: cleanup.errors });
     throw new Error(`Cannot delete user: arcade cleanup failed (${cleanup.errors.map((e) => e.gameId).join(', ')})`);
   }
+  const { refundOrphanEscrowsAfterCleanup } = await import('./authService.mjs');
+  await refundOrphanEscrowsAfterCleanup(id, cleanup);
+  const { refundUserEscrows } = await import('../gamesEscrow.mjs');
+  await refundUserEscrows(id).catch((e) => {
+    console.warn('[auth] final escrow refund before admin delete failed', id, e);
+  });
   target.registrationBlocked = true;
   const { blockRegistrationSignalsForUser } = await import('./registrationRegistry.mjs');
   await blockRegistrationSignalsForUser(target);

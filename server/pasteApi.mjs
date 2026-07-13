@@ -403,7 +403,7 @@ export async function handlePasteRequest(req, res) {
         res.end(access.requiresLogin ? 'Sign in required' : 'Not found');
         return;
       }
-      const viewResult = await countPasteViewDeduped(req, meta.id, { consumeBurn: meta.burnAfterRead });
+      const viewResult = await countPasteViewDeduped(req, meta.id, { consumeBurn: false });
       const content = viewResult?.content ?? await getContent(meta.id);
       if (!content) {
         res.statusCode = 404;
@@ -566,7 +566,7 @@ export async function handlePasteRequest(req, res) {
           });
         }
 
-        const viewResult = await countPasteViewDeduped(req, id, { consumeBurn: Boolean(meta.burnAfterRead) });
+        const viewResult = await countPasteViewDeduped(req, id, { consumeBurn: false });
         if (!viewResult) return sendJson(res, 404, { error: 'Not found' });
         const content = viewResult.content ?? await getContent(id);
         if (!content) return sendJson(res, 404, { error: 'Not found' });

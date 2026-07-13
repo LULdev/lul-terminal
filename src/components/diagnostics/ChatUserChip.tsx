@@ -20,6 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import { insertShoutboxDraft, focusShoutboxInput } from '../../lib/shoutboxDraft';
 import { sendShoutboxCommand } from '../../lib/shoutboxSend';
 import { adminModerateShoutboxUser } from '../../lib/adminModules';
+import { SessionExpiredError } from '../../lib/sessionFetch';
 import { terminalAppend } from '../../lib/terminalLogBridge';
 import { safeAvatarUrl } from '../../lib/safeAvatarUrl';
 import type { UserRole } from '../../types/auth';
@@ -147,6 +148,10 @@ export function ChatUserChip({ user, onOpenProfile, compact = false, modViaApi =
         terminalAppend(`❌ Mod action failed: ${result.error}`, 'warn');
       }
     } catch (e) {
+      if (e instanceof SessionExpiredError) {
+        void refresh().finally(() => openAuth('login'));
+        return;
+      }
       terminalAppend(`❌ Mod action failed: ${e instanceof Error ? e.message : 'error'}`, 'warn');
     } finally {
       if (mountedRef.current) setActing(false);

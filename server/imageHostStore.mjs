@@ -226,7 +226,7 @@ export async function updateImageRecord(id, userId, patch = {}) {
   return withImageWrite(async () => {
     const meta = await getMeta(id);
     if (!meta) throw new Error('Image not found');
-    if (!userId || meta.userId !== String(userId).slice(0, 32)) {
+    if (!userId || String(meta.userId) !== String(userId).slice(0, 32)) {
       throw new Error('Permission denied');
     }
 
@@ -253,7 +253,7 @@ export async function deleteImageRecord(id, userId) {
   return withImageWrite(async () => {
     const meta = await getMeta(id);
     if (!meta) throw new Error('Image not found');
-    if (!userId || meta.userId !== String(userId).slice(0, 32)) {
+    if (!userId || String(meta.userId) !== String(userId).slice(0, 32)) {
       throw new Error('Permission denied');
     }
     return removeImageFiles(id, meta);

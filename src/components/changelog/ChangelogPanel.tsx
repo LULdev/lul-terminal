@@ -6,6 +6,7 @@
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { CHANGELOG } from '../../data/changelog';
 import { APP_VERSION } from '../../config/version';
+import { useAuth } from '../../context/AuthContext';
 import { usePostViews } from '../../hooks/usePostViews';
 import { ChangelogEntry } from './ChangelogEntry';
 import { ChangelogLegend } from './ChangelogLegend';
@@ -19,7 +20,8 @@ type ChangelogPanelProps = {
 };
 
 export const ChangelogPanel = memo(function ChangelogPanel({ isActive = true }: ChangelogPanelProps) {
-  const { views, registerView } = usePostViews('changelog', { enabled: isActive });
+  const { isLoggedIn } = useAuth();
+  const { views, registerView } = usePostViews('changelog', { enabled: isActive && isLoggedIn });
   const [page, setPage] = useState(0);
   const timelineRef = useRef<HTMLDivElement>(null);
 
