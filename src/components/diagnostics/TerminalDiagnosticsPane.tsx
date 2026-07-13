@@ -678,7 +678,7 @@ export const TerminalDiagnosticsPane = memo(function TerminalDiagnosticsPane({
                 isMatrixOverlayActive={isMatrixOverlayActive}
                 onCloseMatrix={() => setIsMatrixOverlayActive(false)}
                 isMuted={isMuted}
-                pollEnabled={expandedPanels.terminal && isLoggedIn}
+                pollEnabled={expandedPanels.terminal}
                 onSendChatReady={handleSendChatReady}
                 onOpenProfile={onNavigateProfile}
                 onChatUnlocks={(ids, rewards, coinsTotal) => {

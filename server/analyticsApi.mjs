@@ -114,7 +114,7 @@ export async function handleAnalyticsRequest(req, res) {
         }
       }
 
-      if (!req.auth?.user && eventType !== 'session_start') {
+      if (!req.auth?.user) {
         return sendJson(res, 201, { ok: true, eventId: null, user: null, proof: null });
       }
 

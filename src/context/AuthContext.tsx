@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import * as authApi from '../lib/auth';
 import type { SyncAchievementsOpts } from '../lib/auth';
 import type { AuthPermissions, AuthUser } from '../types/auth';
@@ -83,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const closeLoginGate = useCallback(() => {
     setLoginGate(null);
+    setPendingTabAfterLogin(null);
   }, []);
 
   const openAuth = useCallback((mode: 'login' | 'register') => {
@@ -124,14 +125,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const refreshGenRef = useRef(0);
+
   const refresh = useCallback(async () => {
+    const gen = ++refreshGenRef.current;
     try {
       const data = await authApi.fetchMe();
+      if (gen !== refreshGenRef.current) return;
       setUser(data.user);
       setPermissions(data.permissions ?? defaultPermissions);
       setAccountsSubmitted(data.stats?.accountsSubmitted ?? 0);
       if (data.user) resetSessionInvalidation();
     } catch (e) {
+      if (gen !== refreshGenRef.current) return;
       const status = (e as { status?: number })?.status;
       if (status === 401) {
         setUser(null);

@@ -183,18 +183,24 @@ async function deletePasteFiles(id) {
   ]);
 }
 
-export async function purgeIfExpired(meta) {
+async function purgeIfExpiredInner(meta) {
   if (!meta) return null;
   if (!meta.expiresAt || meta.expiresAt > Date.now()) return meta;
-  return withPasteWrite(async () => {
-    const fresh = await getMeta(meta.id);
-    if (!fresh?.expiresAt || fresh.expiresAt > Date.now()) return fresh;
-    await deletePasteFiles(fresh.id);
-    const stats = await readStats();
-    stats.activePastes = await countActivePastes();
-    await writeStats(stats);
-    return null;
-  });
+  const fresh = await getMeta(meta.id);
+  if (!fresh?.expiresAt || fresh.expiresAt > Date.now()) return fresh;
+  await deletePasteFiles(fresh.id);
+  const stats = await readStats();
+  stats.activePastes = await countActivePastes();
+  await writeStats(stats);
+  return null;
+}
+
+/** @param {{ inWrite?: boolean }} [opts] Pass inWrite:true when already inside withPasteWrite to avoid deadlock. */
+export async function purgeIfExpired(meta, opts = {}) {
+  if (!meta) return null;
+  if (!meta.expiresAt || meta.expiresAt > Date.now()) return meta;
+  if (opts.inWrite) return purgeIfExpiredInner(meta);
+  return withPasteWrite(() => purgeIfExpiredInner(meta));
 }
 
 export async function savePaste({
@@ -255,7 +261,7 @@ export async function savePaste({
 
 export async function recordView(id, { consumeBurn = true } = {}) {
   return withPasteWrite(async () => {
-    const meta = await purgeIfExpired(await getMeta(id));
+    const meta = await purgeIfExpired(await getMeta(id), { inWrite: true });
     if (!meta) return null;
 
     meta.views = (meta.views ?? 0) + 1;
@@ -311,7 +317,7 @@ export async function listByUser(userId, sort = 'newest') {
     if (!file.endsWith('.json')) continue;
     try {
       const meta = JSON.parse(await fs.readFile(path.join(META_DIR, file), 'utf8'));
-      const alive = await purgeIfExpired(meta);
+      const alive = await purgeIfExpired(meta, { inWrite: true });
       if (!alive || alive.userId !== userId) continue;
       out.push(alive);
     } catch { /* skip */ }
@@ -363,7 +369,7 @@ export async function listPublicArchive(limit = 40) {
     if (!file.endsWith('.json')) continue;
     try {
       const meta = JSON.parse(await fs.readFile(path.join(META_DIR, file), 'utf8'));
-      const alive = await purgeIfExpired(meta);
+      const alive = await purgeIfExpired(meta, { inWrite: true });
       if (!alive || alive.visibility !== 'public') continue;
       out.push(alive);
     } catch { /* skip */ }
@@ -381,7 +387,7 @@ export async function listTrendingPublic(limit = 12) {
     if (!file.endsWith('.json')) continue;
     try {
       const meta = JSON.parse(await fs.readFile(path.join(META_DIR, file), 'utf8'));
-      const alive = await purgeIfExpired(meta);
+      const alive = await purgeIfExpired(meta, { inWrite: true });
       if (!alive || alive.visibility !== 'public') continue;
       out.push(alive);
     } catch { /* skip */ }
@@ -430,7 +436,7 @@ async function applyPastePatch(meta, patch) {
 
 export async function updatePaste(id, userId, patch) {
   return withPasteWrite(async () => {
-    const meta = await purgeIfExpired(await getMeta(id));
+    const meta = await purgeIfExpired(await getMeta(id), { inWrite: true });
     if (!meta) throw new Error('Paste not found');
     if (meta.userId !== userId) throw new Error('Not allowed');
     return applyPastePatch(meta, patch);
@@ -439,7 +445,7 @@ export async function updatePaste(id, userId, patch) {
 
 export async function adminUpdatePaste(id, patch) {
   return withPasteWrite(async () => {
-    const meta = await purgeIfExpired(await getMeta(id));
+    const meta = await purgeIfExpired(await getMeta(id), { inWrite: true });
     if (!meta) throw new Error('Paste not found');
     return applyPastePatch(meta, patch);
   });
@@ -474,7 +480,7 @@ export async function listAllPastes({
     if (!file.endsWith('.json')) continue;
     try {
       const meta = JSON.parse(await fs.readFile(path.join(META_DIR, file), 'utf8'));
-      const alive = await purgeIfExpired(meta);
+      const alive = await purgeIfExpired(meta, { inWrite: true });
       if (!alive) continue;
       if (visFilter && alive.visibility !== visFilter) continue;
       if (needle) {
@@ -521,7 +527,7 @@ export async function computeAdminPasteStats() {
 
 export async function ratePaste(id, userId, stars) {
   return withPasteWrite(async () => {
-    const meta = await purgeIfExpired(await getMeta(id));
+    const meta = await purgeIfExpired(await getMeta(id), { inWrite: true });
     if (!meta) throw new Error('Paste not found');
     const uid = String(userId).slice(0, 32);
     const raw = Number(stars);

@@ -308,8 +308,8 @@ export function ChatUserChip({ user, onOpenProfile, compact = false, modViaApi =
         onContextMenu={handleContextMenu}
         disabled={acting}
         className={`chat-user-chip shrink-0 inline-flex items-center gap-1 rounded-md border border-transparent hover:border-slate-700/80 hover:bg-white/[0.04] px-0.5 py-px transition group ${acting ? 'opacity-60' : ''}`}
-        title={`@${user.username} · ${user.displayName}\nLeft-click: profile · Middle-click: ping & send · Right-click: menu`}
-        aria-label={`@${user.username}, open profile`}
+        title={`${user.username} · ${user.displayName}\nLeft-click: profile · Middle-click: ping & send · Right-click: menu`}
+        aria-label={`${user.username}, open profile`}
       >
         <img
           src={avatarSrc}
@@ -320,9 +320,9 @@ export function ChatUserChip({ user, onOpenProfile, compact = false, modViaApi =
         <ChatRoleBadges role={user.role} verified={isVerified} compact={compact} />
         <span className={`inline-flex items-center gap-0.5 font-semibold ${roleStyle} ${textSize} max-w-[88px] truncate`}>
           {isAdminUser ? (
-            <span className="admin-username-style">@{user.username}</span>
+            <span className="admin-username-style">{user.username}</span>
           ) : (
-            <span>@{user.username}</span>
+            <span>{user.username}</span>
           )}
         </span>
       </button>
@@ -344,7 +344,7 @@ export function ChatUserChip({ user, onOpenProfile, compact = false, modViaApi =
               <div className="flex items-center gap-2">
                 <img src={avatarSrc} alt="" className="w-8 h-8 rounded-lg object-cover ring-1 ring-slate-700" />
                 <div className="min-w-0">
-                  <div className="text-[9px] font-mono font-bold text-fuchsia-200 truncate">@{user.username}</div>
+                  <div className="text-[9px] font-mono font-bold text-fuchsia-200 truncate">{user.username}</div>
                   <div className="flex items-center gap-1 mt-0.5">
                     <ChatRoleBadges role={user.role} verified={isVerified} />
                   </div>

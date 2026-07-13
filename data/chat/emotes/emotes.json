@@ -61,6 +61,18 @@
       "isPlaceholder": true,
       "createdAt": 1783500748250,
       "updatedAt": 1783500748250
+    },
+    {
+      "id": "7c8e9f0a1b2c",
+      "code": "Welcome",
+      "label": "Welcome",
+      "filename": "7c8e9f0a1b2c.svg",
+      "mime": "image/svg+xml",
+      "url": "/api/chat/emotes/files/7c8e9f0a1b2c.svg",
+      "enabled": true,
+      "isPlaceholder": false,
+      "createdAt": 1783987200000,
+      "updatedAt": 1783987200000
     }
   ]
 }

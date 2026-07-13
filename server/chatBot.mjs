@@ -21,13 +21,15 @@ export const BOT_DISPLAY = 'BOT';
 export const PINNED_WELCOME = {
   id: 'pinned-welcome',
   kind: 'pinned',
-  text: 'Welcome to the LUL Terminal Shoutbox — type normally to chat. Commands start with / — type /help for the list.',
+  text: 'Welcome to LUL.bz :Welcome:',
   segments: [
-    { type: 'text', text: 'Welcome to the LUL Terminal Shoutbox — type normally to chat. Commands start with ' },
-    { type: 'text', text: '/', style: 'command' },
-    { type: 'text', text: ' — type ' },
-    { type: 'text', text: '/help', style: 'command' },
-    { type: 'text', text: ' for the list.' },
+    { type: 'text', text: 'Welcome to LUL.bz ' },
+    {
+      type: 'emote',
+      code: 'Welcome',
+      label: 'Welcome',
+      url: '/emotes/welcome.svg',
+    },
   ],
 };
 

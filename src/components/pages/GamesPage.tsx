@@ -205,6 +205,8 @@ export function GamesPage() {
   const mountedRef = useRef(true);
   const metaGenRef = useRef(0);
   const loadGenRef = useRef(0);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -255,6 +257,7 @@ export function GamesPage() {
     if (celebratedMatches.current.has(m.id)) return;
     celebratedMatches.current.add(m.id);
     void syncAchievements().then(() => {
+      if (!mountedRef.current) return;
       setCoinFeedTick((t) => t + 1);
     }).catch(() => {});
     const outcome = matchOutcomeForUser(m, user?.id);
@@ -265,8 +268,8 @@ export function GamesPage() {
     else if (outcome === 'draw') parts.push('Draw — refunded');
     else parts.push('Defeat');
     if (m.streakBonus > 0) parts.push(`+${m.streakBonus} streak`);
-    setMsg(parts.join(' · '));
-    void refresh();
+    if (mountedRef.current) setMsg(parts.join(' · '));
+    if (mountedRef.current) void refresh();
   }, [user?.id, syncAchievements, refresh]);
 
   const loadMeta = useCallback(async () => {
@@ -465,11 +468,12 @@ export function GamesPage() {
       return;
     }
     if (pollRef.current) clearInterval(pollRef.current);
+    const snap = stateRef.current;
     const anyPvpPlaying = GAME_CATALOG.some((g) => {
-      const slice = getGameSlice(state, g.id);
+      const slice = getGameSlice(snap, g.id);
       return slice?.activeMatch?.status === 'playing' && slice.activeMatch.mode === 'pvp';
     });
-    const anyQueued = GAME_CATALOG.some((g) => Boolean(getGameSlice(state, g.id)?.inQueue));
+    const anyQueued = GAME_CATALOG.some((g) => Boolean(getGameSlice(snap, g.id)?.inQueue));
     const fastPoll = anyPvpPlaying
       || (match?.status === 'playing' && match.mode === 'pvp')
       || waiting
@@ -487,7 +491,7 @@ export function GamesPage() {
       if (pollRef.current) clearInterval(pollRef.current);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [match?.id, match?.status, match?.mode, waiting, pollState, state, isLoggedIn, authLoading]);
+  }, [match?.id, match?.status, match?.mode, waiting, pollState, isLoggedIn, authLoading]);
 
   const slice = getGameSlice(state, selectedGame);
   const stats = slice?.myStats ?? null;

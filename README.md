@@ -1,6 +1,6 @@
 # LUL Terminal
 
-[![Version](https://img.shields.io/badge/version-3.39.0-blue)](package.json)
+[![Version](https://img.shields.io/badge/version-3.40.0-blue)](package.json)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-green)](package.json)
 [![License](https://img.shields.io/badge/license-Apache--2.0-orange)](LICENSE)
 
@@ -287,7 +287,7 @@ npm run build && npm start
 
 ## Sicherheit & Härtung (v3.36.x)
 
-Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Aktuelle Version: **3.39.0**. Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
+Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client). Aktuelle Version: **3.40.0**. Changelog in der App unter **Changelog**-Tab oder in `src/data/changelog.ts`.
 
 ### Wichtige Sicherheitsmaßnahmen
 
@@ -470,9 +470,9 @@ REDIS_URL=redis://127.0.0.1:6379
 
 ### Chat & Shoutbox (Wichtig)
 
-- **Lesen und Schreiben** der Shoutbox erfordert Login + aktiven Account + `assertCanChat` (kein Bann/Mute).
-- Öffentlicher **Fun-Tab** in Page Visibility öffnet nur die UI — **Chat-API bleibt members-only**.
-- Terminal-Shoutbox pollt nur wenn eingeloggt **und** Terminal-Panel expandiert (jeder Tab).
+- **Lesen** der Shoutbox + Emotes ist für Gäste offen (Rate-Limits); **Schreiben** erfordert Login + `assertCanChat`.
+- Abgelaufene Session-Cookies liefern **401** (kein stilles Guest-Fallback) — Client refresht Session.
+- Terminal-Shoutbox pollt wenn Panel expandiert: Gäste **30s**, Mitglieder **4s**.
 - Bei `gated` (403): schneller Poll stoppt; **60s Recovery-Poll** + Probe bei Tab-Visibility.
 - Chat-Cooldown wird bei fehlgeschlagenem Message-Write **zurückgerollt** (`rollbackChatRateLimit`).
 - Nachrichten max. **280 Zeichen** (Client + Server).

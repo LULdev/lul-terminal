@@ -14,10 +14,16 @@ export class SessionExpiredError extends Error {
 
 /** Credentialed fetch that broadcasts 401 to the global session bus. */
 export async function sessionFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers ?? {});
+  const hasBody = init?.body != null && init.body !== '';
+  const isFormData = typeof FormData !== 'undefined' && init?.body instanceof FormData;
+  if (hasBody && !isFormData && typeof init?.body === 'string' && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
   const res = await fetch(input, {
     credentials: 'include',
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers,
   });
   if (res.status === 401) {
     invalidateSession();

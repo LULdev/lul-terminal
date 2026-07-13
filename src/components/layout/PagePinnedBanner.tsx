@@ -112,7 +112,7 @@ export function PagePinnedBanner({
     <div className="flex items-center justify-between gap-3 mb-4 shrink-0" id="page-greeting-header">
       <div className="flex items-center gap-3 min-w-0">
         <span className={`${accent.iconBox} ${accent.iconColor} p-2 rounded-lg border shrink-0`}>
-          <Terminal className="w-5 h-5 animate-pulse" />
+          <Terminal className="w-5 h-5" />
         </span>
         <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-100 font-sans">

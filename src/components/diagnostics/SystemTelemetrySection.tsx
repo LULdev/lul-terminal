@@ -155,87 +155,82 @@ export function SystemTelemetrySection({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-1.5" id="telemetry-grid">
+          <div className="grid grid-cols-4 gap-1" id="telemetry-grid">
             <div
-              className="bg-black/45 p-2 rounded border border-slate-800/60 font-mono text-[8px] leading-tight flex flex-col justify-between"
+              className="bg-black/45 px-1.5 py-1 rounded border border-slate-800/60 font-mono text-[7px] leading-none flex flex-col gap-0.5 min-w-0"
               id="telemetry-ram-card"
             >
-              <div className="flex justify-between text-slate-500 mb-1">
-                <span>■ RAM WORKLOAD</span>
-                <span className="text-indigo-400 font-bold">{ramUsage.toFixed(2)} GB</span>
+              <div className="flex justify-between gap-0.5 text-slate-500 truncate">
+                <span className="truncate">■ RAM</span>
+                <span className="text-indigo-400 font-bold shrink-0">{ramUsage.toFixed(1)}G</span>
               </div>
-              <div className="w-full bg-slate-950 h-1 rounded-full overflow-hidden border border-slate-900/40">
+              <div className="w-full bg-slate-950 h-0.5 rounded-full overflow-hidden border border-slate-900/40">
                 <div
                   className="bg-indigo-500 h-full transition-all duration-500"
                   style={{ width: `${(ramUsage / 8.0) * 100}%` }}
                 />
               </div>
-              <div className="flex justify-between text-[7px] text-slate-600 mt-0.5">
-                <span>LIMIT: 8.00 GB</span>
+              <div className="flex justify-between text-[6px] text-slate-600">
                 <span>{((ramUsage / 8.0) * 100).toFixed(0)}%</span>
+                <span>/8G</span>
               </div>
             </div>
 
             <div
-              className="bg-black/45 p-2 rounded border border-slate-800/60 font-mono text-[8px] leading-tight flex flex-col justify-between"
+              className="bg-black/45 px-1.5 py-1 rounded border border-slate-800/60 font-mono text-[7px] leading-none flex flex-col gap-0.5 min-w-0"
               id="telemetry-temp-card"
             >
-              <div className="flex justify-between text-slate-500 mb-1">
-                <span>■ THERMAL CORE</span>
+              <div className="flex justify-between gap-0.5 text-slate-500 truncate">
+                <span className="truncate">■ TEMP</span>
                 <span
-                  className={`${cpuTemp > 60 ? 'text-rose-400 animate-pulse' : 'text-amber-400'} font-bold`}
+                  className={`${cpuTemp > 60 ? 'text-rose-400' : 'text-amber-400'} font-bold shrink-0`}
                 >
-                  {cpuTemp.toFixed(1)}°C
+                  {cpuTemp.toFixed(0)}°
                 </span>
               </div>
-              <div className="w-full bg-slate-950 h-1 rounded-full overflow-hidden border border-slate-900/40">
+              <div className="w-full bg-slate-950 h-0.5 rounded-full overflow-hidden border border-slate-900/40">
                 <div
                   className={`h-full transition-all duration-500 ${cpuTemp > 60 ? 'bg-rose-500' : 'bg-amber-500'}`}
                   style={{ width: `${(cpuTemp / 100) * 100}%` }}
                 />
               </div>
-              <div className="flex justify-between text-[7px] text-slate-600 mt-0.5">
-                <span>MAX: 100°C</span>
-                <span>{cpuTemp > 60 ? 'HOT' : 'NOMINAL'}</span>
+              <div className="text-[6px] text-slate-600 truncate">
+                {cpuTemp > 60 ? 'HOT' : 'OK'}
               </div>
             </div>
 
             <div
-              className="bg-black/45 p-2 rounded border border-slate-800/60 font-mono text-[8px] leading-tight flex flex-col justify-between"
+              className="bg-black/45 px-1.5 py-1 rounded border border-slate-800/60 font-mono text-[7px] leading-none flex flex-col gap-0.5 min-w-0"
               id="telemetry-network-card"
             >
-              <div className="flex justify-between text-slate-500 mb-1">
-                <span>■ NET PING</span>
-                <span className="text-cyan-400 font-bold">{networkPing} ms</span>
+              <div className="flex justify-between gap-0.5 text-slate-500 truncate">
+                <span className="truncate">■ NET</span>
+                <span className="text-cyan-400 font-bold shrink-0">{networkPing}ms</span>
               </div>
-              <div className="flex justify-between items-center text-[7px] text-slate-400 mt-0.5">
-                <span>
-                  RX: <span className="text-emerald-400 font-semibold">{networkTraffic.rx.toFixed(1)}MB/s</span>
-                </span>
-                <span>
-                  TX: <span className="text-cyan-455 font-semibold">{networkTraffic.tx.toFixed(1)}MB/s</span>
-                </span>
+              <div className="flex justify-between text-[6px] text-slate-500 gap-0.5 truncate">
+                <span className="text-emerald-400/90 truncate">↓{networkTraffic.rx.toFixed(1)}</span>
+                <span className="text-cyan-400/90 truncate">↑{networkTraffic.tx.toFixed(1)}</span>
               </div>
             </div>
 
             <div
-              className="bg-black/45 p-2 rounded border border-slate-800/60 font-mono text-[8px] leading-tight flex flex-col justify-between"
+              className="bg-black/45 px-1.5 py-1 rounded border border-slate-800/60 font-mono text-[7px] leading-none flex flex-col gap-0.5 min-w-0"
               id="telemetry-sandbox-card"
             >
-              <div className="flex justify-between text-slate-500 mb-1">
-                <span>■ SANDBOX GRID</span>
-                <span className="text-emerald-400 font-bold">SECURE</span>
+              <div className="flex justify-between gap-0.5 text-slate-500 truncate">
+                <span className="truncate">■ BOX</span>
+                <span className="text-emerald-400 font-bold shrink-0">OK</span>
               </div>
-              <div className="flex items-center gap-1 text-[7px] text-slate-500 mt-1">
-                <span className="w-1 h-1 bg-emerald-500 rounded-full animate-ping" />
-                <span>SHIELD ACTIVE</span>
+              <div className="flex items-center gap-0.5 text-[6px] text-slate-500">
+                <span className="w-1 h-1 bg-emerald-500 rounded-full shrink-0" />
+                <span className="truncate">SHIELD</span>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      <div className="p-2 bg-black/30 border border-slate-800/40 rounded flex justify-between items-center font-mono text-[7px] text-slate-500 shrink-0">
+      <div className="p-1.5 bg-black/30 border border-slate-800/40 rounded flex justify-between items-center font-mono text-[7px] text-slate-500 shrink-0">
         <span className="flex items-center gap-1 animate-pulse">
           <span>🔄 SYSTEM COOLING FAN:</span>
           <span className="text-emerald-400 font-bold">

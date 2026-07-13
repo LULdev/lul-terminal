@@ -20,7 +20,7 @@ export type ChatEmotesResponse = {
 };
 
 export async function fetchChatEmotes(): Promise<ChatEmotesResponse> {
-  const res = await fetch(API);
+  const res = await fetch(API, { credentials: 'include' });
   if (!res.ok) throw new Error('Emotes unavailable');
   return res.json() as Promise<ChatEmotesResponse>;
 }

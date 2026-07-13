@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Crown, Shield, Trophy, Zap } from 'lucide-react';
 import type { TabId } from '../../config/menuItems';
 import { ACHIEVEMENT_BY_ID } from '../../data/achievements';
 import {
   BOARD_ACCENT_STYLES,
+  boardsDataEqual,
   fetchLeaderboards,
   filterLeaderboardBoards,
   formatBoardValue,
@@ -32,11 +33,13 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
   const [boards, setBoards] = useState<LeaderboardBoard[]>([]);
   const [generatedAt, setGeneratedAt] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState('');
   const [filter, setFilter] = useState<LeaderboardFilter>('all');
   const loadGenRef = useRef(0);
   const mountedRef = useRef(true);
+  const boardsRef = useRef<LeaderboardBoard[]>([]);
+  const initialLoadedRef = useRef(false);
+  const lastFetchAtRef = useRef(0);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -49,14 +52,20 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
   );
 
   const load = useCallback((background = false) => {
+    if (background) {
+      const since = Date.now() - lastFetchAtRef.current;
+      if (since < 30_000) return;
+    }
     const gen = ++loadGenRef.current;
-    if (background) setRefreshing(true);
-    else setLoading(true);
+    if (!background) setLoading(true);
     fetchLeaderboards()
       .then((d) => {
         if (gen !== loadGenRef.current || !mountedRef.current) return;
-        setBoards(d.boards);
-        setGeneratedAt(d.generatedAt);
+        if (!boardsDataEqual(boardsRef.current, d.boards)) {
+          boardsRef.current = d.boards;
+          setBoards(d.boards);
+        }
+        setGeneratedAt((prev) => (prev === d.generatedAt ? prev : d.generatedAt));
         setErr('');
       })
       .catch((e) => {
@@ -65,14 +74,21 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
       })
       .finally(() => {
         if (gen !== loadGenRef.current || !mountedRef.current) return;
+        lastFetchAtRef.current = Date.now();
         setLoading(false);
-        setRefreshing(false);
+        initialLoadedRef.current = true;
       });
   }, []);
 
-  useEffect(() => { load(false); }, [load]);
+  useEffect(() => {
+    if (initialLoadedRef.current) return;
+    load(false);
+  }, [load]);
 
-  useVisibilityAwarePoll(() => load(true), 60_000);
+  useVisibilityAwarePoll(() => {
+    if (!initialLoadedRef.current) return;
+    load(true);
+  }, 60_000, true);
 
   return (
     <PageShell
@@ -95,8 +111,8 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
               </p>
             </div>
             {generatedAt > 0 && (
-              <span className={`text-[8px] font-mono shrink-0 ${refreshing ? 'text-amber-400 animate-pulse' : 'text-slate-600'}`}>
-                {refreshing ? 'Syncing…' : `Synced ${formatRelativeEn(generatedAt)}`}
+              <span className="text-[8px] font-mono shrink-0 text-slate-600 tabular-nums min-w-[5.5rem] text-right">
+                Synced {formatRelativeEn(generatedAt)}
               </span>
             )}
           </div>
@@ -136,9 +152,7 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {visibleBoards.map((board) => (
-              <React.Fragment key={board.id}>
-                <BoardCard board={board} onNavigate={onNavigate} />
-              </React.Fragment>
+              <BoardCard key={board.id} board={board} onNavigate={onNavigate} />
             ))}
           </div>
         )}
@@ -147,7 +161,7 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
   );
 }
 
-function BoardCard({
+const BoardCard = memo(function BoardCard({
   board,
   onNavigate,
 }: {
@@ -186,32 +200,28 @@ function BoardCard({
         <p className="text-[10px] font-mono text-slate-600 py-6 text-center">No qualifying members yet — be the first!</p>
       ) : (
         <div className="hof-podium-stage flex items-end justify-center gap-2 sm:gap-3 pt-2 pb-1 min-h-[200px]">
-          {ordered.map((entry, i) => (
-            <React.Fragment key={entry.userId}>
-              <PodiumSlot
-                entry={entry}
-                unit={board.unit}
-                onNavigate={onNavigate}
-                delayMs={i * 120}
-              />
-            </React.Fragment>
+          {ordered.map((entry) => (
+            <PodiumSlot
+              key={`${board.id}:${entry.userId}`}
+              entry={entry}
+              unit={board.unit}
+              onNavigate={onNavigate}
+            />
           ))}
         </div>
       )}
     </article>
   );
-}
+});
 
-function PodiumSlot({
+const PodiumSlot = memo(function PodiumSlot({
   entry,
   unit,
   onNavigate,
-  delayMs = 0,
 }: {
   entry: LeaderboardEntry;
   unit: string;
   onNavigate?: LeaderboardPageProps['onNavigate'];
-  delayMs?: number;
 }) {
   const rank = entry.rank as 1 | 2 | 3;
   const style = RANK_STYLES[rank];
@@ -221,7 +231,6 @@ function PodiumSlot({
   return (
     <div
       className={`hof-podium-slot hof-podium-rank-${rank} flex flex-col items-center ${width} max-w-[140px]`}
-      style={{ animationDelay: `${delayMs}ms` }}
     >
       <button
         type="button"
@@ -233,6 +242,8 @@ function PodiumSlot({
           <img
             src={avatar}
             alt={entry.displayName}
+            loading="lazy"
+            decoding="async"
             className={`rounded-full object-cover border-2 border-[#0c0d12] ${
               rank === 1 ? 'h-14 w-14 sm:h-16 sm:w-16' : 'h-11 w-11 sm:h-12 sm:w-12'
             }`}
@@ -263,7 +274,7 @@ function PodiumSlot({
       </div>
     </div>
   );
-}
+});
 
 function LeaderboardSkeleton() {
   return (

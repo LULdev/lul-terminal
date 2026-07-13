@@ -8,7 +8,7 @@ import { assertCanChat } from './chatGuards.mjs';
 import { canAccessAdmin, isEffectivelyActive } from './auth/permissions.mjs';
 import { isTabPublic, loadAccessControl } from './accessControlStore.mjs';
 
-/** Shoutbox always requires login — fun tab publicity does not expose chat API to guests. */
+/** Shoutbox write + authenticated read require login and assertCanChat. Guest read is open in chatApi. */
 export async function requireChatAccess(req) {
   await attachAuth(req);
   const user = req.auth?.user;

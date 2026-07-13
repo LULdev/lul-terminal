@@ -43,7 +43,7 @@ export function DailyBonusCard({
     return () => clearInterval(tick);
   }, [bonus.canClaim]);
 
-  const canClaim = bonus.canClaim || remainingMs <= 0;
+  const canClaim = bonus.canClaim;
   const progress = canClaim
     ? 1
     : 1 - remainingMs / Math.max(1, bonus.cooldownMs);

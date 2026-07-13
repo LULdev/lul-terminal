@@ -314,15 +314,21 @@ export async function logoutUser(token) {
   const userId = session?.userId;
 
   if (userId) {
-    const { leaveAllGameQueues } = await import('../gamesService.mjs');
+    const { leaveAllGameQueues, userHasActiveArcadeSession } = await import('../gamesService.mjs');
     const cleanup = await leaveAllGameQueues(userId);
-    if (!cleanup.ok) {
-      console.warn('[auth] logout arcade cleanup incomplete — refunding escrows and forcing sign-out', {
+    const stillActive = await userHasActiveArcadeSession(userId).catch(() => true);
+    if (!stillActive && !cleanup.ok) {
+      console.warn('[auth] logout arcade cleanup incomplete — refunding escrows (no active RAM matches)', {
         userId,
         errors: cleanup.errors,
       });
       await refundUserEscrows(userId).catch((e) => {
         console.warn('[auth] escrow refund on logout failed', userId, e);
+      });
+    } else if (!cleanup.ok) {
+      console.warn('[auth] logout skipped escrow refund — arcade RAM state still active', {
+        userId,
+        errors: cleanup.errors,
       });
     }
     await withUsersWrite(async () => {
@@ -813,7 +819,7 @@ export async function incrementUserMemeCreated(userId, memeImageId = '') {
 }
 
 export async function deleteOwnAccount(userId, password) {
-  const { leaveAllGameQueues } = await import('../gamesService.mjs');
+  const { leaveAllGameQueues, userHasActiveArcadeSession } = await import('../gamesService.mjs');
   const { blockRegistrationSignalsForUser } = await import('./registrationRegistry.mjs');
 
   const db = await loadUsersDb();
@@ -833,13 +839,19 @@ export async function deleteOwnAccount(userId, password) {
       throw new Error('Last admin cannot be deleted');
     }
     const cleanup = await leaveAllGameQueues(userId);
-    if (!cleanup.ok) {
+    const stillActive = await userHasActiveArcadeSession(userId).catch(() => true);
+    if (!stillActive && !cleanup.ok) {
       console.warn('[auth] delete account arcade cleanup incomplete — refunding escrows', {
         userId,
         errors: cleanup.errors,
       });
       await refundUserEscrows(userId).catch((e) => {
         console.warn('[auth] escrow refund on delete failed', userId, e);
+      });
+    } else if (!cleanup.ok) {
+      console.warn('[auth] delete account skipped escrow refund — arcade RAM state still active', {
+        userId,
+        errors: cleanup.errors,
       });
     }
     await blockRegistrationSignalsForUser(freshUser);

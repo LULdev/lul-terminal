@@ -614,6 +614,7 @@ export default function App() {
     didBootstrapAuthTab.current = true;
     setActiveTab('dashboard');
     setProfileUsername(null);
+    syncUrlForTab('dashboard');
   }, [authLoading, isLoggedIn]);
 
   useEffect(() => {

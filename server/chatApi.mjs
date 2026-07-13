@@ -4,6 +4,7 @@
  */
 
 import { attachAuth } from './auth/authApi.mjs';
+import { isEffectivelyActive } from './auth/permissions.mjs';
 import { recordUserShoutboxSend } from './auth/authService.mjs';
 import { handleChatActivity } from './chatActivity.mjs';
 import { listLobbyMessages, postLobbyMessage } from './chatService.mjs';
@@ -37,14 +38,12 @@ export async function handleChatRequest(req, res) {
   try {
     if (req.method === 'GET' && pathname === '/api/chat/emotes') {
       await checkRateLimit(`chat-emotes:${clientIp(req)}`, { max: 60, windowMs: 60_000 });
-      await requireChatAccess(req);
       return sendJson(res, 200, await listPublicEmotes());
     }
 
     const fileMatch = pathname.match(/^\/api\/chat\/emotes\/files\/([a-f0-9]{12}\.(?:png|jpg|jpeg|gif|webp|svg))$/i);
     if (req.method === 'GET' && fileMatch) {
       await checkRateLimit(`chat-emote-file:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
-      await requireChatAccess(req);
       const hit = await getEmoteFile(fileMatch[1]);
       if (!hit) {
         res.statusCode = 404;
@@ -62,9 +61,18 @@ export async function handleChatRequest(req, res) {
 
     if (req.method === 'GET' && pathname === '/api/chat/lobby/messages') {
       await checkRateLimit(`chat-poll:${clientIp(req)}`, { max: 120, windowMs: 60_000 });
-      await requireChatAccess(req);
       const since = Number(url.searchParams.get('since') ?? 0);
       const limit = Number(url.searchParams.get('limit') ?? 80);
+      await attachAuth(req);
+      const user = req.auth?.user;
+      const hadToken = Boolean(req.auth?.token);
+      if (!user || !isEffectivelyActive(user)) {
+        if (hadToken) {
+          return sendJson(res, 401, { error: 'Not logged in' });
+        }
+        return sendJson(res, 200, await listLobbyMessages({ since, limit }));
+      }
+      await requireChatAccess(req);
       const data = await listLobbyMessages({ since, limit });
       return sendJson(res, 200, data);
     }

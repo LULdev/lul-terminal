@@ -23,6 +23,30 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.40.0',
+    title: 'Extreme deep audit — round 40 (shoutbox UX + escrow + paste deadlock)',
+    date: 'Jul 13, 2026 - 12:00',
+    highlight: true,
+    items: [
+      { priority: 'P0', text: 'P0 — pasteStore: purgeIfExpired inWrite flag fixes nested withPasteWrite deadlock on expired pastes.' },
+      { priority: 'P1', text: 'P1 — logout/delete: escrow refund only when arcade RAM clean (userHasActiveArcadeSession parity).' },
+      { priority: 'P1', text: 'P1 — chatApi: stale session cookie → 401 (not silent guest fallback); client refresh on drift.' },
+      { priority: 'P1', text: 'P1 — AuthContext refresh() generation guard prevents stale /me overwrite races.' },
+      { priority: 'P2', text: 'P2 — Guest shoutbox poll slowed to 30s; members poll 4s (rate-limit friendly).' },
+      { priority: 'P2', text: 'P2 — closeLoginGate clears pendingTabAfterLogin (“Maybe later” no longer hijacks login).' },
+      { priority: 'P2', text: 'P2 — Logged-in bootstrap syncUrlForTab(dashboard) fixes / vs dashboard URL mismatch.' },
+      { priority: 'P2', text: 'P2 — GamesPage poll interval no longer recreates on every state tick (stateRef).' },
+      { priority: 'P3', text: 'P3 — Removed dead lobby-clear branch in UnifiedTerminalPanel loadMessages.' },
+      { priority: 'P3', text: 'P3 — analyticsApi: guest session_start no longer persisted (spam/noise).' },
+      { priority: 'P4', text: 'P4 — DailyBonusCard: claim gated on server canClaim only (no local countdown false-positive).' },
+      { priority: 'P4', text: 'P4 — GamesPage celebrateMatchDone guarded on unmount (mountedRef).' },
+      { priority: 'P5', text: 'P5 — sessionFetch sets Content-Type only for JSON string bodies (FormData-safe).' },
+      { priority: 'P6', text: 'P6 — Boot banner text: shoutbox read open · sign in to chat.' },
+      { priority: 'P8', text: 'P8 — Burn-after-read paste race, Redis rate limits, session rotation deferred.' },
+      { priority: 'P9', text: 'P9 — Round 40 audit pass 1+2: lint + build verified.' },
+    ],
+  },
+  {
     version: '3.39.0',
     title: 'Extreme deep audit — round 39 (queue heartbeat + session parity)',
     date: 'Jul 13, 2026 - 05:00',

@@ -82,7 +82,7 @@ export function getCompactCommandHintLogs(time?: string): LogLine[] {
     {
       id: 'boot-h',
       time: t,
-      message: `LUL v${APP_VERSION} — chat when signed in · ↑↓ History`,
+      message: `LUL v${APP_VERSION} — shoutbox read open · sign in to chat · ↑↓ History`,
       type: 'success',
       ts,
     },

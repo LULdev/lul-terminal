@@ -179,6 +179,33 @@ export async function fetchLeaderboards(): Promise<LeaderboardsResponse> {
   return res.json() as Promise<LeaderboardsResponse>;
 }
 
+/** Shallow compare — skip React state updates when poll returns identical podium data. */
+export function boardsDataEqual(a: LeaderboardBoard[], b: LeaderboardBoard[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const left = a[i];
+    const right = b[i];
+    if (left.id !== right.id || left.top3.length !== right.top3.length) return false;
+    for (let j = 0; j < left.top3.length; j += 1) {
+      const le = left.top3[j];
+      const re = right.top3[j];
+      if (
+        le.userId !== re.userId
+        || le.rank !== re.rank
+        || le.value !== re.value
+        || le.username !== re.username
+        || le.displayName !== re.displayName
+        || le.avatarUrl !== re.avatarUrl
+        || le.role !== re.role
+      ) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 export function formatBoardValue(value: number, unit: string): string {
   if (unit === 'minutes' && value >= 60) {
     const h = Math.floor(value / 60);

@@ -4,7 +4,6 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Terminal } from 'lucide-react';
 import { MatrixOverlay } from '../MatrixOverlay';
 import { ChatUserChip } from './ChatUserChip';
 import { ChatRoleBadges } from './ChatRoleBadges';
@@ -18,7 +17,6 @@ import {
   playChatNotification,
   sendLobbyMessage,
   type ChatMessage,
-  type PinnedMessage,
   type SendChatResult,
 } from '../../lib/chat';
 import { useAuth } from '../../context/AuthContext';
@@ -63,7 +61,7 @@ function ChatLine({ msg, onOpenProfile }: { msg: ChatMessage; onOpenProfile?: (u
           <span className="text-slate-600 shrink-0 select-none">:</span>
         </>
       ) : (
-        <span className="text-slate-400 shrink-0">@{msg.username}:</span>
+        <span className="text-slate-400 shrink-0">{msg.username}:</span>
       )}
       <span className={`whitespace-pre-wrap leading-tight break-all ${textClass}`}>
         <ChatMessageBody msg={msg} onOpenProfile={onOpenProfile} />
@@ -72,16 +70,38 @@ function ChatLine({ msg, onOpenProfile }: { msg: ChatMessage; onOpenProfile?: (u
   );
 }
 
-function PinnedWelcome({ pinned }: { pinned: PinnedMessage }) {
+function TerminalLogLine({
+  log,
+  themeText,
+  onRun,
+}: {
+  log: LogLine;
+  themeText: string;
+  onRun?: (cmd: string) => void;
+}) {
+  const isClickable = !!log.commandToRun;
   return (
-    <div className="shoutbox-pinned shrink-0">
-      <div className="flex items-center gap-1 mb-0.5">
-        <Terminal className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
-        <span className="text-[6px] font-mono uppercase tracking-widest text-indigo-300/80">Pinned · Welcome</span>
-      </div>
-      <p className="text-[8px] font-mono text-indigo-100/90 leading-relaxed">
-        <ChatMessageBody msg={pinned} />
-      </p>
+    <div
+      className={`flex gap-2 items-start leading-tight ${isClickable ? 'group cursor-pointer' : ''}`}
+      id={`log-item-${log.id}`}
+      onClick={isClickable && onRun ? () => onRun(log.commandToRun!) : undefined}
+    >
+      <span className="text-slate-600 font-semibold shrink-0 select-none">[{log.time}]</span>
+      <span
+        className={`whitespace-pre-wrap leading-tight break-all min-w-0 ${
+          isClickable
+            ? `${themeText} hover:brightness-125 hover:underline decoration-dashed font-semibold transition-all duration-150`
+            : log.type === 'success'
+              ? 'text-green-400 font-semibold'
+              : log.type === 'warn'
+                ? 'text-amber-400'
+                : log.type === 'alert'
+                  ? 'text-red-500 font-extrabold animate-pulse'
+                  : 'text-indigo-300'
+        }`}
+      >
+        {log.message}
+      </span>
     </div>
   );
 }
@@ -118,7 +138,6 @@ export function UnifiedTerminalPanel({
   onChatUnlocks,
 }: UnifiedTerminalPanelProps) {
   const { isLoggedIn, refresh } = useAuth();
-  const [pinned, setPinned] = useState<PinnedMessage | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [chatStatus, setChatStatus] = useState<'ok' | 'offline' | 'rate_limited' | 'gated'>('ok');
@@ -140,8 +159,6 @@ export function UnifiedTerminalPanel({
 
   useEffect(() => {
     if (isLoggedIn) return;
-    setMessages([]);
-    setPinned(null);
     setChatStatus('ok');
     knownIdsRef.current.clear();
     hadMessagesRef.current = false;
@@ -195,7 +212,7 @@ export function UnifiedTerminalPanel({
       if (gen !== loadGenRef.current || !mountedRef.current) return;
 
       setChatStatus('ok');
-      pollBackoffRef.current = 4000;
+      pollBackoffRef.current = isLoggedIn ? 4000 : 30_000;
 
       const lobbyChanged = Boolean(
         data.updatedAt
@@ -206,7 +223,6 @@ export function UnifiedTerminalPanel({
       if (!initial && lobbyChanged) {
         const full = await fetchLobbyMessages({ since: 0, limit: DISPLAY_LIMIT });
         if (gen !== loadGenRef.current || !mountedRef.current) return;
-        setPinned(full.pinned);
         replaceDisplayWindow(full.messages);
         lobbyUpdatedAtRef.current = full.updatedAt;
         const maxTs = full.messages.reduce((n, m) => Math.max(n, m.createdAt), 0);
@@ -214,14 +230,7 @@ export function UnifiedTerminalPanel({
         return;
       }
 
-      if (!initial && data.messages.length === 0 && hadMessagesRef.current && lobbyChanged) {
-        replaceDisplayWindow([]);
-        lobbyUpdatedAtRef.current = data.updatedAt;
-        return;
-      }
-
       lobbyUpdatedAtRef.current = data.updatedAt;
-      setPinned(data.pinned);
 
       if (initial) {
         replaceDisplayWindow(data.messages);
@@ -271,7 +280,7 @@ export function UnifiedTerminalPanel({
   }, [chatStatus, pollEnabled, isLoggedIn, loadMessages]);
 
   useEffect(() => {
-    if (!pollEnabled || !isLoggedIn || chatStatus === 'gated') return;
+    if (!pollEnabled || chatStatus === 'gated') return;
     initialDoneRef.current = false;
     lobbyUpdatedAtRef.current = null;
     void loadMessages(true);
@@ -333,12 +342,19 @@ export function UnifiedTerminalPanel({
     onSendChatReady?.(sendChat);
   }, [sendChat, onSendChatReady]);
 
+  const bootLog = useMemo(
+    () => commandLogs.find((log) => log.id === 'boot-h') ?? null,
+    [commandLogs],
+  );
+
   const streamEntries = useMemo((): StreamEntry[] => {
-    const logs: StreamEntry[] = commandLogs.map((log, i) => ({
-      kind: 'log',
-      ts: log.ts ?? i,
-      log,
-    }));
+    const logs: StreamEntry[] = commandLogs
+      .filter((log) => log.id !== 'boot-h')
+      .map((log, i) => ({
+        kind: 'log',
+        ts: log.ts ?? i,
+        log,
+      }));
     const chats: StreamEntry[] = messages.map((msg) => ({
       kind: 'chat',
       ts: msg.createdAt,
@@ -349,12 +365,12 @@ export function UnifiedTerminalPanel({
 
   useEffect(() => {
     scrollToBottom();
-  }, [streamEntries.length, pinned, scrollToBottom]);
+  }, [streamEntries.length, scrollToBottom]);
 
   return (
     <div
       ref={scrollRef}
-      className="flex-1 min-h-[180px] mt-1 bg-black/50 rounded p-3 font-mono text-[8px] leading-relaxed overflow-y-auto border border-slate-800/60 shadow-inner flex flex-col gap-2 relative animate-fade-in"
+      className="flex-1 min-h-[300px] mt-1 bg-black/50 rounded p-3 font-mono text-[8px] leading-relaxed overflow-y-auto border border-slate-800/60 shadow-inner flex flex-col gap-2 relative animate-fade-in"
       id="unified-terminal-stream"
     >
       {isMatrixOverlayActive && <MatrixOverlay onClose={onCloseMatrix} />}
@@ -366,19 +382,21 @@ export function UnifiedTerminalPanel({
           {chatStatus === 'rate_limited'
             ? 'Shoutbox poll rate-limited — retrying…'
             : chatStatus === 'gated'
-              ? (isLoggedIn
-                ? 'Shoutbox unavailable — check tab access or permissions'
-                : 'Shoutbox members-only — sign in to view chat')
+              ? 'Shoutbox unavailable — check tab access or permissions'
               : 'Shoutbox offline — logs still work, retrying…'}
         </p>
       )}
 
-      {loading && !pinned && streamEntries.length === 0 && (
+      {loading && streamEntries.length === 0 && isLoggedIn && (
         <p className="text-slate-600 text-center py-4">Initializing terminal stream…</p>
       )}
 
-      {pinned && <PinnedWelcome pinned={pinned} />}
-      {pinned && <div className="shoutbox-history-divider shrink-0" aria-hidden />}
+      {bootLog && (
+        <div className="terminal-boot-sticky shrink-0">
+          <TerminalLogLine log={bootLog} themeText={themeText} onRun={processCommand} />
+          <div className="shoutbox-history-divider shrink-0" aria-hidden />
+        </div>
+      )}
 
       {streamEntries.map((entry) => {
         if (entry.kind === 'chat') {
@@ -388,32 +406,10 @@ export function UnifiedTerminalPanel({
             </React.Fragment>
           );
         }
-        const log = entry.log;
-        const isClickable = !!log.commandToRun;
         return (
-          <div
-            key={`log-${log.id}`}
-            className={`flex gap-2 items-start ${isClickable ? 'group cursor-pointer' : ''}`}
-            id={`log-item-${log.id}`}
-            onClick={isClickable ? () => processCommand(log.commandToRun!) : undefined}
-          >
-            <span className="text-slate-600 font-semibold shrink-0 select-none">[{log.time}]</span>
-            <span
-              className={`whitespace-pre-wrap leading-tight break-all ${
-                isClickable
-                  ? `${themeText} hover:brightness-125 hover:underline decoration-dashed font-semibold transition-all duration-150`
-                  : log.type === 'success'
-                    ? 'text-green-400 font-semibold'
-                    : log.type === 'warn'
-                      ? 'text-amber-400'
-                      : log.type === 'alert'
-                        ? 'text-red-500 font-extrabold animate-pulse'
-                        : 'text-indigo-300'
-              }`}
-            >
-              {log.message}
-            </span>
-          </div>
+          <React.Fragment key={`log-${entry.log.id}`}>
+            <TerminalLogLine log={entry.log} themeText={themeText} onRun={processCommand} />
+          </React.Fragment>
         );
       })}
     </div>

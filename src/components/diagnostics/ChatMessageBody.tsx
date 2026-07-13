@@ -7,13 +7,20 @@ import React, { useState } from 'react';
 import type { ChatMessage, ChatSegment, PinnedMessage } from '../../lib/chat';
 import { safeHref } from '../../lib/safeHref';
 
+export function shoutboxUsernameDisplay(username: string, label?: string): string {
+  const raw = String(username || label || '').trim();
+  return raw.replace(/^@+/, '');
+}
+
 export function safeEmoteUrl(url: string | undefined): string | null {
   const raw = String(url ?? '').trim();
   if (!raw) return null;
   if (raw.startsWith('/api/chat/emotes/files/') && !raw.startsWith('//')) return raw;
+  if (raw.startsWith('/emotes/') && !raw.startsWith('//')) return raw;
   try {
     const parsed = new URL(raw, 'http://localhost');
     if (parsed.pathname.startsWith('/api/chat/emotes/files/')) return parsed.pathname;
+    if (parsed.pathname.startsWith('/emotes/')) return parsed.pathname;
   } catch { /* invalid */ }
   return null;
 }
@@ -47,6 +54,7 @@ export function SegmentView({
   onOpenProfile?: (username: string) => void;
 }) {
   if (seg.type === 'user') {
+    const displayName = shoutboxUsernameDisplay(seg.username, seg.label);
     if (onOpenProfile && seg.username) {
       return (
         <button
@@ -54,15 +62,15 @@ export function SegmentView({
           onClick={() => onOpenProfile(seg.username)}
           className="shoutbox-segment-link font-semibold hover:opacity-90 bg-transparent border-0 p-0 cursor-pointer font-inherit"
         >
-          {seg.label}
+          {displayName}
         </button>
       );
     }
     const href = safeHref(seg.href);
-    if (!href) return <span className="font-semibold">{seg.label}</span>;
+    if (!href) return <span className="font-semibold">{displayName}</span>;
     return (
       <a href={href} rel="noopener noreferrer" className="shoutbox-segment-link font-semibold hover:opacity-90">
-        {seg.label}
+        {displayName}
       </a>
     );
   }

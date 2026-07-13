@@ -68,17 +68,17 @@ export function FeatureLoginGate() {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9998] isolate flex items-center justify-center p-4 pointer-events-auto"
+      className="fixed inset-0 z-[9998] isolate flex items-center justify-center p-4 pointer-events-auto overflow-auto"
       role="presentation"
     >
       <button
         type="button"
-        className="absolute inset-0 bg-black/80 backdrop-blur-md cursor-default"
+        className="fixed inset-0 bg-black/80 backdrop-blur-md cursor-default"
         onClick={closeLoginGate}
         aria-label="Close dialog"
       />
       <div
-        className={`relative z-10 w-full max-w-md pointer-events-auto rounded-2xl border ${style.border} bg-gradient-to-br from-[#0c0d12] via-[#111827] to-[#0a0c10] shadow-2xl ${style.glow} overflow-hidden animate-fade-in`}
+        className={`relative z-10 w-[28rem] max-w-[calc(100vw-2rem)] origin-center scale-[2.5] pointer-events-auto rounded-2xl border ${style.border} bg-gradient-to-br from-[#0c0d12] via-[#111827] to-[#0a0c10] shadow-2xl ${style.glow} overflow-hidden`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="feature-gate-title"
