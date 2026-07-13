@@ -10,6 +10,72 @@ Community arcade, profiles, tools, and terminal hub — built with **React 19**,
 
 ---
 
+## Inhaltsverzeichnis
+
+1. [Was ist LUL Terminal?](#was-ist-lul-terminal)
+2. [Features](#features)
+3. [Schnellstart (5 Minuten, lokal)](#schnellstart-5-minuten-lokal)
+4. [Installationsanleitung (Schritt für Schritt)](#installationsanleitung-schritt-für-schritt)
+5. [Wartung & Betrieb](#wartung--betrieb)
+6. [Seed-Skripte](#seed-skripte)
+7. [Sicherheit & Härtung](#sicherheit--härtung-v336x)
+8. [Redis-Anleitung](#redis-anleitung-redis_url)
+9. [Rate Limits & Multi-Process](#rate-limits--multi-process)
+10. [Scripts & Umgebungsvariablen](#scripts)
+11. [Projektstruktur](#project-structure)
+12. [Deployment & Checkliste](#github--deployment)
+13. [Fehlerbehebung](#fehlerbehebung)
+14. [Quick start (English)](#quick-start-english)
+
+---
+
+## Was ist LUL Terminal?
+
+LUL Terminal ist eine **selbst gehostete Community-Plattform**: Mitglieder können sich registrieren, im Arcade LUL-Coins gewinnen, Paste/Image-Links teilen, in der Shoutbox chatten und Premium-Accounts im Vault einsehen (VIP). Admins steuern Inhalte, Sichtbarkeit und Moderation über ein Dashboard.
+
+**Technisch:** Eine Node.js-App — Express liefert die API (`/api/*`) und die gebaute React-Oberfläche (`dist/`). Alle Daten liegen als **JSON-Dateien** unter `data/` (kein MySQL/PostgreSQL nötig).
+
+**Für Einsteiger wichtig:**
+
+| Begriff | Bedeutung |
+|---------|-----------|
+| `npm run dev` | Entwicklungsmodus — Hot-Reload, ein Port (3000) |
+| `npm run build` + `npm start` | Produktion — optimiertes Frontend + Express |
+| `.env` | Geheime Einstellungen (Passwörter, Keys) — **nie** committen |
+| `data/` | Deine echten Nutzerdaten — **sichern** und bei Deploy persistent halten |
+| `TRUST_PROXY` | Muss `1` sein, wenn nginx/Cloudflare vor der App steht |
+
+**Standard-Accounts nach Seed** (nur bei leerer Datenbank):
+
+| Benutzer | Rolle | Zweck |
+|----------|-------|-------|
+| `admin` | Admin | Volles Dashboard, Moderation |
+| `vipdemo` | VIP | Premium Vault, erweiterte Rechte |
+| `bot` | Bot | System-Nachrichten in der Shoutbox |
+
+Passwörter kommen aus `SEED_ADMIN_PASSWORD` / `SEED_VIP_PASSWORD` in `.env` (in Produktion **Pflicht**).
+
+---
+
+## Schnellstart (5 Minuten, lokal)
+
+Wenn du nur schnell ausprobieren willst (Windows, macOS oder Linux):
+
+```bash
+git clone https://github.com/LULdev/lul-terminal.git
+cd lul-terminal
+npm install
+copy .env.example .env          # Windows — macOS/Linux: cp .env.example .env
+npm run seed:auth               # optional — sonst beim ersten Start automatisch
+npm run dev
+```
+
+Öffne **http://localhost:3000**. Melde dich mit `admin` und dem Passwort aus `.env` (`SEED_ADMIN_PASSWORD`, Standard in `.env.example`: `change-me-admin`) an.
+
+> **Hinweis:** In `NODE_ENV=development` ohne gesetzte Seed-Passwörter kann das Admin-Passwort einmalig in der **Server-Konsole** ausgegeben werden.
+
+---
+
 ## Features
 
 | Bereich | Inhalt |
@@ -18,7 +84,7 @@ Community arcade, profiles, tools, and terminal hub — built with **React 19**,
 | **Arcade** | 14 Spiele, LUL-Coin-Escrow, Matchmaking, Leaderboards |
 | **Paste** | Öffentlich / geschützt / privat, Burn-after-read, View-Dedup, Admin-CRUD |
 | **Image Host** | Upload, Galerie, View-Tracking |
-| **Premium Vault** | Account-Vault (VIP), Admin-CRUD + Bulk-Import, verschlüsselte Passwörter |
+| **Premium Vault** | VIP-Vault — Passwörter AES-GCM at rest; Anzeige nur per **Reveal**-API (nicht in Listen-JSON) |
 | **Proxy** | Scraper (~146 Quellen), Checker, Proxy-Datenbank |
 | **Tools** | Persona-DB, XML-Link-Scraper, Colon-DB, Meme-Editor, Tool Vault, Net Toolkit |
 | **News & Chat** | LUL Wire (News-Feed), Shoutbox, Emotes, Moderation |
@@ -30,6 +96,8 @@ Community arcade, profiles, tools, and terminal hub — built with **React 19**,
 ---
 
 ## Installationsanleitung (Schritt für Schritt)
+
+Diese Anleitung führt dich von **null** bis zur laufenden Instanz — zuerst lokal (Dev), dann optional Produktion mit HTTPS.
 
 ### Voraussetzungen
 
@@ -47,6 +115,8 @@ npm -v
 
 ### Schritt 1 — Repository klonen
 
+**Was passiert:** Du lädst den Quellcode von GitHub herunter.
+
 ```bash
 git clone https://github.com/LULdev/lul-terminal.git
 cd lul-terminal
@@ -54,11 +124,17 @@ cd lul-terminal
 
 ### Schritt 2 — Abhängigkeiten installieren
 
+**Was passiert:** npm lädt alle Bibliotheken (React, Express, …) in `node_modules/`. Das kann 1–3 Minuten dauern.
+
 ```bash
 npm install
 ```
 
+Bei Fehlern: Node-Version prüfen (`node -v` ≥ 18). Unter Windows PowerShell als Administrator nur nötig, wenn Port/Firewall blockiert.
+
 ### Schritt 3 — Umgebungsvariablen einrichten
+
+**Was passiert:** Die Datei `.env` steuert Secrets und Server-Verhalten. Ohne sie nutzt die App Dev-Defaults (unsicher für Produktion).
 
 Kopiere die Beispiel-Datei und passe sie an:
 
@@ -124,22 +200,34 @@ npm run seed:news            # 40 LUL-Wire-Artikel (überschreibt news.json)
 
 ### Schritt 5 — Entwicklung starten
 
+**Was passiert:** Vite startet den Dev-Server; Änderungen am Frontend werden sofort sichtbar. Die API läuft auf dem **gleichen Port**.
+
 ```bash
 npm run dev
 ```
 
-Öffne [http://localhost:3000](http://localhost:3000). Vite liefert Frontend + API-Middleware (gleicher Port).
+Öffne [http://localhost:3000](http://localhost:3000).
+
+**Erster Login:**
+
+1. Klicke **Sign in** (oder öffne das Auth-Modal).
+2. Benutzer: `admin`, Passwort: Wert von `SEED_ADMIN_PASSWORD` in `.env`.
+3. Als VIP testen: `vipdemo` / `SEED_VIP_PASSWORD`.
 
 **Standard-Login nach Seed (nur Dev ohne gesetzte Env-Passwörter):** Passwort wird einmalig in der Server-Konsole generiert — setze `SEED_ADMIN_PASSWORD` in `.env` für ein festes Passwort.
 
 ### Schritt 6 — Produktion bauen
 
+**Was passiert:** TypeScript wird geprüft; React wird zu statischen Dateien in `dist/` kompiliert.
+
 ```bash
-npm run lint    # TypeScript-Prüfung
+npm run lint    # TypeScript-Prüfung — muss ohne Fehler durchlaufen
 npm run build   # Erzeugt dist/
 ```
 
 ### Schritt 7 — Produktion starten
+
+**Was passiert:** Express liefert `dist/` (Website) und alle API-Routen. Es gibt **keinen** separaten Frontend-Server.
 
 ```bash
 # .env: NODE_ENV=production, TRUST_PROXY=1, alle Secrets gesetzt
@@ -148,7 +236,23 @@ npm start
 
 Express bedient `dist/` (SPA) und alle `/api/*`-Routen auf `PORT` (Standard 3000).
 
+**Produktions-`.env` Minimalbeispiel:**
+
+```env
+NODE_ENV=production
+PORT=3000
+TRUST_PROXY=1
+PUBLIC_BASE_URL=https://terminal.example.com
+PREMIUM_VAULT_KEY=<mindestens-32-zufällige-zeichen>
+SEED_ADMIN_PASSWORD=<starkes-passwort>
+SEED_VIP_PASSWORD=<starkes-passwort>
+```
+
+`PREMIUM_VAULT_KEY` erzeugen (Linux/macOS): `openssl rand -base64 32` — unter Windows: `[Convert]::ToBase64String((1..32|%{Get-Random -Max 256}))` in PowerShell.
+
 ### Schritt 8 — Reverse-Proxy (nginx Beispiel)
+
+**Was passiert:** nginx terminiert HTTPS und leitet Anfragen an Node auf Port 3000 weiter. Ohne Proxy müsstest du TLS direkt in Node konfigurieren (nicht empfohlen).
 
 ```nginx
 server {
@@ -172,6 +276,7 @@ In `.env` auf dem Server:
 NODE_ENV=production
 TRUST_PROXY=1
 PUBLIC_BASE_URL=https://terminal.example.com
+ALLOWED_PUBLIC_HOSTS=terminal.example.com
 PREMIUM_VAULT_KEY=<langer-zufälliger-string>
 SEED_ADMIN_PASSWORD=<starkes-passwort>
 SEED_VIP_PASSWORD=<starkes-passwort>
@@ -184,6 +289,140 @@ REDIS_URL=redis://127.0.0.1:6379
 Alle Nutzer-, Chat-, Spiel- und Upload-Metadaten liegen in `data/`. Diesen Ordner **sichern und persistent mounten** (Docker-Volume, Backup, etc.).
 
 Gitignored (Runtime): `data/image-host/`, `data/proxy-scraper/state.json`, `data/proxy-scraper/last-results.json`
+
+### Schritt 10 — PM2 (optional, Produktion)
+
+Für einen Server, der nach Neustart automatisch wieder läuft:
+
+```bash
+npm install -g pm2
+npm run build
+pm2 start server/start.mjs --name lul-terminal
+pm2 save
+pm2 startup    # Anweisungen für Autostart beim Boot folgen
+```
+
+In Produktion nutzt `RATE_LIMIT_BACKEND=auto` bereits das **File-Backend** — PM2 mit mehreren Workern auf **einem** Host teilen sich `data/rate-limits/buckets.json`.
+
+---
+
+## Wartung & Betrieb
+
+Dieser Abschnitt beschreibt den **laufenden Betrieb** nach der Installation — Backups, Updates, Secrets und typische Admin-Aufgaben.
+
+### Was du regelmäßig sichern musst
+
+| Pfad | Inhalt | Priorität |
+|------|--------|-----------|
+| `data/auth/users.json` | Alle Konten, Passwort-Hashes | **Kritisch** |
+| `data/auth/sessions.json` | Aktive Sessions | Hoch |
+| `data/premium-accounts/` | Vault (verschlüsselte Passwörter) | **Kritisch** |
+| `data/games/` | Arcade-State, Jackpot, Historie | Hoch |
+| `data/chat/` | Shoutbox, Emotes | Mittel |
+| `data/feeds/` | News, Post-Views | Mittel |
+| `data/paste/`, `data/image-host/` | Upload-Metadaten + Dateien | Hoch |
+| `data/analytics/` | Analytics, Guest-Views | Mittel |
+| `data/rate-limits/` | Rate-Limit-Buckets (File-Backend) | Niedrig (regenerierbar) |
+
+**Backup-Befehl (Linux/macOS, Beispiel):**
+
+```bash
+# Täglich per cron — Ziel anpassen
+tar -czf /backup/lul-terminal-$(date +%F).tar.gz -C /pfad/zum/projekt data/
+```
+
+**Windows (PowerShell):**
+
+```powershell
+$date = Get-Date -Format "yyyy-MM-dd"
+Compress-Archive -Path "C:\pfad\zum\lul-terminal\data" -DestinationPath "C:\backup\lul-data-$date.zip" -Force
+```
+
+> **Wichtig:** `node_modules/` und `dist/` müssen **nicht** gesichert werden — die baust du nach einem Update neu. `.env` separat und verschlüsselt sichern (nicht ins öffentliche Git).
+
+### Update auf eine neue Version
+
+**Standardablauf (Self-hosted):**
+
+```bash
+# 1. Backup von data/ (siehe oben)
+# 2. App stoppen (pm2 stop lul-terminal oder Ctrl+C)
+cd lul-terminal
+git pull origin main
+npm install                  # nur wenn package.json sich geändert hat
+npm run lint && npm run build
+npm start                    # oder: pm2 restart lul-terminal
+```
+
+**Nach dem Update prüfen:**
+
+- [ ] Seite lädt unter deiner `PUBLIC_BASE_URL`
+- [ ] Login als `admin` funktioniert
+- [ ] Changelog-Tab zeigt neue Version (z. B. 3.46.0)
+- [ ] Server-Konsole: keine `[rate-limit] memory backend` Warnung in Produktion
+- [ ] Optional: `[redis] shared client connected` wenn `REDIS_URL` gesetzt
+
+**Runtime-Dateien nicht committen:** Vor `git commit` in Entwicklung: `git checkout -- data/` falls Testdaten geändert wurden.
+
+### Secrets & Schlüssel rotieren
+
+| Secret | Wann rotieren | Vorgehen |
+|--------|---------------|----------|
+| `SEED_*` | Nur vor **erstem** Seed relevant | Nach erstem Start nutzlos — Admin-Passwort über Profil ändern |
+| Admin-Passwort | Regelmäßig / bei Verdacht | Profil → Security → neues Passwort + `currentPassword` |
+| `PREMIUM_VAULT_KEY` | Nur mit Migration | **Nicht** leichtfertig ändern — bestehende Vault-Einträge sind mit altem Key verschlüsselt. Neuen Key nur bei frischem Vault oder geplanter Re-Import-Migration. |
+| Session-Cookies | Automatisch | Logout aller Nutzer via Admin oder `sessions.json` leeren (alle müssen neu einloggen) |
+
+### Logs & Monitoring
+
+| Was | Wo |
+|-----|-----|
+| Server-Stdout | Konsole, `pm2 logs lul-terminal` |
+| Rate-Limit-Backend | Startmeldung: `using file backend` oder `Redis backend active` |
+| Redis-Verbindung | `[redis] shared client connected` oder `[redis] unavailable` |
+| Abgelehnte Hosts | `[origin] rejected X-Forwarded-Host` |
+
+**Einfacher Health-Check:** `GET /` sollte HTML liefern; eingeloggt sollte `GET /api/auth/me` JSON mit User zurückgeben.
+
+### Speicherplatz
+
+Wächst vor allem durch:
+
+- `data/image-host/` — hochgeladene Bilder
+- `data/paste/` — Paste-Inhalte
+- `data/games/history` — Match-Historie
+- `data/analytics/` — Event-Logs
+
+Alte Analytics kannst du bei Bedarf archivieren; Bilder/Pastes nur löschen, wenn du Inhalte bewusst entfernen willst (Admin-Panels).
+
+### Admin-Aufgaben im laufenden Betrieb
+
+| Aufgabe | Wo in der App |
+|---------|----------------|
+| Nutzer moderieren / sperren | Admin → Shoutbox / Users |
+| Tab-Sichtbarkeit (Gast vs. Member) | Admin → Page Visibility |
+| News veröffentlichen | Admin → News |
+| Premium Vault pflegen | Admin → Vault (Reveal für Passwörter, Bulk-Import) |
+| Paste/Image moderieren | Admin → Pastes / Images |
+| Setup-Hinweise | Admin → Setup Notes (spiegelt diese README) |
+| Systemlast | Admin → System Pulse |
+
+### Premium Vault — API-Verhalten (v3.46+)
+
+- **Listen** (`GET /api/premium-accounts/accounts`): keine Passwörter im JSON — nur `hasPassword: true`.
+- **Reveal** (`POST /api/premium-accounts/accounts/:id/reveal`): Passwort für eine Karte (VIP, rate-limited).
+- **Export** (`POST /api/premium-accounts/accounts/export`): TSV mit Passwörtern serverseitig (für Copy/Download in der App).
+- **At rest:** AES-256-GCM mit `PREMIUM_VAULT_KEY`.
+
+### Wartungs-Checkliste (monatlich)
+
+- [ ] `data/` Backup verifiziert (Restore-Test auf Staging)
+- [ ] `npm run lint && npm run build` auf aktuellem `main`
+- [ ] `.env` Secrets nicht im Git; `PREMIUM_VAULT_KEY` gesetzt
+- [ ] `TRUST_PROXY=1` + `PUBLIC_BASE_URL` oder `ALLOWED_PUBLIC_HOSTS` korrekt
+- [ ] Bei Multi-Instance: Redis erreichbar (`redis-cli ping`)
+- [ ] Disk-Space unter `data/` prüfen
+- [ ] Admin-Account: Passwort stark, nicht Default
 
 ---
 
@@ -294,6 +533,7 @@ Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client).
 
 | Version | Runde | Schwerpunkte |
 |---------|-------|--------------|
+| **3.46.0** | P8 | Vault reveal API, X-Forwarded-Host allowlist, production file rate limits |
 | **3.45.0** | 45 | Orphan escrow refund, burn-after-read GET fix, /i/ deep-link auth parity |
 | **3.44.0** | 44 | Paste deep-link views+auth, ban arcade cleanup, reg challenge timing, email step-up |
 | **3.43.0** | 43 | Arcade cleanup on 401, password step-up, meme notify session bus, admin paste stats |
@@ -309,6 +549,8 @@ Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client).
 | **3.36.97** | 35 | Tab ref integrity, image upload cap, guest dedup TOCTOU |
 | **3.36.96** | 34 | profileTabReadyTick proof gate, shoutbox gated poll, view inflight coalesce |
 
+> **v3.46 Hinweis:** Premium-Vault-Passwörter nur per Reveal/Export-API; `ALLOWED_PUBLIC_HOSTS` schützt Share-Links hinter Proxy; Produktion nutzt File-Rate-Limits automatisch.
+
 > **Round 45 Hinweis:** Orphan-Escrow-Refund nach Logout/Ban/Delete/Deactivate; Burn-after-read nur via POST `/view` oder `/unlock`; `/i/:id` Deep-Links nutzen Session-Cookie + AuthModal wie `/p/:id`.
 
 > **Round 44 Hinweis:** `/p/:id` Deep-Links zählen Views und öffnen AuthModal; Registrierungs-Bot-Gate nutzt Challenge-`issuedAt` (nicht forgeable `firstVisitAt`); `/ban` räumt Arcade-Queues + Escrow auf; E-Mail-Änderung erfordert `currentPassword`.
@@ -323,7 +565,7 @@ Das Projekt durchläuft regelmäßige **Extreme Deep Audits** (Server + Client).
 |-------|-----------|
 | **Rate Limits** | Auth, Admin, Paste, Chat, News, Games, Proxy, Analytics — Backends: memory / file / Redis |
 | **TRUST_PROXY** | Echte Client-IPs nur wenn Proxy-Hop in `TRUSTED_PROXY_IPS` |
-| **Öffentliche URLs** | `resolvePublicOrigin` — kein blindes Vertrauen in `X-Forwarded-Host` |
+| **Öffentliche URLs** | `PUBLIC_BASE_URL` oder `ALLOWED_PUBLIC_HOSTS` — `X-Forwarded-Host` sonst abgelehnt (Anti-Phishing für Paste/Image-Links) |
 | **Paste** | Kein `?password=` in URLs; private/geschützte Pastes → 404 für Fremde; Burn-Dedup; max. 512 KB |
 | **View-Dedup** | Flag-first mit Rollback (Paste, Image, Post, Page, Vault, Profile) |
 | **Guest View-Dedup** | Anonyme Paste/Image-Views pro IP+Resource; **Prod default fail-closed** (`GUEST_VIEW_DEDUP_FAIL_OPEN=0`) |
@@ -452,8 +694,8 @@ volumes:
 
 | Setup | Empfehlung |
 |-------|------------|
-| 1× `npm start` / 1× PM2-Worker | Kein Redis nötig |
-| PM2-Cluster, **ein** Server, gemeinsames `data/` | `RATE_LIMIT_SHARED=1` (File + Lock) |
+| 1× `npm start` / 1× PM2-Worker | Kein Redis nötig (`NODE_ENV=production` → File-Limits) |
+| PM2-Cluster, **ein** Server, gemeinsames `data/` | `NODE_ENV=production` (auto File) oder `RATE_LIMIT_SHARED=1` |
 | 2+ Server / Pods hinter Load Balancer | **`REDIS_URL` Pflicht** |
 | Managed Redis (Upstash, Redis Cloud, ElastiCache) | `rediss://…` aus Provider-Dashboard kopieren |
 
@@ -476,8 +718,8 @@ Redis-Daten (Rate-Limit-Keys, Guest-Dedup) sind **ephemeral** — kein Backup n�
 
 | Backend | Wann | Env |
 |---------|------|-----|
-| **memory** | Standard (ein Prozess) | — |
-| **file** | Mehrere Node-Prozesse, gleicher Host | `RATE_LIMIT_SHARED=1` |
+| **memory** | Dev / ein Prozess (`NODE_ENV≠production`) | — |
+| **file** | Produktion (`auto`) oder PM2 auf einem Host | `NODE_ENV=production` oder `RATE_LIMIT_SHARED=1` |
 | **redis** | Multi-Instance / Cluster | `REDIS_URL=redis://…` |
 | **explizit** | Override | `RATE_LIMIT_BACKEND=memory\|file\|redis` |
 
@@ -488,8 +730,9 @@ Priorität bei `auto`: Redis wenn `REDIS_URL` gesetzt, sonst File wenn `RATE_LIM
 **Redis-Backend:** Atomisches `INCR` + `PEXPIRE` per Lua-Script (kein TTL-Leak-Fenster).
 
 ```env
-# Ein VPS, PM2 mit 4 Workern — kein Redis nötig:
-RATE_LIMIT_SHARED=1
+# Ein VPS, PM2 mit 4 Workern — in Produktion automatisch File-Backend:
+NODE_ENV=production
+# Optional explizit: RATE_LIMIT_SHARED=1
 
 # Zwei+ Server hinter Load Balancer — Redis Pflicht:
 REDIS_URL=redis://127.0.0.1:6379
@@ -564,9 +807,10 @@ Redis nutzt `SET gv:{scope}:{ip}:{id} NX EX` (90-Tage-TTL). File-Mode lädt `gue
 Im **Admin Dashboard → Vault**:
 
 - Accounts anlegen, bearbeiten, löschen
-- Bulk-Import (Text/CSV-Format)
-- Freigabe / Ablehnung eingereichter Accounts
-- View-Tracking mit Dedup
+- Bulk-Import (Text/CSV-Format mit Name/Username/Password/Url-Blöcken)
+- Freigabe / Ablehnung eingereichter Accounts (Status `unchecked`)
+- View-Tracking mit Session-Dedup
+- Passwörter: **Reveal**-Button in der UI (lädt `POST …/reveal`) — nicht mehr im Listen-API-JSON
 
 ---
 
@@ -586,7 +830,7 @@ Production:
 npm run lint && npm run build && npm start
 ```
 
-Set `TRUST_PROXY=1`, `PREMIUM_VAULT_KEY`, and seed passwords before first production boot.
+Set `NODE_ENV=production`, `TRUST_PROXY=1`, `PUBLIC_BASE_URL`, `PREMIUM_VAULT_KEY`, and seed passwords before first production boot. See [Wartung & Betrieb](#wartung--betrieb) for backups and updates.
 
 ---
 
@@ -617,6 +861,7 @@ See [`.env.example`](.env.example) for the full template.
 | `TRUST_PROXY` | `1` when behind reverse proxy |
 | `TRUSTED_PROXY_IPS` | Comma-separated IPs allowed to set forwarded headers |
 | `PUBLIC_BASE_URL` | Optional canonical origin for API share URLs |
+| `ALLOWED_PUBLIC_HOSTS` | Comma-separated hosts trusted for `X-Forwarded-Host` (prod + proxy) |
 | `RATE_LIMIT_BACKEND` | `auto` (default), `memory`, `file`, or `redis` |
 | `RATE_LIMIT_SHARED` | `1` — file-backed rate limits for multi-process same host |
 | `REDIS_URL` | Redis URL — `redis://127.0.0.1:6379` (local), `redis://:pass@host:6379` (auth), `rediss://…` (TLS). Enables shared rate limits + guest view dedup. See [Redis-Anleitung](#redis-anleitung-redis_url). |
@@ -688,7 +933,7 @@ In der laufenden App: **Admin Dashboard → Setup Notes** — spiegelt Deploymen
 | Ziel | Hinweis |
 |------|---------|
 | **Self-hosted VPS** | `npm run build && npm start` + nginx + `TRUST_PROXY=1` + `PUBLIC_BASE_URL` |
-| **PM2 / Cluster (1 Host)** | `RATE_LIMIT_SHARED=1` + `data/` persistent mounten |
+| **PM2 / Cluster (1 Host)** | `NODE_ENV=production` (auto File-Rate-Limits) + `data/` persistent mounten |
 | **Multi-Instance / LB** | `REDIS_URL=redis://…` — Rate-Limits + Guest-Dedup (siehe [Redis-Anleitung](#redis-anleitung-redis_url)) |
 | **Docker** | Mount `data/`, set env from `.env.example` |
 | **Vercel (static only)** | `vercel.json` rewrites SPA routes; **API requires Node server** — use VPS or split frontend/API |
@@ -698,9 +943,9 @@ In der laufenden App: **Admin Dashboard → Setup Notes** — spiegelt Deploymen
 - [ ] `NODE_ENV=production`
 - [ ] `TRUST_PROXY=1` + `TRUSTED_PROXY_IPS` (hinter Proxy)
 - [ ] `PREMIUM_VAULT_KEY`, `SEED_*`-Passwörter gesetzt
-- [ ] `PUBLIC_BASE_URL` = kanonische HTTPS-URL
+- [ ] `PUBLIC_BASE_URL` = kanonische HTTPS-URL **oder** `ALLOWED_PUBLIC_HOSTS` gesetzt
 - [ ] `data/` persistent (Backup, Volume)
-- [ ] Multi-Process (1 Host): `RATE_LIMIT_SHARED=1` **oder** Multi-Instance (LB): `REDIS_URL=redis://127.0.0.1:6379` (siehe [Redis-Anleitung](#redis-anleitung-redis_url))
+- [ ] Multi-Process (1 Host): `NODE_ENV=production` (File-Limits automatisch) **oder** Multi-Instance (LB): `REDIS_URL=redis://127.0.0.1:6379` (siehe [Redis-Anleitung](#redis-anleitung-redis_url))
 - [ ] `npm run lint && npm run build` vor Deploy
 - [ ] `data/analytics/guest-views.json` nicht committen (Runtime)
 
@@ -723,6 +968,28 @@ Version in `package.json`, `src/config/version.ts`, und Changelog-Eintrag in `sr
 ```bash
 npm run lint && npm run build
 ```
+
+---
+
+## Fehlerbehebung
+
+| Problem | Ursache | Lösung |
+|---------|---------|--------|
+| Seite lädt nicht / `ECONNREFUSED` | Server nicht gestartet | `npm run dev` oder `npm start`; Port 3000 frei? |
+| Login schlägt fehl | Falsches Passwort / leere DB | `SEED_ADMIN_PASSWORD` in `.env`; `npm run seed:auth` |
+| Rate-Limits greifen nicht (PM2) | Memory-Backend in Dev | `NODE_ENV=production` setzen oder `RATE_LIMIT_SHARED=1` |
+| Alle Requests von einer IP | `TRUST_PROXY` fehlt | `.env`: `TRUST_PROXY=1` hinter nginx/Cloudflare |
+| Paste/Image-Links zeigen falsche Domain | Host-Poisoning / fehlende Allowlist | `PUBLIC_BASE_URL` oder `ALLOWED_PUBLIC_HOSTS` setzen |
+| `[redis] unavailable` | Redis down / falsche URL | `redis-cli ping`; `REDIS_URL` prüfen |
+| Vault-Passwörter leer in UI | v3.46+ Reveal-API | Auf **Reveal** klicken; VIP-Rolle nötig |
+| `PREMIUM_VAULT_KEY must be set` | Prod ohne Key | Langen Zufallsstring in `.env` setzen, neu starten |
+| Build-Fehler nach `git pull` | Alte `node_modules` | `rm -rf node_modules && npm install` |
+| Shoutbox „eingeloggt“ aber senden geht nicht | Stale Session-Cookie | Neu einloggen; Hard-Refresh (Ctrl+F5) |
+| `data/` nach Deploy leer | Kein persistent Volume | `data/` auf Server mounten, nicht nur Repo klonen |
+
+**Logs lesen:** Bei `pm2 logs lul-terminal` nach `error`, `[auth]`, `[rate-limit]`, `[origin] rejected` suchen.
+
+**Hilfe & Issues:** [github.com/LULdev/lul-terminal/issues](https://github.com/LULdev/lul-terminal/issues)
 
 ---
 
