@@ -221,11 +221,36 @@ function VaultEditorModal({
 }
 
 function DetailModal({ account, onClose, onEdit }: { account: PremiumAccount; onClose: () => void; onEdit: () => void }) {
+  const [password, setPassword] = useState(account.password ?? '');
+  const [pwLoading, setPwLoading] = useState(false);
+
+  useEffect(() => {
+    if (account.password) {
+      setPassword(account.password);
+      return;
+    }
+    let active = true;
+    setPwLoading(true);
+    import('../../lib/premiumAccounts').then(({ revealVaultPassword }) => revealVaultPassword(account.id))
+      .then((pw) => { if (active) setPassword(pw); })
+      .catch(() => { if (active) setPassword(''); })
+      .finally(() => { if (active) setPwLoading(false); });
+    return () => { active = false; };
+  }, [account.id, account.password]);
+
   const copyAll = async () => {
+    let pw = password;
+    if (!pw && !pwLoading) {
+      try {
+        const { revealVaultPassword } = await import('../../lib/premiumAccounts');
+        pw = await revealVaultPassword(account.id);
+        setPassword(pw);
+      } catch { /* ignore */ }
+    }
     const text = [
       `Name: ${account.service}`,
       `Username: ${account.email}`,
-      `Password: ${account.password}`,
+      `Password: ${pw || '—'}`,
       `Url: ${account.website ?? ''}`,
     ].join('\n');
     try { await navigator.clipboard.writeText(text); } catch { /* ignore */ }
@@ -260,7 +285,7 @@ function DetailModal({ account, onClose, onEdit }: { account: PremiumAccount; on
         <div className="space-y-2.5 rounded-xl border border-slate-800/80 bg-black/30 p-3">
           {[
             ['Username', account.email],
-            ['Password', account.password],
+            ['Password', pwLoading ? 'Loading…' : (password || '—')],
             ['Category', PREMIUM_CATEGORY_LABELS[account.category]],
             ['Status', STATUS_LABELS[account.status]],
             ['Plan', account.plan ? PLAN_LABELS[account.plan] : '—'],

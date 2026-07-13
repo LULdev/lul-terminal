@@ -23,6 +23,18 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.46.0',
+    title: 'P8 security — vault reveal, origin allowlist, production rate limits',
+    date: 'Jul 13, 2026 - 23:00',
+    highlight: true,
+    items: [
+      { priority: 'P8', text: 'P8 — Premium vault: list API omits passwords; POST /accounts/:id/reveal + /accounts/export for on-demand access.' },
+      { priority: 'P8', text: 'P8 — resolvePublicOrigin: X-Forwarded-Host gated by ALLOWED_PUBLIC_HOSTS / PUBLIC_BASE_URL.' },
+      { priority: 'P8', text: 'P8 — Production RATE_LIMIT_BACKEND=auto defaults to file (shared across workers on one host).' },
+      { priority: 'P3', text: 'P3 — VaultPasswordReveal UI; admin detail modal fetches password via reveal endpoint.' },
+    ],
+  },
+  {
     version: '3.45.0',
     title: 'Extreme deep audit — round 45 (orphan escrow + deep-link parity)',
     date: 'Jul 13, 2026 - 22:00',

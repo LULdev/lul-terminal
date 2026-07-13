@@ -55,7 +55,33 @@ export function exportAccountsTxt(accounts: PremiumAccount[], workingOnly = true
   const list = workingOnly
     ? accounts.filter((a) => a.status === 'working' || a.status === 'working_free')
     : accounts;
-  return list.map((a) => `${a.service}\t${a.email}\t${a.password}`).join('\n');
+  return list
+    .filter((a) => a.password)
+    .map((a) => `${a.service}\t${a.email}\t${a.password}`)
+    .join('\n');
+}
+
+export async function revealVaultPassword(accountId: string): Promise<string> {
+  const data = await authedJson<{ password: string }>(`/accounts/${accountId}/reveal`, { method: 'POST' });
+  return data.password;
+}
+
+export async function exportVaultAccountsText(opts: {
+  category?: PremiumAccountCategory | 'all';
+  status?: PremiumAccountStatus | 'all';
+  search?: string;
+  workingOnly?: boolean;
+} = {}): Promise<string> {
+  const body: Record<string, unknown> = {};
+  if (opts.category && opts.category !== 'all') body.category = opts.category;
+  if (opts.status && opts.status !== 'all') body.status = opts.status;
+  if (opts.search?.trim()) body.search = opts.search.trim();
+  if (opts.workingOnly) body.workingOnly = true;
+  const data = await authedJson<{ text: string }>('/accounts/export', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  return data.text;
 }
 
 export type CreatePremiumAccountInput = {

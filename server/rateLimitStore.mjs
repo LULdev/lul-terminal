@@ -40,6 +40,7 @@ function resolveBackend() {
   if (explicit === 'redis') return 'redis';
   if (process.env.REDIS_URL) return 'redis';
   if (process.env.RATE_LIMIT_SHARED === '1' || process.env.RATE_LIMIT_SHARED === 'true') return 'file';
+  if (process.env.NODE_ENV === 'production') return 'file';
   return 'memory';
 }
 
@@ -145,8 +146,11 @@ export function getRateLimitBackend() {
   return resolveBackend();
 }
 
-if (process.env.NODE_ENV === 'production' && resolveBackend() === 'memory') {
+const activeBackend = resolveBackend();
+if (process.env.NODE_ENV === 'production' && activeBackend === 'memory') {
   console.warn(
     '[rate-limit] memory backend is not shared across workers — set RATE_LIMIT_BACKEND=file or redis for production',
   );
+} else if (process.env.NODE_ENV === 'production' && activeBackend === 'file') {
+  console.info('[rate-limit] using file backend (shared across workers on this host)');
 }

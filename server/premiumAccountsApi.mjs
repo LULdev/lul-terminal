@@ -18,12 +18,14 @@ import {
   addAccount,
   approveAccount,
   bulkImportAccounts,
+  exportAccountsText,
   getPublicAccountStats,
   getStats,
   incrementAccountView,
   listAccounts,
   rejectAccount,
   removeAccount,
+  revealAccountPassword,
   updateAccount,
 } from './premiumAccountsService.mjs';
 import {
@@ -148,6 +150,30 @@ export async function handlePremiumAccountsRequest(req, res) {
       await checkRateLimit(`premium-admin-act:${req.auth.user.id}`, { max: 30, windowMs: 60_000 });
       const result = await rejectAccount(rejectUncheckedMatch[1]);
       return sendJson(res, 200, result);
+    }
+
+    const revealMatch = pathname.match(/^\/api\/premium-accounts\/accounts\/([a-f0-9]+)\/reveal$/);
+    if (revealMatch && req.method === 'POST') {
+      requirePremiumView(req);
+      await requireMemberTab(req, 'premiumaccounts');
+      await checkRateLimit(`premium-reveal:${req.auth.user.id}`, { max: 40, windowMs: 60_000 });
+      const result = await revealAccountPassword(revealMatch[1]);
+      return sendJson(res, 200, result);
+    }
+
+    if (req.method === 'POST' && pathname === '/api/premium-accounts/accounts/export') {
+      requirePremiumView(req);
+      await requireMemberTab(req, 'premiumaccounts');
+      await checkRateLimit(`premium-export:${req.auth.user.id}`, { max: 10, windowMs: 60_000 });
+      const body = await readJsonBody(req, 16 * 1024);
+      const text = await exportAccountsText({
+        category: body.category,
+        status: body.status,
+        search: body.search,
+        isAdmin,
+        workingOnly: Boolean(body.workingOnly),
+      });
+      return sendJson(res, 200, { text, lines: text ? text.split('\n').length : 0 });
     }
 
     const viewMatch = pathname.match(/^\/api\/premium-accounts\/accounts\/([a-f0-9]+)\/view$/);

@@ -35,7 +35,9 @@ export type PremiumAccount = {
   website?: string;
   category: PremiumAccountCategory;
   email: string;
-  password: string;
+  /** Present only after POST /accounts/:id/reveal — never in list responses. */
+  password?: string;
+  hasPassword?: boolean;
   status: PremiumAccountStatus;
   plan?: PremiumAccountPlan;
   vip?: boolean;

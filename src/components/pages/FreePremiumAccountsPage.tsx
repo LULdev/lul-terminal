@@ -8,7 +8,7 @@ import { AlertTriangle, BadgeCheck, Crown, Eye, User } from 'lucide-react';
 import {
   approvePremiumAccount,
   createPremiumAccount,
-  exportAccountsTxt,
+  exportVaultAccountsText,
   fetchPremiumAccounts,
   fetchPremiumAccountStats,
   recordAccountView,
@@ -25,6 +25,7 @@ import { useAuth } from '../../context/AuthContext';
 import { VipGate } from '../auth/VipGate';
 import { useVisibilityAwarePoll } from '../../hooks/useVisibilityAwarePoll';
 import { PageShell } from './PageShell';
+import { VaultPasswordReveal } from '../premium/VaultPasswordReveal';
 
 const CATEGORIES: (PremiumAccountCategory | 'all')[] = [
   'all', 'streaming', 'vpn', 'software', 'gaming', 'porn', 'other',
@@ -341,7 +342,7 @@ const PremiumAccountCard: React.FC<{
       </div>
 
       <CopyField label="Email / username" value={account.email} />
-      <CopyField label="Password" value={account.password} />
+      <VaultPasswordReveal accountId={account.id} hasPassword={account.hasPassword ?? true} />
 
       {account.expiresAt && (
         <div className="text-[8px] font-mono text-slate-500">
@@ -777,13 +778,21 @@ function PremiumAccountsContent({
   const copyWorking = async () => {
     const working = accounts.filter((a) => a.status === 'working' || a.status === 'working_free');
     if (!working.length) return;
-    await navigator.clipboard.writeText(exportAccountsTxt(working, true));
+    const text = await exportVaultAccountsText({ workingOnly: true, category, status: statusFilter, search });
+    if (!text.trim()) return;
+    await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const downloadTxt = () => {
-    const blob = new Blob([exportAccountsTxt(accounts, statusFilter !== 'offline' && statusFilter !== 'expired')], {
+  const downloadTxt = async () => {
+    const text = await exportVaultAccountsText({
+      workingOnly: statusFilter !== 'offline' && statusFilter !== 'expired',
+      category,
+      status: statusFilter,
+      search,
+    });
+    const blob = new Blob([text], {
       type: 'text/plain',
     });
     const a = document.createElement('a');

@@ -14,6 +14,53 @@ const CATEGORIES = ['streaming', 'vpn', 'software', 'gaming', 'porn', 'other'];
 const PLANS = ['Free', 'Premium', 'WorkingButFree'];
 const STATUSES = ['working', 'working_free', 'offline', 'expired', 'unchecked'];
 
+/** Strip password from API payloads — use reveal endpoint on demand. */
+export function toClientAccount(account) {
+  if (!account || typeof account !== 'object') return account;
+  const { password, ...rest } = account;
+  return {
+    ...rest,
+    hasPassword: Boolean(String(password ?? '').trim()),
+  };
+}
+
+export function toClientAccounts(accounts) {
+  return (accounts ?? []).map(toClientAccount);
+}
+
+export async function revealAccountPassword(id) {
+  const db = await loadAccountsDb();
+  const row = db.accounts.find((a) => a.id === id);
+  if (!row) throw new Error('Account not found');
+  return { password: String(row.password ?? '') };
+}
+
+export async function exportAccountsText({ category, status, search, isAdmin = false, workingOnly = false } = {}) {
+  const db = await loadAccountsDb();
+  let list = visibleAccountsForViewer([...db.accounts], isAdmin);
+  const q = search?.trim().toLowerCase();
+
+  if (category && CATEGORIES.includes(category)) {
+    list = list.filter((a) => a.category === category);
+  }
+  if (status && STATUSES.includes(status)) {
+    if (status === 'unchecked' && !isAdmin) {
+      list = [];
+    } else {
+      list = list.filter((a) => a.status === status);
+    }
+  }
+  if (q) {
+    list = list.filter(
+      (a) => a.service.toLowerCase().includes(q) || a.email.toLowerCase().includes(q),
+    );
+  }
+  if (workingOnly) {
+    list = list.filter((a) => isWorkingStatus(a.status));
+  }
+  return list.map((a) => `${a.service}\t${a.email}\t${a.password}`).join('\n');
+}
+
 function isWorkingStatus(status) {
   return status === 'working' || status === 'working_free';
 }
@@ -81,7 +128,7 @@ export async function listAccounts({ category, status, search, isAdmin = false }
   });
 
   return {
-    accounts: list,
+    accounts: toClientAccounts(list),
     stats: computeStats(db.accounts, { isAdmin }),
     updatedAt: db.updatedAt,
   };
@@ -147,7 +194,7 @@ export async function addAccount(payload, creator = null) {
     };
     db.accounts.push(next);
     await saveAccountsDb(db);
-    return { account: next, stats: computeStats(db.accounts, { isAdmin: true }) };
+    return { account: toClientAccount(next), stats: computeStats(db.accounts, { isAdmin: true }) };
   });
 
   if (creator?.username && account.status === 'unchecked') {
@@ -191,7 +238,7 @@ export async function approveAccount(id, approveStatus = 'working') {
   }
 
   const stats = await getStats({ isAdmin: true });
-  return { account, stats };
+  return { account: toClientAccount(account), stats };
 }
 
 export async function rejectAccount(id) {
@@ -320,7 +367,7 @@ export async function updateAccount(id, payload, editor) {
   });
 
   const stats = await getStats({ isAdmin: true });
-  return { account, stats };
+  return { account: toClientAccount(account), stats };
 }
 
 export async function bulkImportAccounts(rawText, options = {}, creator) {
@@ -394,7 +441,7 @@ export async function bulkImportAccounts(rawText, options = {}, creator) {
     failed: invalid.length,
     total: parsed.length,
     errors: invalid.map((e) => ({ index: e.index, name: e.name, errors: e.errors })),
-    accounts: result.imported,
+    accounts: toClientAccounts(result.imported),
     stats: result.stats,
   };
 }
