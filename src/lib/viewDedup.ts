@@ -9,6 +9,7 @@ const PREFIXES = [
   'lul_paste_view_',
   'lul_img_view_',
   'lul_profile_view_',
+  'lul_acct_view_',
 ];
 
 /** Clear per-session view dedup keys so a new login gets fresh view credit. */

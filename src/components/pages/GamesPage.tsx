@@ -382,6 +382,25 @@ export function GamesPage() {
     void loadMeta();
   }, [load, loadMeta, authLoading, isLoggedIn]);
 
+  const wasLoggedInRef = useRef(false);
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isLoggedIn && wasLoggedInRef.current) {
+      const snap = stateRef.current;
+      if (snap) {
+        void (async () => {
+          for (const g of GAME_CATALOG) {
+            const slice = getGameSlice(snap, g.id);
+            if (slice?.inQueue) {
+              try { await leaveGameQueue(g.id); } catch { /* best-effort */ }
+            }
+          }
+        })();
+      }
+    }
+    wasLoggedInRef.current = isLoggedIn;
+  }, [isLoggedIn, authLoading]);
+
   useEffect(() => {
     if (isLoggedIn) return;
     initialLoadDoneRef.current = false;
@@ -463,35 +482,38 @@ export function GamesPage() {
 
   useEffect(() => {
     if (!isLoggedIn || authLoading) {
-      if (pollRef.current) clearInterval(pollRef.current);
+      if (pollRef.current) clearTimeout(pollRef.current);
       pollRef.current = null;
       return;
     }
-    if (pollRef.current) clearInterval(pollRef.current);
-    const snap = stateRef.current;
-    const anyPvpPlaying = GAME_CATALOG.some((g) => {
-      const slice = getGameSlice(snap, g.id);
-      return slice?.activeMatch?.status === 'playing' && slice.activeMatch.mode === 'pvp';
-    });
-    const anyQueued = GAME_CATALOG.some((g) => Boolean(getGameSlice(snap, g.id)?.inQueue));
-    const fastPoll = anyPvpPlaying
-      || (match?.status === 'playing' && match.mode === 'pvp')
-      || waiting
-      || anyQueued;
-    const tick = () => {
-      if (document.hidden) return;
-      void pollState();
+    let cancelled = false;
+    const schedulePoll = () => {
+      if (cancelled) return;
+      if (pollRef.current) clearTimeout(pollRef.current);
+      const snap = stateRef.current;
+      const anyPvpPlaying = GAME_CATALOG.some((g) => {
+        const slice = getGameSlice(snap, g.id);
+        return slice?.activeMatch?.status === 'playing' && slice.activeMatch.mode === 'pvp';
+      });
+      const anyQueued = GAME_CATALOG.some((g) => Boolean(getGameSlice(snap, g.id)?.inQueue));
+      const fastPoll = anyPvpPlaying || waiting || anyQueued;
+      pollRef.current = setTimeout(() => {
+        if (!cancelled && !document.hidden) void pollState();
+        schedulePoll();
+      }, fastPoll ? 2000 : 8000);
     };
-    pollRef.current = setInterval(tick, fastPoll ? 2000 : 8000);
+    schedulePoll();
     const onVisible = () => {
       if (!document.hidden) void pollState();
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      cancelled = true;
+      if (pollRef.current) clearTimeout(pollRef.current);
+      pollRef.current = null;
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [match?.id, match?.status, match?.mode, waiting, pollState, isLoggedIn, authLoading]);
+  }, [waiting, pollState, isLoggedIn, authLoading]);
 
   const slice = getGameSlice(state, selectedGame);
   const stats = slice?.myStats ?? null;

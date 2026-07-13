@@ -244,12 +244,13 @@ export default function App() {
   }, [activeTab, renderTab, authLoading, visibilityLoading, pendingTabAfterLogin, patchUser, isLoggedIn, newsFeedVersion]);
 
   useEffect(() => {
-    if (authSuccessTick < 1 || !isLoggedIn) return;
+    if (authSuccessTick < 1 || !isLoggedIn || authLoading) return;
     tabTrackForceRef.current = true;
     lastTrackedTabRef.current = null;
     changelogVisitSynced.current = false;
     visitorCtxRef.current = collectVisitorContext(true);
-  }, [authSuccessTick, isLoggedIn]);
+    trackEvent('session_start', { meta: visitorContextToMeta(visitorCtxRef.current) }).catch(() => {});
+  }, [authSuccessTick, isLoggedIn, authLoading]);
 
   useEffect(() => {
     if (renderTab !== 'profile') setProfileTabReadyTick(0);

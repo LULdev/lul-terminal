@@ -203,6 +203,13 @@ export async function purgeIfExpired(meta, opts = {}) {
   return withPasteWrite(() => purgeIfExpiredInner(meta));
 }
 
+/** Read-only expiry filter for list endpoints — avoids purge side-effects outside write lock. */
+export function filterAliveMeta(meta) {
+  if (!meta) return null;
+  if (!meta.expiresAt || meta.expiresAt > Date.now()) return meta;
+  return null;
+}
+
 export async function savePaste({
   title,
   content,
@@ -264,6 +271,11 @@ export async function recordView(id, { consumeBurn = true } = {}) {
     const meta = await purgeIfExpired(await getMeta(id), { inWrite: true });
     if (!meta) return null;
 
+    let content = null;
+    try {
+      content = await fs.readFile(path.join(CONTENT_DIR, `${id}.txt`), 'utf8');
+    } catch { /* content may already be gone */ }
+
     meta.views = (meta.views ?? 0) + 1;
     meta.updatedAt = Date.now();
 
@@ -274,7 +286,7 @@ export async function recordView(id, { consumeBurn = true } = {}) {
       await deletePasteFiles(id);
       stats.activePastes = await countActivePastes();
       await writeStats(stats);
-      return { meta, burned: true };
+      return { meta, burned: true, content };
     }
 
     const metaPath = path.join(META_DIR, `${id}.json`);
@@ -282,7 +294,7 @@ export async function recordView(id, { consumeBurn = true } = {}) {
     await fs.writeFile(tmp, JSON.stringify(meta, null, 2), 'utf8');
     await fs.rename(tmp, metaPath);
     await writeStats(stats);
-    return { meta, burned: false };
+    return { meta, burned: false, content };
   });
 }
 
@@ -317,7 +329,7 @@ export async function listByUser(userId, sort = 'newest') {
     if (!file.endsWith('.json')) continue;
     try {
       const meta = JSON.parse(await fs.readFile(path.join(META_DIR, file), 'utf8'));
-      const alive = await purgeIfExpired(meta, { inWrite: true });
+      const alive = filterAliveMeta(meta);
       if (!alive || alive.userId !== userId) continue;
       out.push(alive);
     } catch { /* skip */ }
@@ -369,7 +381,7 @@ export async function listPublicArchive(limit = 40) {
     if (!file.endsWith('.json')) continue;
     try {
       const meta = JSON.parse(await fs.readFile(path.join(META_DIR, file), 'utf8'));
-      const alive = await purgeIfExpired(meta, { inWrite: true });
+      const alive = filterAliveMeta(meta);
       if (!alive || alive.visibility !== 'public') continue;
       out.push(alive);
     } catch { /* skip */ }
@@ -387,7 +399,7 @@ export async function listTrendingPublic(limit = 12) {
     if (!file.endsWith('.json')) continue;
     try {
       const meta = JSON.parse(await fs.readFile(path.join(META_DIR, file), 'utf8'));
-      const alive = await purgeIfExpired(meta, { inWrite: true });
+      const alive = filterAliveMeta(meta);
       if (!alive || alive.visibility !== 'public') continue;
       out.push(alive);
     } catch { /* skip */ }

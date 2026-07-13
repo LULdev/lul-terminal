@@ -137,9 +137,22 @@ async function countPasteViewDeduped(req, pasteId, { consumeBurn = false } = {})
     const earlyMeta = await loadAlive(pasteId);
     if (!earlyMeta) return null;
     if (viewerId && earlyMeta.userId && String(earlyMeta.userId) === String(viewerId)) {
+      if (consumeBurn && earlyMeta.burnAfterRead) {
+        const burnResult = await recordView(pasteId, { consumeBurn: true });
+        if (!burnResult) return null;
+        return {
+          views: burnResult.meta.views ?? 0,
+          burned: burnResult.burned,
+          deduped: false,
+          selfView: true,
+          meta: burnResult.meta,
+          content: burnResult.content,
+        };
+      }
       return { views: earlyMeta.views ?? 0, burned: false, deduped: true, selfView: true, meta: earlyMeta };
     }
     let countMeta = true;
+    let guestAlreadyViewed = false;
     if (viewerId) {
       const db = await loadUsersDb();
       const viewer = db.users.find((u) => u.id === viewerId);
@@ -150,10 +163,27 @@ async function countPasteViewDeduped(req, pasteId, { consumeBurn = false } = {})
           countMeta = false;
         }
       }
+      if (countMeta && !(await claimGuestView('paste', clientIp(req), pasteId))) {
+        guestAlreadyViewed = true;
+        countMeta = false;
+      }
     }
     if (!countMeta) {
       const meta = await loadAlive(pasteId);
       if (!meta) return null;
+      if (guestAlreadyViewed && viewerId) {
+        const db = await loadUsersDb();
+        const viewer = db.users.find((u) => u.id === viewerId);
+        if (viewer) {
+          const flagKey = `paste_meta_view_${pasteId}`;
+          const act = ensureActivity(viewer);
+          if (!act.flags[flagKey]) {
+            act.flags[flagKey] = true;
+            viewer.updatedAt = Date.now();
+            await saveUsersDb(db);
+          }
+        }
+      }
       return { views: meta.views ?? 0, burned: false, deduped: true, meta };
     }
     if (!viewerId && !(await claimGuestView('paste', clientIp(req), pasteId))) {
@@ -196,7 +226,13 @@ async function countPasteViewDeduped(req, pasteId, { consumeBurn = false } = {})
       }
       return null;
     }
-    return { views: result.meta.views ?? 0, burned: result.burned, deduped: false, meta: result.meta };
+    return {
+      views: result.meta.views ?? 0,
+      burned: result.burned,
+      deduped: false,
+      meta: result.meta,
+      content: result.content,
+    };
   });
 }
 
@@ -367,13 +403,13 @@ export async function handlePasteRequest(req, res) {
         res.end(access.requiresLogin ? 'Sign in required' : 'Not found');
         return;
       }
-      const content = await getContent(meta.id);
+      const viewResult = await countPasteViewDeduped(req, meta.id, { consumeBurn: meta.burnAfterRead });
+      const content = viewResult?.content ?? await getContent(meta.id);
       if (!content) {
         res.statusCode = 404;
         res.end('Not found');
         return;
       }
-      const viewResult = await countPasteViewDeduped(req, meta.id, { consumeBurn: meta.burnAfterRead });
       if (viewResult?.meta?.userId && req.auth?.user?.id && !viewResult.deduped) {
         await incrementUserPasteViews(viewResult.meta.userId, {
           viewerId: req.auth.user.id,
@@ -476,12 +512,12 @@ export async function handlePasteRequest(req, res) {
       if (!access.allowed) {
         return sendJson(res, 404, { error: 'Not found' });
       }
-      const content = await getContent(meta.id);
-      if (!content) return sendJson(res, 404, { error: 'Not found' });
       const unlockUid = await clientUserId(req);
       if (meta.burnAfterRead) {
         const viewResult = await countPasteViewDeduped(req, meta.id, { consumeBurn: true });
         if (!viewResult) return sendJson(res, 404, { error: 'Not found' });
+        const content = viewResult.content ?? await getContent(meta.id);
+        if (!content) return sendJson(res, 404, { error: 'Not found' });
         if (viewResult.meta?.userId && unlockUid && !viewResult.deduped) {
           await incrementUserPasteViews(viewResult.meta.userId, { viewerId: unlockUid, pasteId: meta.id });
         }
@@ -492,6 +528,8 @@ export async function handlePasteRequest(req, res) {
       }
       const viewResult = await countPasteViewDeduped(req, meta.id, { consumeBurn: false });
       const outMeta = viewResult?.meta ?? meta;
+      const content = viewResult?.content ?? await getContent(meta.id);
+      if (!content) return sendJson(res, 404, { error: 'Not found' });
       if (viewResult?.meta?.userId && unlockUid && !viewResult.deduped) {
         await incrementUserPasteViews(viewResult.meta.userId, { viewerId: unlockUid, pasteId: meta.id });
       }
@@ -526,10 +564,10 @@ export async function handlePasteRequest(req, res) {
           });
         }
 
-        const content = await getContent(id);
-        if (!content) return sendJson(res, 404, { error: 'Not found' });
         const viewResult = await countPasteViewDeduped(req, id, { consumeBurn: Boolean(meta.burnAfterRead) });
         if (!viewResult) return sendJson(res, 404, { error: 'Not found' });
+        const content = viewResult.content ?? await getContent(id);
+        if (!content) return sendJson(res, 404, { error: 'Not found' });
         if (viewResult.meta?.userId && uid && !viewResult.deduped) {
           await incrementUserPasteViews(viewResult.meta.userId, { viewerId: uid, pasteId: id });
         }

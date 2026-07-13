@@ -14,6 +14,7 @@ export type AllPostViews = {
 
 const API = '/api/post-views';
 const VIEW_SESSION_PREFIX = 'lul_post_view_';
+const inflight = new Map<string, Promise<number>>();
 
 export async function fetchAllPostViews(): Promise<AllPostViews> {
   try {
@@ -30,26 +31,39 @@ export async function recordPostView(
   id: string,
   currentViews = 0,
 ): Promise<number> {
-  const sessionKey = `${VIEW_SESSION_PREFIX}${type}:${id}`;
-  if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(sessionKey)) {
-    return currentViews;
-  }
-  try {
-    const res = await fetch(`${API}/view`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, id }),
-    });
-    if (res.ok) {
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem(sessionKey, '1');
-      }
-      const data = await res.json() as { views: number };
-      return data.views;
+  const inflightKey = `${type}:${id}`;
+  const pending = inflight.get(inflightKey);
+  if (pending) return pending;
+
+  const run = (async () => {
+    const sessionKey = `${VIEW_SESSION_PREFIX}${type}:${id}`;
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(sessionKey)) {
+      return currentViews;
     }
-  } catch {
-    /* best-effort */
+    try {
+      const res = await fetch(`${API}/view`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, id }),
+      });
+      if (res.ok) {
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem(sessionKey, '1');
+        }
+        const data = await res.json() as { views: number };
+        return data.views;
+      }
+    } catch {
+      /* best-effort */
+    }
+    return currentViews;
+  })();
+
+  inflight.set(inflightKey, run);
+  try {
+    return await run;
+  } finally {
+    if (inflight.get(inflightKey) === run) inflight.delete(inflightKey);
   }
-  return currentViews;
 }

@@ -26,7 +26,8 @@ let writeChain = Promise.resolve();
 let loaded = false;
 
 function guestViewDedupFailOpen() {
-  const raw = String(process.env.GUEST_VIEW_DEDUP_FAIL_OPEN ?? '1').toLowerCase();
+  const prodDefault = process.env.NODE_ENV === 'production' ? '0' : '1';
+  const raw = String(process.env.GUEST_VIEW_DEDUP_FAIL_OPEN ?? prodDefault).toLowerCase();
   return raw !== '0' && raw !== 'false';
 }
 

@@ -218,6 +218,9 @@ export async function loginUser({ email, password, remember }) {
       createdAt: Date.now(),
       analyticsProofRemint: true,
     });
+    sessionsDb.sessions = sessionsDb.sessions.filter(
+      (s) => s.userId !== user.id || s.token === token,
+    );
     await saveSessionsDb(sessionsDb);
   });
 

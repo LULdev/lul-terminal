@@ -6,6 +6,7 @@
 const API = '/api/page-views';
 const SESSION_PREFIX = 'lul_page_view_';
 const inflight = new Map<string, Promise<number>>();
+const canUseSession = typeof sessionStorage !== 'undefined';
 
 export async function fetchPageViews(pageId: string): Promise<number | null> {
   try {
@@ -27,7 +28,7 @@ export async function recordPageView(pageId: string): Promise<number> {
 
   const run = (async () => {
     const sessionKey = `${SESSION_PREFIX}${pageId}`;
-    if (!sessionStorage.getItem(sessionKey)) {
+    if (!canUseSession || !sessionStorage.getItem(sessionKey)) {
       try {
         const res = await fetch(`${API}/${encodeURIComponent(pageId)}/view`, {
           method: 'POST',
@@ -36,7 +37,7 @@ export async function recordPageView(pageId: string): Promise<number> {
         });
         if (res.ok) {
           const data = await res.json() as { views?: number; deduped?: boolean };
-          sessionStorage.setItem(sessionKey, '1');
+          if (canUseSession) sessionStorage.setItem(sessionKey, '1');
           return Math.max(0, Number(data.views) || 0);
         }
       } catch { /* fall through */ }

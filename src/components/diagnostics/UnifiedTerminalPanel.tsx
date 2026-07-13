@@ -159,6 +159,7 @@ export function UnifiedTerminalPanel({
 
   useEffect(() => {
     if (isLoggedIn) return;
+    setMessages([]);
     setChatStatus('ok');
     knownIdsRef.current.clear();
     hadMessagesRef.current = false;
@@ -248,7 +249,14 @@ export function UnifiedTerminalPanel({
         pollBackoffRef.current = Math.min(pollBackoffRef.current * 2, 60_000);
       } else if (e instanceof ChatAuthRequiredError) {
         setChatStatus('offline');
-        if (isLoggedIn) void refresh();
+        if (isLoggedIn) {
+          void (async () => {
+            await refresh();
+            if (gen === loadGenRef.current && mountedRef.current) {
+              await loadMessages(true);
+            }
+          })();
+        }
       } else if (e instanceof ChatGatedError || (e instanceof ChatFetchError && e.status === 403)) {
         setChatStatus('gated');
       } else {

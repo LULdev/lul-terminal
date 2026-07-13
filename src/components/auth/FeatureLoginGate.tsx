@@ -55,11 +55,11 @@ const ACCENT_STYLES: Record<string, { header: string; border: string; glow: stri
 };
 
 export function FeatureLoginGate() {
-  const { loginGate, closeLoginGate, openAuthFromGate, isLoggedIn } = useAuth();
+  const { loginGate, closeLoginGate, dismissLoginGateUI, openAuthFromGate, isLoggedIn } = useAuth();
 
   useEffect(() => {
-    if (isLoggedIn && loginGate) closeLoginGate();
-  }, [isLoggedIn, loginGate, closeLoginGate]);
+    if (isLoggedIn && loginGate) dismissLoginGateUI();
+  }, [isLoggedIn, loginGate, dismissLoginGateUI]);
 
   if (!loginGate) return null;
 

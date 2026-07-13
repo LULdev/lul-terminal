@@ -144,3 +144,9 @@ export async function incrementRateLimit(key, { max = 30, windowMs = 60_000 } = 
 export function getRateLimitBackend() {
   return resolveBackend();
 }
+
+if (process.env.NODE_ENV === 'production' && resolveBackend() === 'memory') {
+  console.warn(
+    '[rate-limit] memory backend is not shared across workers — set RATE_LIMIT_BACKEND=file or redis for production',
+  );
+}

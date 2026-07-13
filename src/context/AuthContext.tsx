@@ -36,6 +36,7 @@ type AuthContextValue = {
   openLoginGate: (tab: TabId, opts?: { profileUsername?: string }) => void;
   openAuthFromGate: (mode: 'login' | 'register') => void;
   closeLoginGate: () => void;
+  dismissLoginGateUI: () => void;
   clearPendingTabAfterLogin: () => void;
   closeAuth: () => void;
   login: (email: string, password: string, remember: boolean) => Promise<void>;
@@ -84,6 +85,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const closeLoginGate = useCallback(() => {
     setLoginGate(null);
     setPendingTabAfterLogin(null);
+  }, []);
+
+  const dismissLoginGateUI = useCallback(() => {
+    setLoginGate(null);
   }, []);
 
   const openAuth = useCallback((mode: 'login' | 'register') => {
@@ -149,14 +154,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    refresh().finally(() => {
+    const boot = async () => {
+      await refresh();
       if (mounted) setLoading(false);
-    });
-    return () => { mounted = false; };
+    };
+    void boot();
+    const retryAuth = () => {
+      if (mounted) void refresh();
+    };
+    window.addEventListener('online', retryAuth);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') retryAuth();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      mounted = false;
+      window.removeEventListener('online', retryAuth);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [refresh]);
 
   useEffect(() => {
     return onSessionInvalidated(() => {
+      refreshGenRef.current += 1;
       clearAchievementProofs();
       closeChatAudioContext();
       clearViewDedupSessionKeys();
@@ -227,6 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [login]);
 
   const logout = useCallback(async () => {
+    refreshGenRef.current += 1;
     try {
       await authApi.logout();
     } catch (e) {
@@ -271,6 +292,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     openLoginGate,
     openAuthFromGate,
     closeLoginGate,
+    dismissLoginGateUI,
     clearPendingTabAfterLogin,
     closeAuth: () => setAuthModal(null),
     login,
@@ -285,7 +307,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isVip: permissions.isVip,
     isAdmin: permissions.admin,
     isVerified: permissions.isVerified,
-  }), [user, permissions, accountsSubmitted, loading, authModal, loginGate, pendingTabAfterLogin, authSuccessTick, login, register, logout, refresh, patchUser, handleUnlocks, syncAchievements, openAuth, openLoginGate, openAuthFromGate, closeLoginGate, clearPendingTabAfterLogin]);
+  }), [user, permissions, accountsSubmitted, loading, authModal, loginGate, pendingTabAfterLogin, authSuccessTick, login, register, logout, refresh, patchUser, handleUnlocks, syncAchievements, openAuth, openLoginGate, openAuthFromGate, closeLoginGate, dismissLoginGateUI, clearPendingTabAfterLogin]);
 
   return (
     <AuthContext.Provider value={value}>

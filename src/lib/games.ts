@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { sessionJson } from './sessionFetch';
+import { sessionFetch, sessionJson } from './sessionFetch';
 
 const API = '/api/games';
 
@@ -304,16 +304,28 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return sessionJson<T>(`${API}${path}`, init);
 }
 
+async function apiRead<T>(path: string): Promise<T> {
+  const res = await sessionFetch(`${API}${path}`, undefined, { soft401: true });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    throw new Error('Sign in to view arcade stats');
+  }
+  if (!res.ok) {
+    throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+  }
+  return data as T;
+}
+
 export function fetchGamesState() {
   return api<GamesState>('/state');
 }
 
 export function fetchGamesLeaderboard() {
-  return api<GamesLeaderboard>('/leaderboard');
+  return apiRead<GamesLeaderboard>('/leaderboard');
 }
 
 export function fetchGamesHistory(limit = 15) {
-  return api<{ matches: MatchHistoryEntry[] }>(`/history?limit=${limit}`);
+  return apiRead<{ matches: MatchHistoryEntry[] }>(`/history?limit=${limit}`);
 }
 
 export function joinGameQueue(gameId: string, body: Record<string, unknown>) {

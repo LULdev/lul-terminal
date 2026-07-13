@@ -141,13 +141,15 @@ function refundBetOnExpire(user, { gameId, chatLabel, matchId, bet, amount }, { 
     });
     return;
   }
-  console.warn('[games] expire refund force-credit — no escrow rows', {
+  if (forceCredit) {
+    logMatchExpireRefund(user, base);
+    return;
+  }
+  console.warn('[games] expire refund skipped — no escrow rows', {
     userId: user.id,
     gameId,
     amount: amt,
-    forceCredit,
   });
-  logMatchExpireRefund(user, base);
 }
 
 export function normalizeBet(raw) {
@@ -289,7 +291,22 @@ export async function sweepStaleQueueEntries(mm, { gameId, chatLabel }, maxAgeMs
       }
       const released = releaseGameEscrow(user, { gameId, amount: entry.bet })
         || releaseAnyGameEscrow(user, entry.bet);
-      if (!released) continue;
+      if (!released) {
+        entry._sweepFail = (Number(entry._sweepFail) || 0) + 1;
+        if (entry._sweepFail < 5) continue;
+        console.warn('[games] forcing stale queue removal after escrow failures', {
+          userId: entry.userId,
+          gameId,
+          bet: entry.bet,
+        });
+        mm.queue.splice(i, 1);
+        if (entry.roomCode) {
+          for (const [code, room] of mm.rooms.entries()) {
+            if (room.hostId === entry.userId && code === entry.roomCode) mm.rooms.delete(code);
+          }
+        }
+        continue;
+      }
       logQueueRefund(user, { gameId, chatLabel, bet: entry.bet, amount: entry.bet });
       user.updatedAt = Date.now();
       swept += 1;
@@ -428,7 +445,6 @@ export async function settleMatch({
     }
   }
   const unlocks = await syncAchievementsOnLoadedUser(p1, db, { flag: achievementFlag });
-  await saveUsersDb(db);
 
   m.status = 'done';
   m.result = {
@@ -443,6 +459,8 @@ export async function settleMatch({
   m.jackpotHit = jackpotHit;
   m.jackpotAmount = jackpotAmount;
   m.doneAt = Date.now();
+
+  await saveUsersDb(db);
 
   await appendMatchHistory({
     id: m.id,
