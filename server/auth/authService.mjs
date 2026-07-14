@@ -188,10 +188,21 @@ export async function registerUser(payload, req) {
   });
 }
 
+function resolveLoginUser(db, identifier) {
+  const raw = String(identifier ?? '').trim();
+  if (!raw) return null;
+  if (raw.includes('@')) {
+    const normalized = normalizeEmail(raw);
+    return db.users.find((u) => u.email === normalized) ?? null;
+  }
+  const username = normalizeUsername(raw);
+  if (!username) return null;
+  return db.users.find((u) => u.username === username) ?? null;
+}
+
 export async function loginUser({ email, password, remember }) {
-  const normalized = normalizeEmail(email);
   const db = await loadUsersDb();
-  const user = db.users.find((u) => u.email === normalized);
+  const user = resolveLoginUser(db, email);
   if (!isEffectivelyActive(user) || user.role === 'bot') throw new Error('Invalid login credentials');
   if (!(await verifyPassword(password, user.passwordHash))) throw new Error('Invalid login credentials');
 

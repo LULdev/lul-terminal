@@ -25,9 +25,17 @@ export function parseCookies(req) {
   return out;
 }
 
+function useSecureCookies() {
+  if (process.env.COOKIE_SECURE === '0' || process.env.COOKIE_SECURE === 'false') return false;
+  if (process.env.COOKIE_SECURE === '1' || process.env.COOKIE_SECURE === 'true') return true;
+  const base = String(process.env.PUBLIC_BASE_URL ?? '').trim().toLowerCase();
+  if (base.startsWith('https://')) return true;
+  return false;
+}
+
 function cookieBaseParts() {
   const parts = ['Path=/', 'HttpOnly', 'SameSite=Lax'];
-  if (process.env.NODE_ENV === 'production') parts.push('Secure');
+  if (useSecureCookies()) parts.push('Secure');
   return parts;
 }
 
@@ -53,7 +61,7 @@ export function setRegistrationLockCookie(res, token) {
     `Max-Age=${REG_LOCK_MAX_AGE_SEC}`,
   ].join('; ');
   const hintParts = ['Path=/', 'HttpOnly', 'SameSite=Lax', `Max-Age=${REG_LOCK_MAX_AGE_SEC}`];
-  if (process.env.NODE_ENV === 'production') hintParts.push('Secure');
+  if (useSecureCookies()) hintParts.push('Secure');
   const hint = [`${REG_HINT_COOKIE}=${encoded}`, ...hintParts].join('; ');
   res.setHeader('Set-Cookie', [lock, hint]);
 }

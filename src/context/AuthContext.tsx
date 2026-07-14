@@ -200,16 +200,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAccountsSubmitted(data.stats.accountsSubmitted);
     }
     handleUnlocks(data.newUnlocks ?? [], data.unlockRewards);
-    try {
-      await refresh();
-    } catch {
-      /* login response already hydrated user + permissions */
-    }
     setAuthModal(null);
     clearViewDedupSessionKeys();
     resetSessionInvalidation();
     setAuthSuccessTick((t) => t + 1);
-  }, [refresh, handleUnlocks]);
+    void authApi.fetchMe().then((me) => {
+      if (!me.user) return;
+      setUser(me.user);
+      setPermissions(me.permissions ?? defaultPermissions);
+      setAccountsSubmitted(me.stats?.accountsSubmitted ?? 0);
+    }).catch(() => {});
+  }, [handleUnlocks]);
 
   const register = useCallback(async (input: {
     email: string;

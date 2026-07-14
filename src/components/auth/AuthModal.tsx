@@ -37,7 +37,7 @@ export function AuthModal() {
     e.preventDefault();
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      setError('Email is required');
+      setError('Email or username is required');
       return;
     }
     if (password.length < 6) {
@@ -147,7 +147,14 @@ export function AuthModal() {
           {!isLogin && (
             <Field label="Invite code (optional)" value={referralCode} onChange={setReferralCode} placeholder="LUL-XXXXXXXX" />
           )}
-          <Field label="Email" value={email} onChange={setEmail} placeholder="you@terminal.dev" type="email" autoComplete="email" />
+          <Field
+            label={isLogin ? 'Email or username' : 'Email'}
+            value={email}
+            onChange={setEmail}
+            placeholder={isLogin ? 'admin or you@terminal.dev' : 'you@terminal.dev'}
+            type={isLogin ? 'text' : 'email'}
+            autoComplete={isLogin ? 'username' : 'email'}
+          />
           <Field label="Password" value={password} onChange={setPassword} placeholder="min. 6 characters" type="password" autoComplete={isLogin ? 'current-password' : 'new-password'} />
           {isLogin && (
             <label className="flex items-center gap-2 text-[10px] font-mono text-slate-400 cursor-pointer">
