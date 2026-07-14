@@ -8,27 +8,38 @@ Community arcade, profiles, tools, and terminal hub — built with **React 19**,
 
 **Repository:** [github.com/LULdev/lul-terminal](https://github.com/LULdev/lul-terminal)
 
+| Schnellzugriff | Link |
+|----------------|------|
+| Lokal starten | [Schnellstart](#schnellstart-5-minuten-lokal) |
+| Ubuntu One-Click (Dev) | [install-ubuntu-dev.sh](scripts/install-ubuntu-dev.sh) |
+| AWS EC2 Produktion | [AWS-UBUNTU-26-ANLEITUNG.md](docs/AWS-UBUNTU-26-ANLEITUNG.md) |
+| Docker | [Docker-Anleitung](#docker-anleitung) |
+| `.env` Vorlage | [.env.example](.env.example) |
+| Issues | [GitHub Issues](https://github.com/LULdev/lul-terminal/issues) |
+
 ---
 
 ## Inhaltsverzeichnis
 
 1. [Was ist LUL Terminal?](#was-ist-lul-terminal)
-2. [Features](#features)
-3. [Schnellstart (5 Minuten, lokal)](#schnellstart-5-minuten-lokal)
-4. [Ubuntu One-Click (Dev)](#ubuntu-one-click-dev)
-5. [AWS Ubuntu 26 — Komplettanleitung](docs/AWS-UBUNTU-26-ANLEITUNG.md)
-6. [Installationsanleitung (Schritt für Schritt)](#installationsanleitung-schritt-für-schritt)
-7. [Wartung & Betrieb](#wartung--betrieb)
-8. [Seed-Skripte](#seed-skripte)
-9. [Sicherheit & Härtung](#sicherheit--härtung-v336x)
-10. [Redis-Anleitung](#redis-anleitung-redis_url)
-11. [Rate Limits & Multi-Process](#rate-limits--multi-process)
-12. [Scripts & Umgebungsvariablen](#scripts)
-13. [Projektstruktur](#project-structure)
-14. [Docker-Anleitung](#docker-anleitung)
-15. [Deployment & Checkliste](#github--deployment)
-16. [Fehlerbehebung](#fehlerbehebung)
-17. [Quick start (English)](#quick-start-english)
+2. [Installationswege — welcher passt?](#installationswege--welcher-passt)
+3. [Features](#features)
+4. [Schnellstart (5 Minuten, lokal)](#schnellstart-5-minuten-lokal)
+5. [Ubuntu One-Click (Dev)](#ubuntu-one-click-dev)
+6. [AWS Ubuntu 26 — Produktion (VPS)](#aws-ubuntu-26--produktion-vps)
+7. [AWS Komplettanleitung (Datei)](docs/AWS-UBUNTU-26-ANLEITUNG.md)
+8. [Installationsanleitung (Schritt für Schritt)](#installationsanleitung-schritt-für-schritt)
+9. [Wartung & Betrieb](#wartung--betrieb)
+10. [Seed-Skripte](#seed-skripte)
+11. [Sicherheit & Härtung](#sicherheit--härtung-v336x)
+12. [Redis-Anleitung](#redis-anleitung-redis_url)
+13. [Rate Limits & Multi-Process](#rate-limits--multi-process)
+14. [Scripts & Umgebungsvariablen](#scripts)
+15. [Projektstruktur](#project-structure)
+16. [Docker-Anleitung](#docker-anleitung)
+17. [Deployment & Checkliste](#github--deployment)
+18. [Fehlerbehebung](#fehlerbehebung)
+19. [Quick start (English)](#quick-start-english)
 
 ---
 
@@ -57,6 +68,34 @@ LUL Terminal ist eine **selbst gehostete Community-Plattform**: Mitglieder könn
 | `bot` | Bot | System-Nachrichten in der Shoutbox |
 
 Passwörter kommen aus `SEED_ADMIN_PASSWORD` / `SEED_VIP_PASSWORD` in `.env` (in Produktion **Pflicht**).
+
+**Login:** Benutzername **oder** E-Mail — z. B. `admin` oder `admin@lul.terminal` (nicht nur E-Mail-Feld).
+
+| Benutzer | E-Mail (alternativ) | Passwort-Quelle |
+|----------|---------------------|-----------------|
+| `admin` | `admin@lul.terminal` | `SEED_ADMIN_PASSWORD` |
+| `vipdemo` | `vip@lul.terminal` | `SEED_VIP_PASSWORD` |
+
+---
+
+## Installationswege — welcher passt?
+
+| Ziel | Weg | Befehl / Doku |
+|------|-----|----------------|
+| Lokal testen (Windows/macOS/Linux) | Dev | [Schnellstart](#schnellstart-5-minuten-lokal) → `npm run dev` |
+| Frische Ubuntu-VM (22/24/26) | One-Click Dev | `curl -fsSL …/install-ubuntu-dev.sh \| bash` → [Ubuntu One-Click](#ubuntu-one-click-dev) |
+| Öffentlicher VPS (AWS, Hetzner, …) | Produktion + PM2 + nginx | [AWS-Anleitung](docs/AWS-UBUNTU-26-ANLEITUNG.md) |
+| Container / einfaches Deploy | Docker | [Docker-Anleitung](#docker-anleitung) |
+| Nur API + gebautes Frontend | Manuell Prod | `npm run build && npm start` |
+
+```
+Dev:        npm run dev          → Port 3000, Hot-Reload, kein separater API-Port
+Produktion: npm run build        → dist/
+            npm start / PM2      → Express liefert dist/ + /api/*
+Daten:      data/                → immer persistent sichern (Volume / Backup)
+```
+
+> **Öffentlicher Server:** nicht `npm run dev` — immer **Build + PM2** (oder Docker) hinter **nginx** mit HTTPS.
 
 ---
 
@@ -110,17 +149,45 @@ Nach dem Lauf: **http://localhost:3000** — Login `admin` / Passwort aus `SEED_
 
 ## AWS Ubuntu 26 — Produktion (VPS)
 
-Für einen **öffentlichen Amazon EC2 VPS** (Ubuntu 26.04): EC2 anlegen, Node.js + PM2, nginx, HTTPS, Domain — Schritt für Schritt:
+Vollständige Schritt-für-Schritt-Anleitung (EC2, Elastic IP, PM2, nginx, Certbot, Backup):
 
 **[docs/AWS-UBUNTU-26-ANLEITUNG.md](docs/AWS-UBUNTU-26-ANLEITUNG.md)**
 
-Kurzüberblick:
+### Produktion in Kurzform (jeder Linux-VPS)
 
-1. EC2 `t3.small`, Ubuntu 26.04, Elastic IP, Security Group (22/80/443)
-2. `git clone` → `.env` (Prod-Secrets) → `npm install` → `npm run seed:auth`
-3. `npm run build` → PM2 `server/start.mjs`
-4. nginx + Certbot → `PUBLIC_BASE_URL=https://deine-domain.de`
-5. Login: **`admin`** + `SEED_ADMIN_PASSWORD`
+```bash
+# 1. System + Node 20 (siehe AWS-Doku für EC2/UFW/nginx)
+git clone https://github.com/LULdev/lul-terminal.git && cd lul-terminal
+cp .env.example .env && nano .env    # Secrets + TRUST_PROXY=1 + PUBLIC_BASE_URL
+npm install && npm run seed:auth
+npm run lint && npm run build
+
+# 2. PM2
+sudo npm install -g pm2
+pm2 start server/start.mjs --name lul-terminal
+pm2 save && pm2 startup              # sudo-Befehl aus pm2 startup ausführen
+
+# 3. Nach nginx + HTTPS in .env:
+# PUBLIC_BASE_URL=https://terminal.deine-domain.de
+pm2 restart lul-terminal
+```
+
+**Mindest-`.env` (Produktion hinter nginx):**
+
+```env
+NODE_ENV=production
+PORT=3000
+TRUST_PROXY=1
+PUBLIC_BASE_URL=https://terminal.deine-domain.de
+ALLOWED_PUBLIC_HOSTS=terminal.deine-domain.de
+SEED_ADMIN_PASSWORD=<stark>
+SEED_VIP_PASSWORD=<stark>
+PREMIUM_VAULT_KEY=<openssl rand -base64 32>
+```
+
+**PM2:** `pm2 status` · `pm2 logs lul-terminal` · `pm2 restart lul-terminal`  
+**Update:** `git pull && npm install && npm run build && pm2 restart lul-terminal`  
+**Login:** `admin` / `SEED_ADMIN_PASSWORD`
 
 ---
 
@@ -886,14 +953,19 @@ Production:
 npm run lint && npm run build && npm start
 ```
 
-Set `NODE_ENV=production`, `TRUST_PROXY=1`, `PUBLIC_BASE_URL`, `PREMIUM_VAULT_KEY`, and seed passwords before first production boot. See [Wartung & Betrieb](#wartung--betrieb) for backups and updates.
+Set `NODE_ENV=production`, `TRUST_PROXY=1`, `PUBLIC_BASE_URL`, `PREMIUM_VAULT_KEY`, and seed passwords before first production boot.
+
+**AWS / VPS production guide:** [docs/AWS-UBUNTU-26-ANLEITUNG.md](docs/AWS-UBUNTU-26-ANLEITUNG.md)  
+**Login:** `admin` or `admin@lul.terminal` + `SEED_ADMIN_PASSWORD`. See [Wartung & Betrieb](#wartung--betrieb) for backups and updates.
 
 ---
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
+| Command / Datei | Description |
+|-----------------|-------------|
+| `scripts/install-ubuntu-dev.sh` | One-Click Ubuntu 22/24/26: Node, clone, `.env`, `npm install`, `seed:auth`, `npm run dev` |
+| `docs/AWS-UBUNTU-26-ANLEITUNG.md` | Komplette AWS-EC2-Produktionsanleitung (PM2, nginx, HTTPS) |
 | `npm run dev` | Vite dev server + API (port 3000) |
 | `npm run build` | Production frontend build → `dist/` |
 | `npm start` | Express production server |
@@ -913,7 +985,8 @@ See [`.env.example`](.env.example) for the full template.
 | Variable | Description |
 |----------|-------------|
 | `PORT` | HTTP port (default `3000`) |
-| `NODE_ENV` | `production` enables Secure session cookies |
+| `NODE_ENV` | `production` — Secure-Cookies, Prod-Rate-Limits (File-Backend) |
+| `COOKIE_SECURE` | `1`/`0` — Standard: `Secure` nur wenn `PUBLIC_BASE_URL` mit `https://` beginnt |
 | `TRUST_PROXY` | `1` when behind reverse proxy |
 | `TRUSTED_PROXY_IPS` | Comma-separated IPs allowed to set forwarded headers |
 | `PUBLIC_BASE_URL` | Optional canonical origin for API share URLs |
@@ -965,6 +1038,8 @@ lul-terminal/
 │   ├── analyticsTabIntegrity.mjs
 │   ├── tabAccessGuard.mjs
 │   └── …
+├── docs/              # AWS Ubuntu 26 production guide
+├── scripts/           # Seeds, install-ubuntu-dev.sh, changelog tools
 ├── src/               # React app
 │   ├── components/    # Pages, admin panels, chat, paste, profile
 │   ├── hooks/         # Stats, polling, useMountedLoad
@@ -1090,7 +1165,9 @@ docker run -d --name lul-terminal -p 3000:3000 --env-file .env -v lul-data:/app/
 
 | Ziel | Hinweis |
 |------|---------|
-| **Docker (empfohlen)** | `docker compose up -d --build` — siehe [Docker-Anleitung](#docker-anleitung) |
+| **AWS / Ubuntu VPS** | [docs/AWS-UBUNTU-26-ANLEITUNG.md](docs/AWS-UBUNTU-26-ANLEITUNG.md) — PM2 + nginx + Certbot |
+| **Ubuntu Dev (One-Click)** | `curl -fsSL …/install-ubuntu-dev.sh \| bash` — siehe [Ubuntu One-Click](#ubuntu-one-click-dev) |
+| **Docker** | `docker compose up -d --build` — siehe [Docker-Anleitung](#docker-anleitung) |
 | **Self-hosted VPS** | `npm run build && npm start` + nginx + `TRUST_PROXY=1` + `PUBLIC_BASE_URL` |
 | **PM2 / Cluster (1 Host)** | `NODE_ENV=production` (auto File-Rate-Limits) + `data/` persistent mounten |
 | **Multi-Instance / LB** | `REDIS_URL=redis://…` — Rate-Limits + Guest-Dedup (siehe [Redis-Anleitung](#redis-anleitung-redis_url)) |
@@ -1134,6 +1211,8 @@ npm run lint && npm run build
 | Problem | Ursache | Lösung |
 |---------|---------|--------|
 | Seite lädt nicht / `ECONNREFUSED` | Server nicht gestartet | `npm run dev` oder `npm start`; Port 3000 frei? |
+| Login-Modal bleibt offen | Nur `admin` ohne `@` + alte Version / Browser-Validierung | `git pull`; Benutzer `admin` oder `admin@lul.terminal`; Hard-Refresh |
+| Login ok, sofort wieder ausgeloggt | Session-Cookie ohne HTTPS | `PUBLIC_BASE_URL=https://…` nach Certbot; vor HTTPS: `COOKIE_SECURE=0` |
 | Login schlägt fehl | Falsches Passwort / leere DB | `SEED_ADMIN_PASSWORD` in `.env`; `npm run seed:auth` |
 | Rate-Limits greifen nicht (PM2) | Memory-Backend in Dev | `NODE_ENV=production` setzen oder `RATE_LIMIT_SHARED=1` |
 | Alle Requests von einer IP | `TRUST_PROXY` fehlt | `.env`: `TRUST_PROXY=1` hinter nginx/Cloudflare |
