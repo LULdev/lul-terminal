@@ -15,18 +15,19 @@ Community arcade, profiles, tools, and terminal hub — built with **React 19**,
 1. [Was ist LUL Terminal?](#was-ist-lul-terminal)
 2. [Features](#features)
 3. [Schnellstart (5 Minuten, lokal)](#schnellstart-5-minuten-lokal)
-4. [Installationsanleitung (Schritt für Schritt)](#installationsanleitung-schritt-für-schritt)
-5. [Wartung & Betrieb](#wartung--betrieb)
-6. [Seed-Skripte](#seed-skripte)
-7. [Sicherheit & Härtung](#sicherheit--härtung-v336x)
-8. [Redis-Anleitung](#redis-anleitung-redis_url)
-9. [Rate Limits & Multi-Process](#rate-limits--multi-process)
-10. [Scripts & Umgebungsvariablen](#scripts)
-11. [Projektstruktur](#project-structure)
-12. [Docker-Anleitung](#docker-anleitung)
-13. [Deployment & Checkliste](#github--deployment)
-14. [Fehlerbehebung](#fehlerbehebung)
-15. [Quick start (English)](#quick-start-english)
+4. [Ubuntu One-Click (Dev)](#ubuntu-one-click-dev)
+5. [Installationsanleitung (Schritt für Schritt)](#installationsanleitung-schritt-für-schritt)
+6. [Wartung & Betrieb](#wartung--betrieb)
+7. [Seed-Skripte](#seed-skripte)
+8. [Sicherheit & Härtung](#sicherheit--härtung-v336x)
+9. [Redis-Anleitung](#redis-anleitung-redis_url)
+10. [Rate Limits & Multi-Process](#rate-limits--multi-process)
+11. [Scripts & Umgebungsvariablen](#scripts)
+12. [Projektstruktur](#project-structure)
+13. [Docker-Anleitung](#docker-anleitung)
+14. [Deployment & Checkliste](#github--deployment)
+15. [Fehlerbehebung](#fehlerbehebung)
+16. [Quick start (English)](#quick-start-english)
 
 ---
 
@@ -74,6 +75,35 @@ npm run dev
 Öffne **http://localhost:3000**. Melde dich mit `admin` und dem Passwort aus `.env` (`SEED_ADMIN_PASSWORD`, Standard in `.env.example`: `change-me-admin`) an.
 
 > **Hinweis:** In `NODE_ENV=development` ohne gesetzte Seed-Passwörter kann das Admin-Passwort einmalig in der **Server-Konsole** ausgegeben werden.
+
+---
+
+## Ubuntu One-Click (Dev)
+
+Für **Ubuntu 22.04 / 24.04 / 26.04** (frische VM oder VPS): ein Befehl installiert Git, Node.js 20, klont das Repo, legt `.env` an, führt `npm install` + `seed:auth` aus und startet **`npm run dev`**.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/LULdev/lul-terminal/main/scripts/install-ubuntu-dev.sh | bash
+```
+
+**Aus dem geklonten Repo** (ohne erneutes Klonen):
+
+```bash
+chmod +x scripts/install-ubuntu-dev.sh
+./scripts/install-ubuntu-dev.sh --skip-clone
+```
+
+| Option / Env | Wirkung |
+|--------------|---------|
+| `--install-only` / `LUL_INSTALL_ONLY=1` | Nur installieren, Dev-Server nicht starten |
+| `--full-seed` / `LUL_FULL_SEED=1` | Zusätzlich Persona-, Proxy- und News-Demo-Daten |
+| `--no-seed` | `seed:auth` überspringen |
+| `--dir PATH` / `LUL_TERMINAL_DIR=…` | Installationspfad (Standard: `~/lul-terminal`) |
+| `LUL_TERMINAL_BRANCH=main` | Git-Branch beim Klonen |
+
+Nach dem Lauf: **http://localhost:3000** — Login `admin` / Passwort aus `SEED_ADMIN_PASSWORD` in `.env` (Standard: `change-me-admin`).
+
+> Nicht als `root` ausführen — normaler Benutzer mit `sudo` für `apt`. Redis ist für Single-Process-Dev **nicht** nötig.
 
 ---
 
@@ -816,6 +846,14 @@ Im **Admin Dashboard → Vault**:
 ---
 
 ## Quick start (English)
+
+**Ubuntu 22.04+ / 26.04 one-liner (install + dev):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/LULdev/lul-terminal/main/scripts/install-ubuntu-dev.sh | bash
+```
+
+**Manual:**
 
 ```bash
 git clone https://github.com/LULdev/lul-terminal.git
