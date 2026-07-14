@@ -16,18 +16,19 @@ Community arcade, profiles, tools, and terminal hub — built with **React 19**,
 2. [Features](#features)
 3. [Schnellstart (5 Minuten, lokal)](#schnellstart-5-minuten-lokal)
 4. [Ubuntu One-Click (Dev)](#ubuntu-one-click-dev)
-5. [Installationsanleitung (Schritt für Schritt)](#installationsanleitung-schritt-für-schritt)
-6. [Wartung & Betrieb](#wartung--betrieb)
-7. [Seed-Skripte](#seed-skripte)
-8. [Sicherheit & Härtung](#sicherheit--härtung-v336x)
-9. [Redis-Anleitung](#redis-anleitung-redis_url)
-10. [Rate Limits & Multi-Process](#rate-limits--multi-process)
-11. [Scripts & Umgebungsvariablen](#scripts)
-12. [Projektstruktur](#project-structure)
-13. [Docker-Anleitung](#docker-anleitung)
-14. [Deployment & Checkliste](#github--deployment)
-15. [Fehlerbehebung](#fehlerbehebung)
-16. [Quick start (English)](#quick-start-english)
+5. [AWS Ubuntu 26 — Komplettanleitung](docs/AWS-UBUNTU-26-ANLEITUNG.md)
+6. [Installationsanleitung (Schritt für Schritt)](#installationsanleitung-schritt-für-schritt)
+7. [Wartung & Betrieb](#wartung--betrieb)
+8. [Seed-Skripte](#seed-skripte)
+9. [Sicherheit & Härtung](#sicherheit--härtung-v336x)
+10. [Redis-Anleitung](#redis-anleitung-redis_url)
+11. [Rate Limits & Multi-Process](#rate-limits--multi-process)
+12. [Scripts & Umgebungsvariablen](#scripts)
+13. [Projektstruktur](#project-structure)
+14. [Docker-Anleitung](#docker-anleitung)
+15. [Deployment & Checkliste](#github--deployment)
+16. [Fehlerbehebung](#fehlerbehebung)
+17. [Quick start (English)](#quick-start-english)
 
 ---
 
@@ -104,6 +105,22 @@ chmod +x scripts/install-ubuntu-dev.sh
 Nach dem Lauf: **http://localhost:3000** — Login `admin` / Passwort aus `SEED_ADMIN_PASSWORD` in `.env` (Standard: `change-me-admin`).
 
 > Nicht als `root` ausführen — normaler Benutzer mit `sudo` für `apt`. Redis ist für Single-Process-Dev **nicht** nötig.
+
+---
+
+## AWS Ubuntu 26 — Produktion (VPS)
+
+Für einen **öffentlichen Amazon EC2 VPS** (Ubuntu 26.04): EC2 anlegen, Node.js + PM2, nginx, HTTPS, Domain — Schritt für Schritt:
+
+**[docs/AWS-UBUNTU-26-ANLEITUNG.md](docs/AWS-UBUNTU-26-ANLEITUNG.md)**
+
+Kurzüberblick:
+
+1. EC2 `t3.small`, Ubuntu 26.04, Elastic IP, Security Group (22/80/443)
+2. `git clone` → `.env` (Prod-Secrets) → `npm install` → `npm run seed:auth`
+3. `npm run build` → PM2 `server/start.mjs`
+4. nginx + Certbot → `PUBLIC_BASE_URL=https://deine-domain.de`
+5. Login: **`admin`** + `SEED_ADMIN_PASSWORD`
 
 ---
 
