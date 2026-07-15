@@ -13,9 +13,22 @@ export default defineConfig(() => {
       },
     },
     build: {
+      chunkSizeWarningLimit: 520,
       rollupOptions: {
         output: {
           manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (
+                id.includes('react-dom')
+                || id.includes('scheduler')
+                || /[/\\]react[/\\]/.test(id)
+              ) return 'vendor-react';
+              if (id.includes('firebase')) return 'vendor-firebase';
+              if (id.includes('recharts') || id.includes('d3-')) return 'vendor-recharts';
+              if (id.includes('/motion/') || id.includes('framer-motion')) return 'vendor-motion';
+              if (id.includes('@google/genai')) return 'vendor-genai';
+              if (id.includes('lucide-react')) return 'vendor-icons';
+            }
             if (!id.includes('node_modules')) {
               if (id.includes('AdminDashboardPage') || id.includes('AdminShell') || id.includes('AdminOverviewPanel')) return 'admin-dashboard';
               if (id.includes('AdminModerationPanel')) return 'admin-moderation';

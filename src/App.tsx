@@ -34,27 +34,29 @@ import { FeatureLoginGate } from './components/auth/FeatureLoginGate';
 
 import { useAuth } from './context/AuthContext';
 import {
+  AdminDashboardPage,
   ChaosGeneratorPage,
   ColorLabPage,
+  FAQPage,
+  FreePremiumAccountsPage,
+  GamesPage,
   IdentityForgePage,
+  ImageHostingPage,
+  InviteFriendsPage,
+  LeaderboardPage,
+  MemeGeneratorPage,
+  MyActivityPage,
   NetToolkitPage,
+  PastePage,
+  ProfilePage,
+  ProxyDatabasePage,
+  StatusPage,
+  TabPageFallback,
+  TerminalStatsPage,
   TextLabPage,
   ToolVaultPage,
-  MemeGeneratorPage,
-  ImageHostingPage,
-  PastePage,
-  ProxyDatabasePage,
-  FreePremiumAccountsPage,
-  ProfilePage,
-  MyActivityPage,
   UserDashboardPage,
-  TerminalStatsPage,
-  StatusPage,
-  LeaderboardPage,
-  GamesPage,
-  FAQPage,
-  InviteFriendsPage,
-} from './components/pages';
+} from './components/pages/lazyPages';
 import * as authApi from './lib/auth';
 import {
   setAchievementProof,
@@ -64,10 +66,6 @@ import {
 } from './lib/achievementProof';
 import { trackEvent } from './lib/analytics';
 import { collectVisitorContext, visitorContextToMeta } from './lib/visitorContext';
-
-const AdminDashboardPage = React.lazy(() =>
-  import('./components/pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })),
-);
 
 const DESIGN_WIDTH = 1366;
 const DESIGN_HEIGHT = 768;
@@ -770,7 +768,7 @@ export default function App() {
 
             {/* DYNAMIC CONTENT AREA (Fluid Middle Column) */}
             <section className="flex-1 min-h-0 p-6 flex flex-col bg-[#11131b] text-slate-300 relative border-r border-slate-800/40 overflow-hidden" id="editorial-left-pane">
-              
+              <Suspense fallback={<TabPageFallback />}>
               {renderTab === 'dashboard' && (
                 <UserDashboardPage onNavigate={handleTabClick} />
               )}
@@ -892,18 +890,9 @@ export default function App() {
                 />
               )}
               {renderTab === 'activity' && <MyActivityPage />}
-              {renderTab === 'admin' && (
-                <Suspense
-                  fallback={
-                    <div className="flex min-h-[40vh] items-center justify-center text-sm font-mono text-violet-300/70">
-                      Loading admin dashboard…
-                    </div>
-                  }
-                >
-                  <AdminDashboardPage />
-                </Suspense>
-              )}
+              {renderTab === 'admin' && <AdminDashboardPage />}
 
+              </Suspense>
             </section>
 
             <TerminalDiagnosticsPane

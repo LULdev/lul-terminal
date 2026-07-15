@@ -4,6 +4,7 @@
  */
 
 import type { UserRole } from '../types/auth';
+import { fetchMe } from './auth';
 import { parseRetryAfterMs } from './retryAfter';
 import { invalidateSession } from './sessionEvents';
 
@@ -100,7 +101,6 @@ export async function fetchLobbyMessages(opts: { since?: number; limit?: number 
       headers: { 'Content-Type': 'application/json' },
     });
     if (guestRes.ok) {
-      const { fetchMe } = await import('./auth');
       const me = await fetchMe().catch(() => ({ user: null }));
       if (!me.user) invalidateSession();
       return guestRes.json() as Promise<LobbyMessagesResponse>;

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { fetchMe } from './auth';
 import { invalidateSession } from './sessionEvents';
 
 const API = '/api/chat/emotes';
@@ -31,7 +32,6 @@ export type ChatEmotesResponse = {
 export async function fetchChatEmotes(): Promise<ChatEmotesResponse> {
   const res = await fetch(API, { credentials: 'include' });
   if (res.status === 401) {
-    const { fetchMe } = await import('./auth');
     const me = await fetchMe().catch(() => ({ user: null }));
     if (!me.user) invalidateSession();
     throw new ChatEmotesAuthError();
