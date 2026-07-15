@@ -36,6 +36,8 @@ export const LeaderboardPage = lazyPage(() => import('./LeaderboardPage'), 'Lead
 export const GamesPage = lazyPage(() => import('./GamesPage'), 'GamesPage');
 export const MyActivityPage = lazyPage(() => import('./MyActivityPage'), 'MyActivityPage');
 
+export const NewsPanel = lazyPage(() => import('../news/NewsPanel'), 'NewsPanel');
+
 export function TabPageFallback() {
   return (
     <div className="flex min-h-[40vh] items-center justify-center text-sm font-mono text-slate-500">

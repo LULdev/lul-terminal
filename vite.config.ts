@@ -30,6 +30,13 @@ export default defineConfig(() => {
               if (id.includes('lucide-react')) return 'vendor-icons';
             }
             if (!id.includes('node_modules')) {
+              if (id.includes('/data/changelog')) return 'data-changelog';
+              if (id.includes('/data/faqData')) return 'data-faq';
+              if (id.includes('/data/achievements')) return 'data-achievements';
+              if (id.includes('/data/toolVault/')) return 'data-toolvault';
+              if (id.includes('/changelog/ChangelogPanel')) return 'feed-changelog';
+              if (id.includes('/news/NewsPanel')) return 'feed-news';
+              if (id.includes('/diagnostics/TerminalDiagnosticsPane')) return 'shell-diagnostics';
               if (id.includes('AdminDashboardPage') || id.includes('AdminShell') || id.includes('AdminOverviewPanel')) return 'admin-dashboard';
               if (id.includes('AdminModerationPanel')) return 'admin-moderation';
               if (id.includes('AdminUsersPanel')) return 'admin-users';

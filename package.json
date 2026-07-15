@@ -1,7 +1,7 @@
 {
   "name": "lul-terminal",
   "private": true,
-  "version": "3.47.1",
+  "version": "3.47.2",
   "description": "Community arcade, profiles, tools & terminal hub",
   "repository": {
     "type": "git",
@@ -18,7 +18,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build",
+    "build": "vite build && node scripts/verify-build-chunks.mjs",
     "seed:proxy-sources": "node scripts/seed-proxy-sources.mjs",
     "seed:persona-db": "node scripts/seed-persona-database.mjs",
     "seed:news": "node scripts/seed-news-articles.mjs",

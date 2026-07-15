@@ -19,7 +19,6 @@ import { DEFAULT_PUBLIC_TABS } from './config/accessControl';
 import { usePageVisibility } from './context/PageVisibilityContext';
 import { parseProfileRoute, profilePath, syncUrlForTab } from './lib/profileRouting';
 import { captureReferralFromUrl } from './lib/referral';
-import { NewsPanel } from './components/news/NewsPanel';
 import { ChangelogPanel } from './components/changelog/ChangelogPanel';
 import { markChangelogVisited, notifyFeedRead, useFeedUnread } from './hooks/useFeedUnread';
 import { APP_VERSION } from './config/version';
@@ -34,6 +33,7 @@ import { FeatureLoginGate } from './components/auth/FeatureLoginGate';
 
 import { useAuth } from './context/AuthContext';
 import {
+  NewsPanel,
   AdminDashboardPage,
   ChaosGeneratorPage,
   ColorLabPage,
@@ -122,6 +122,9 @@ export default function App() {
   });
   const [profileUsername, setProfileUsername] = useState<string | null>(initialProfileRoute?.username ?? null);
   const [premiumDeepLink, setPremiumDeepLink] = useState(initialDeepLink);
+  const [newsPanelMounted, setNewsPanelMounted] = useState(
+    () => (initialProfileRoute?.tab ?? initialDeepLink.tab ?? 'changelog') === 'news',
+  );
 
   /** Safe tab for render — avoids blank pane between session loss and redirect effect. */
   const renderTab = useMemo(() => {
@@ -130,6 +133,10 @@ export default function App() {
     if (!isLoggedIn && requiresLogin(activeTab)) return resolveGuestSafeTab(null, isPublicTab);
     return activeTab;
   }, [authLoading, visibilityLoading, activeTab, isLoggedIn, isAdmin, canAccessTab, requiresLogin, isPublicTab]);
+
+  useEffect(() => {
+    if (renderTab === 'news') setNewsPanelMounted(true);
+  }, [renderTab]);
 
   useEffect(() => {
     captureReferralFromUrl();
@@ -857,14 +864,20 @@ export default function App() {
                 </div>
               )}
 
-              <div
-                className={`absolute inset-0 flex flex-col min-h-0 overflow-hidden ${
-                  renderTab === 'news' ? 'z-10 visible' : 'z-0 invisible pointer-events-none'
-                }`}
-                aria-hidden={renderTab !== 'news'}
-              >
-                <NewsPanel isActive={renderTab === 'news'} liveFeedVersion={newsFeedVersion} onNavigateTab={handleTabClick} />
-              </div>
+              {newsPanelMounted ? (
+                <div
+                  className={`absolute inset-0 flex flex-col min-h-0 overflow-hidden ${
+                    renderTab === 'news' ? 'z-10 visible' : 'z-0 invisible pointer-events-none'
+                  }`}
+                  aria-hidden={renderTab !== 'news'}
+                >
+                  <NewsPanel
+                    isActive={renderTab === 'news'}
+                    liveFeedVersion={newsFeedVersion}
+                    onNavigateTab={handleTabClick}
+                  />
+                </div>
+              ) : null}
 
               {renderTab === 'tools' && <NetToolkitPage />}
               {renderTab === 'identity' && <IdentityForgePage />}
