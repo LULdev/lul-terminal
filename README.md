@@ -1,6 +1,6 @@
 # LUL Terminal
 
-[![Version](https://img.shields.io/badge/version-3.46.0-blue)](package.json)
+[![Version](https://img.shields.io/badge/version-3.47.0-blue)](package.json)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-green)](package.json)
 [![License](https://img.shields.io/badge/license-Apache--2.0-orange)](LICENSE)
 
@@ -59,22 +59,25 @@ LUL Terminal ist eine **selbst gehostete Community-Plattform**: Mitglieder könn
 | `data/` | Deine echten Nutzerdaten — **sichern** und bei Deploy persistent halten |
 | `TRUST_PROXY` | Muss `1` sein, wenn nginx/Cloudflare vor der App steht |
 
-**Standard-Accounts nach Seed** (nur bei leerer Datenbank):
+**Auth-Datenbank:** SQLite unter `data/auth/lul-auth.sqlite` (Benutzer + Sessions). Legacy-JSON nur mit `AUTH_MIGRATE_JSON=1` importierbar.
 
-| Benutzer | Rolle | Zweck |
-|----------|-------|-------|
-| `admin` | Admin | Volles Dashboard, Moderation |
-| `vipdemo` | VIP | Premium Vault, erweiterte Rechte |
-| `bot` | Bot | System-Nachrichten in der Shoutbox |
+**Standard-Accounts nach Seed** (`npm run seed:auth` oder automatisch bei leerer DB):
 
-Passwörter kommen aus `SEED_ADMIN_PASSWORD` / `SEED_VIP_PASSWORD` in `.env` (in Produktion **Pflicht**).
+| Login | Rolle | Passwort (Standard-Seed) |
+|-------|-------|--------------------------|
+| `Administrator` | Admin | `Test123456` |
+| `VIPTestUser` | VIP | `Test123456` |
+| `bot` | Bot | (nicht einloggbar) |
+| 20 Demo-User | User | Zufall — siehe `data/auth/demo-credentials.json` |
 
-**Login:** Benutzername **oder** E-Mail — z. B. `admin` oder `admin@lul.terminal` (nicht nur E-Mail-Feld).
+**Login:** Benutzername **oder** E-Mail (Groß/Kleinschreibung beim Benutzernamen egal).
 
-| Benutzer | E-Mail (alternativ) | Passwort-Quelle |
-|----------|---------------------|-----------------|
-| `admin` | `admin@lul.terminal` | `SEED_ADMIN_PASSWORD` |
-| `vipdemo` | `vip@lul.terminal` | `SEED_VIP_PASSWORD` |
+| Login | E-Mail (alternativ) |
+|-------|---------------------|
+| `Administrator` | `administrator@lul.terminal` |
+| `VIPTestUser` | `viptestuser@lul.terminal` |
+
+**DB zurücksetzen:** `npm run seed:auth:reset` — löscht SQLite-Auth und legt alle Seed-Accounts neu an.
 
 ---
 
@@ -112,7 +115,7 @@ npm run seed:auth               # optional — sonst beim ersten Start automatis
 npm run dev
 ```
 
-Öffne **http://localhost:3000**. Melde dich mit `admin` und dem Passwort aus `.env` (`SEED_ADMIN_PASSWORD`, Standard in `.env.example`: `change-me-admin`) an.
+Öffne **http://localhost:3000**. Melde dich mit **`Administrator`** / **`Test123456`** an (nach `npm run seed:auth`).
 
 > **Hinweis:** In `NODE_ENV=development` ohne gesetzte Seed-Passwörter kann das Admin-Passwort einmalig in der **Server-Konsole** ausgegeben werden.
 
@@ -141,7 +144,7 @@ chmod +x scripts/install-ubuntu-dev.sh
 | `--dir PATH` / `LUL_TERMINAL_DIR=…` | Installationspfad (Standard: `~/lul-terminal`) |
 | `LUL_TERMINAL_BRANCH=main` | Git-Branch beim Klonen |
 
-Nach dem Lauf: **http://localhost:3000** — Login `admin` / Passwort aus `SEED_ADMIN_PASSWORD` in `.env` (Standard: `change-me-admin`).
+Nach dem Lauf: **http://localhost:3000** — Login **`Administrator`** / **`Test123456`** (nach `seed:auth`).
 
 > Nicht als `root` ausführen — normaler Benutzer mit `sudo` für `apt`. Redis ist für Single-Process-Dev **nicht** nötig.
 
@@ -187,7 +190,7 @@ PREMIUM_VAULT_KEY=<openssl rand -base64 32>
 
 **PM2:** `pm2 status` · `pm2 logs lul-terminal` · `pm2 restart lul-terminal`  
 **Update:** `git pull && npm install && npm run build && pm2 restart lul-terminal`  
-**Login:** `admin` / `SEED_ADMIN_PASSWORD`
+**Login:** `Administrator` / `Test123456`
 
 ---
 
@@ -549,11 +552,12 @@ Seed-Skripte füllen JSON-Stores unter `data/` mit Startdaten. Es gibt **manuell
 
 | Befehl / Mechanismus | Zieldatei | Was passiert |
 |----------------------|-----------|--------------|
-| `npm run seed:auth` | `data/auth/users.json` | Legt `admin`, `vipdemo` und `bot` an (nur wenn die Datei leer ist) |
+| `npm run seed:auth` | `data/auth/lul-auth.sqlite` | Legt Administrator, VIPTestUser, bot + 20 Demo-User an (nur wenn DB leer) |
+| `npm run seed:auth:reset` | SQLite auth | Löscht Auth-DB und seedet neu; Passwörter in `demo-credentials.json` |
 | `npm run seed:persona-db` | `data/persona-database/entries.json` | Schreibt 250 öffentliche Adressen (Land, Stadt, Straße, Zeitzone, Venue) |
 | `npm run seed:proxy-sources` | `data/proxy-scraper/sources.json` | Schreibt ~146 eindeutige Proxy-Listen-URLs (GitHub-Repos + Proxifly) |
 | `npm run seed:news` | `data/feeds/news.json` | Überschreibt den News-Feed mit 40 Demo-Artikeln (Features, Spiele, Plattform) |
-| Auth (automatisch) | `data/auth/users.json` | Beim ersten Login/API-Start: gleich wie `seed:auth`, wenn `users.json` fehlt oder leer |
+| Auth (automatisch) | `data/auth/lul-auth.sqlite` | Beim ersten Auth-Start: gleich wie `seed:auth`, wenn SQLite-DB leer |
 | News (automatisch) | `data/feeds/news.json` | Nur wenn `news.json` **fehlt**: 2 Minimal-Bulletins (kein voller Wire-Feed) |
 | Chat-Emotes (automatisch) | `data/chat/emotes.json` + `data/chat/emotes/files/` | Beim ersten Emote-Zugriff: 5 Platzhalter-SVG-Emotes, wenn die DB leer ist |
 | Proxy-Quellen (automatisch) | `data/proxy-scraper/sources.json` | Nur wenn `sources.json` **fehlt**: führt intern `seed-proxy-sources` aus |
@@ -564,17 +568,17 @@ Seed-Skripte füllen JSON-Stores unter `data/` mit Startdaten. Es gibt **manuell
 
 **Bewirkt:**
 
-- Wenn `data/auth/users.json` **bereits Nutzer enthält**: nichts Neues — nur der Bot-User `bot` wird ggf. ergänzt/korrigiert (Rolle `bot`, Anzeigename „BOT“).
-- Wenn die Datei **leer oder neu** ist: erstellt
-  - `admin` (Rolle `admin`) — Passwort aus `SEED_ADMIN_PASSWORD`
-  - `vipdemo` (Rolle `vip`) — Passwort aus `SEED_VIP_PASSWORD`
-  - `bot` (Rolle `bot`) — zufälliges Passwort (nur System-Announcements)
+- Wenn die SQLite-Auth-DB **bereits Nutzer enthält**: nichts Neues — nur `bot` wird ggf. ergänzt.
+- Wenn die DB **leer** ist: erstellt
+  - `Administrator` (admin) — `Test123456`
+  - `VIPTestUser` (vip) — `Test123456`
+  - `bot` — zufälliges Passwort (System)
+  - **20 Demo-User** mit Zufalls-Passwörtern → `data/auth/demo-credentials.json`
 
 **Wann ausführen:**
 
-- Frische Installation, bevor du dich das erste Mal einloggst
-- Nach bewusstem Löschen von `data/auth/users.json` (Reset)
-- In **Produktion**: `.env` mit starken `SEED_*`-Passwörtern **vor** dem ersten Start setzen
+- Frische Installation vor dem ersten Login
+- Komplett-Reset: `npm run seed:auth:reset`
 
 > Der Server ruft denselben Seed **automatisch** beim Auth-Start auf — `npm run seed:auth` ist nur nötig, wenn du Accounts **vor** `npm run dev` / `npm start` anlegen willst.
 
@@ -600,7 +604,7 @@ Schreibt **~146 Quellen** in `data/proxy-scraper/sources.json`. **Überschreibt*
 
 | Feature | Auslöser | Ergebnis |
 |---------|----------|----------|
-| **Auth** | Erster Auth-Service-Start / API-Login | `admin` + `vipdemo` + `bot` wie oben, nur bei leerer `users.json` |
+| **Auth** | Erster Auth-Service-Start | Administrator + VIPTestUser + bot + 20 Demo-User bei leerer SQLite-DB |
 | **News (minimal)** | Erster Zugriff auf News-API, `news.json` fehlt | 2 System-Bulletins |
 | **Chat-Emotes** | Erster Emote-Listen-/Admin-Zugriff, leere Emote-DB | 5 Platzhalter-SVGs |
 | **Proxy-Quellen** | Erster Proxy-Scraper-Zugriff, `sources.json` fehlt | Führt `seed-proxy-sources` aus |
@@ -610,9 +614,9 @@ Schreibt **~146 Quellen** in `data/proxy-scraper/sources.json`. **Überschreibt*
 **Frische Dev-Installation (volles Demo):**
 
 ```bash
-cp .env.example .env          # SEED_ADMIN_PASSWORD + SEED_VIP_PASSWORD setzen
+cp .env.example .env
 npm install
-npm run seed:auth
+npm run seed:auth               # Administrator / Test123456
 npm run seed:persona-db
 npm run seed:proxy-sources
 npm run seed:news             # optional — sonst nur 2 Auto-News beim ersten Start
@@ -1020,7 +1024,7 @@ See [`.env.example`](.env.example) for the full template.
 ```
 lul-terminal/
 ├── data/              # JSON stores (persist in production)
-│   ├── auth/          # users.json, sessions.json, registration-registry.json
+│   ├── auth/          # lul-auth.sqlite, demo-credentials.json, registration-registry.json
 │   ├── chat/          # lobby, emotes
 │   ├── feeds/         # news.json, post-views.json
 │   ├── games/         # history, jackpot, state

@@ -23,6 +23,18 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.47.0',
+    title: 'SQLite auth database + new default accounts',
+    date: 'Jul 15, 2026 - 16:15',
+    highlight: true,
+    items: [
+      { priority: 'P1', text: 'P1 — Auth moved to SQLite (data/auth/lul-auth.sqlite): users + sessions with WAL mode.' },
+      { priority: 'P1', text: 'P1 — Default seed: Administrator / VIPTestUser (Test123456) + 20 demo users; credentials in demo-credentials.json.' },
+      { priority: 'P2', text: 'P2 — Login accepts username or email (case-insensitive username); npm run seed:auth:reset.' },
+      { priority: 'P3', text: 'P3 — Legacy users.json import optional via AUTH_MIGRATE_JSON=1.' },
+    ],
+  },
+  {
     version: '3.46.0',
     title: 'P8 security — vault reveal, origin allowlist, production rate limits',
     date: 'Jul 13, 2026 - 23:00',

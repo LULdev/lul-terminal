@@ -51,6 +51,12 @@ function normalizeUsername(username) {
   return String(username ?? '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
 }
 
+function findUserByUsername(users, rawUsername) {
+  const needle = String(rawUsername ?? '').trim().toLowerCase();
+  if (!needle) return null;
+  return users.find((u) => String(u.username).toLowerCase() === needle) ?? null;
+}
+
 async function profileExtrasForUser(user) {
   const accountsSubmitted = await countAccountsByCreator(user.id);
   const reportedNotWorkingAccounts = await getAcceptedNotWorkingForCreator(user.id);
@@ -97,7 +103,7 @@ export async function registerUser(payload, req) {
   const db = await loadUsersDb();
   await assertRegistrationAllowed({ ...payload, email }, registrationSignals, db, req);
 
-  if (db.users.some((u) => u.email === email) || db.users.some((u) => u.username === username)) {
+  if (db.users.some((u) => u.email === email) || findUserByUsername(db.users, username)) {
     throw new Error('Unable to create account — try a different email or username');
   }
 
@@ -195,9 +201,7 @@ function resolveLoginUser(db, identifier) {
     const normalized = normalizeEmail(raw);
     return db.users.find((u) => u.email === normalized) ?? null;
   }
-  const username = normalizeUsername(raw);
-  if (!username) return null;
-  return db.users.find((u) => u.username === username) ?? null;
+  return findUserByUsername(db.users, raw);
 }
 
 export async function loginUser({ email, password, remember }) {
@@ -638,9 +642,7 @@ export async function recordTerminalCommand(userId, command, proofNonce, session
 
 export async function getPublicProfileByUsername(username) {
   const db = await loadUsersDb();
-  const uname = normalizeUsername(username);
-  if (!uname) throw new Error('User not found');
-  const user = db.users.find((u) => u.username === uname);
+  const user = findUserByUsername(db.users, username);
   if (!user) throw new Error('User not found');
   const { accountsSubmitted, reportedNotWorkingAccounts, profileStats } = await profileExtrasForUser(user);
   const view = publicProfileView(user, accountsSubmitted, reportedNotWorkingAccounts, profileStats);
@@ -651,11 +653,10 @@ export async function getPublicProfileByUsername(username) {
 export async function incrementProfileView(username, { viewer = null, sessionTab = null, sessionToken = null } = {}) {
   return runCoinTransaction(async () => {
     const db = await loadUsersDb();
-    const uname = normalizeUsername(username);
-    if (!uname) throw new Error('User not found');
-    const user = db.users.find((u) => u.username === uname && isEffectivelyActive(u));
-    if (!user) throw new Error('User not found');
-    const viewerUname = viewer?.username ? normalizeUsername(viewer.username) : null;
+    const user = findUserByUsername(db.users, username);
+    if (!user || !isEffectivelyActive(user)) throw new Error('User not found');
+    const uname = String(user.username).toLowerCase();
+    const viewerUname = viewer?.username ? String(viewer.username).toLowerCase() : null;
     if (viewerUname && viewerUname === uname) {
       const { accountsSubmitted, reportedNotWorkingAccounts, profileStats } = await profileExtrasForUser(user);
       return {

@@ -254,7 +254,7 @@ ensure_env_file() {
   fi
 
   ok "Created .env from .env.example (dev defaults, random PREMIUM_VAULT_KEY)."
-  warn "Default login: admin / change-me-admin (SEED_ADMIN_PASSWORD in .env)"
+  warn "Default login after seed:auth: Administrator / Test123456"
 }
 
 read_env_value() {
@@ -303,11 +303,8 @@ check_port() {
 
 print_summary() {
   local admin_pw
-  admin_pw="$(read_env_value SEED_ADMIN_PASSWORD)"
-  admin_pw="${admin_pw:-change-me-admin}"
-  local vip_pw
-  vip_pw="$(read_env_value SEED_VIP_PASSWORD)"
-  vip_pw="${vip_pw:-change-me-vip}"
+  admin_pw="Test123456"
+  local vip_pw="Test123456"
 
   cat <<EOF
 
@@ -321,8 +318,8 @@ ${GREEN}${BOLD}━━━━━━━━━━━━━━━━━━━━━�
               http://$(hostname -I 2>/dev/null | awk '{print $1}' || echo '127.0.0.1'):${DEV_PORT}
 
   Login:
-    admin   / ${admin_pw}
-    vipdemo / ${vip_pw}
+    Administrator / ${admin_pw}
+    VIPTestUser   / ${vip_pw}
 
   Next time:
     cd ${LUL_TERMINAL_DIR} && npm run dev

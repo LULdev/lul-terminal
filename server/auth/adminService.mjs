@@ -57,7 +57,7 @@ export async function createUserAdmin(payload) {
   return withUsersWrite(async () => {
   const db = await loadUsersDb();
   if (db.users.some((u) => u.email === email)) throw new Error('Email taken');
-  if (db.users.some((u) => u.username === username)) throw new Error('Username taken');
+  if (db.users.some((u) => String(u.username).toLowerCase() === username)) throw new Error('Username taken');
 
   const now = Date.now();
   const user = {
@@ -102,7 +102,7 @@ export async function updateUserAdmin(id, payload) {
   if (payload.username != null) {
     const username = normalizeUsername(payload.username);
     if (!username) throw new Error('Invalid username');
-    if (db.users.some((u) => u.id !== id && u.username === username)) throw new Error('Username taken');
+    if (db.users.some((u) => u.id !== id && String(u.username).toLowerCase() === username)) throw new Error('Username taken');
     user.username = username;
   }
   if (payload.email != null) {

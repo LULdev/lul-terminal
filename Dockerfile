@@ -3,6 +3,8 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
+RUN apk add --no-cache python3 make g++
+
 COPY package.json package-lock.json ./
 RUN npm ci
 
@@ -15,6 +17,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
+
+RUN apk add --no-cache python3 make g++
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force

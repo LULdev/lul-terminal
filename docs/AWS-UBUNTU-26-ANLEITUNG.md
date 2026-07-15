@@ -389,13 +389,15 @@ Erwartung: **22**, **80**, **443** — Port **3000** nicht öffentlich.
 
 1. Browser: `https://terminal.deine-domain.de`
 2. **Sign in**
-3. Benutzer: **`admin`** oder **`admin@lul.terminal`**
-4. Passwort: `SEED_ADMIN_PASSWORD` aus `.env`
+3. Benutzer: **`Administrator`** oder **`administrator@lul.terminal`**
+4. Passwort: **`Test123456`** (Standard-Seed)
 
-| Benutzer | Rolle | Passwort |
-|----------|-------|----------|
-| `admin` | Admin | `SEED_ADMIN_PASSWORD` |
-| `vipdemo` | VIP | `SEED_VIP_PASSWORD` |
+| Login | Rolle | Passwort |
+|-------|-------|----------|
+| `Administrator` | Admin | `Test123456` |
+| `VIPTestUser` | VIP | `Test123456` |
+
+20 Demo-User: `data/auth/demo-credentials.json` nach `npm run seed:auth`
 
 **Checks nach Login:**
 

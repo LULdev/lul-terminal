@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-07-08T05:26:54.301Z",
+  "updatedAt": "2026-07-15T16:10:01.834Z",
   "messages": [
     {
       "id": "27ffcaae8b9d",
@@ -163,6 +163,170 @@
         }
       ],
       "createdAt": 1783488414301
+    },
+    {
+      "id": "bbb13fe97708",
+      "lobby": "main",
+      "userId": "a2debf04c987b3d1",
+      "username": "bot",
+      "displayName": "BOT",
+      "role": "bot",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=bot",
+      "kind": "achievement",
+      "text": "🎖️ @Administrator unlocked 5 achievements: 🚀 The Journey Begins · 🖌️ Cover Curator · 🪙 Coin Baron · ✅ Trusted Contributor · +1 more",
+      "segments": [
+        {
+          "type": "text",
+          "text": "🎖️ "
+        },
+        {
+          "type": "user",
+          "username": "Administrator",
+          "href": "/profile/administrator",
+          "label": "@Administrator"
+        },
+        {
+          "type": "text",
+          "text": " unlocked 5 achievements: "
+        },
+        {
+          "type": "text",
+          "text": "🚀 "
+        },
+        {
+          "type": "text",
+          "text": "The Journey Begins",
+          "style": "achievement"
+        },
+        {
+          "type": "text",
+          "text": " · "
+        },
+        {
+          "type": "text",
+          "text": "🖌️ "
+        },
+        {
+          "type": "text",
+          "text": "Cover Curator",
+          "style": "achievement"
+        },
+        {
+          "type": "text",
+          "text": " · "
+        },
+        {
+          "type": "text",
+          "text": "🪙 "
+        },
+        {
+          "type": "text",
+          "text": "Coin Baron",
+          "style": "achievement"
+        },
+        {
+          "type": "text",
+          "text": " · "
+        },
+        {
+          "type": "text",
+          "text": "✅ "
+        },
+        {
+          "type": "text",
+          "text": "Trusted Contributor",
+          "style": "achievement"
+        },
+        {
+          "type": "text",
+          "text": " · +1 more"
+        },
+        {
+          "type": "text",
+          "text": " — congrats!"
+        }
+      ],
+      "createdAt": 1784131798818
+    },
+    {
+      "id": "adcb0a33dc92",
+      "lobby": "main",
+      "userId": "a2debf04c987b3d1",
+      "username": "bot",
+      "displayName": "BOT",
+      "role": "bot",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=bot",
+      "kind": "achievement",
+      "text": "🎖️ @VIPTestUser unlocked 4 achievements: 🚀 The Journey Begins · 🖌️ Cover Curator · ✅ Trusted Contributor · 👑 VIP Crown",
+      "segments": [
+        {
+          "type": "text",
+          "text": "🎖️ "
+        },
+        {
+          "type": "user",
+          "username": "VIPTestUser",
+          "href": "/profile/viptestuser",
+          "label": "@VIPTestUser"
+        },
+        {
+          "type": "text",
+          "text": " unlocked 4 achievements: "
+        },
+        {
+          "type": "text",
+          "text": "🚀 "
+        },
+        {
+          "type": "text",
+          "text": "The Journey Begins",
+          "style": "achievement"
+        },
+        {
+          "type": "text",
+          "text": " · "
+        },
+        {
+          "type": "text",
+          "text": "🖌️ "
+        },
+        {
+          "type": "text",
+          "text": "Cover Curator",
+          "style": "achievement"
+        },
+        {
+          "type": "text",
+          "text": " · "
+        },
+        {
+          "type": "text",
+          "text": "✅ "
+        },
+        {
+          "type": "text",
+          "text": "Trusted Contributor",
+          "style": "achievement"
+        },
+        {
+          "type": "text",
+          "text": " · "
+        },
+        {
+          "type": "text",
+          "text": "👑 "
+        },
+        {
+          "type": "text",
+          "text": "VIP Crown",
+          "style": "achievement"
+        },
+        {
+          "type": "text",
+          "text": " — congrats!"
+        }
+      ],
+      "createdAt": 1784131801833
     }
   ]
 }

@@ -45,7 +45,7 @@ export const ADMIN_SETUP_NOTES: AdminSetupNote[] = [
     title: 'First-run admin accounts',
     category: 'security',
     envVar: 'SEED_ADMIN_PASSWORD / SEED_VIP_PASSWORD',
-    body: 'When data/auth/users.json is empty, the server seeds admin + vipdemo accounts. In production SEED_ADMIN_PASSWORD and SEED_VIP_PASSWORD are required — set strong values in .env before first boot, then change passwords after login.',
+    body: 'Auth uses SQLite (data/auth/lul-auth.sqlite). On empty DB the server seeds Administrator + VIPTestUser (Test123456), bot, and 20 demo users. Demo passwords: data/auth/demo-credentials.json. Reset: npm run seed:auth:reset.',
   },
   {
     id: 'premium-vault',

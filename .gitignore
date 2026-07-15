@@ -15,3 +15,6 @@ data/rate-limits/
 data/locks/
 data/proxy-scraper/state.json
 data/proxy-scraper/last-results.json
+data/auth/lul-auth.sqlite
+data/auth/lul-auth.sqlite-*
+data/auth/demo-credentials.json
