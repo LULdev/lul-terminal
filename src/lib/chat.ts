@@ -100,7 +100,9 @@ export async function fetchLobbyMessages(opts: { since?: number; limit?: number 
       headers: { 'Content-Type': 'application/json' },
     });
     if (guestRes.ok) {
-      invalidateSession();
+      const { fetchMe } = await import('./auth');
+      const me = await fetchMe().catch(() => ({ user: null }));
+      if (!me.user) invalidateSession();
       return guestRes.json() as Promise<LobbyMessagesResponse>;
     }
     invalidateSession();

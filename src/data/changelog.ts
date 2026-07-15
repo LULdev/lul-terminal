@@ -23,6 +23,17 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.47.1',
+    title: 'Fix login session lost after SQLite user save',
+    date: 'Jul 15, 2026 - 16:45',
+    highlight: true,
+    items: [
+      { priority: 'P0', text: 'P0 — saveUsersDb UPSERT: sessions no longer CASCADE-deleted on every user write (login stayed “online” but UI showed Sign In).' },
+      { priority: 'P1', text: 'P1 — loginUser: create session after user save; AuthContext refresh/login race fixes.' },
+      { priority: 'P2', text: 'P2 — Chat guest 401 fallback only invalidates session when /me confirms logged out.' },
+    ],
+  },
+  {
     version: '3.47.0',
     title: 'SQLite auth database + new default accounts',
     date: 'Jul 15, 2026 - 16:15',

@@ -139,14 +139,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const data = await authApi.fetchMe();
       if (gen !== refreshGenRef.current) return;
-      setUser(data.user);
-      setPermissions(data.permissions ?? defaultPermissions);
-      setAccountsSubmitted(data.stats?.accountsSubmitted ?? 0);
-      if (data.user) resetSessionInvalidation();
+      if (data.user) {
+        setUser(data.user);
+        setPermissions(data.permissions ?? defaultPermissions);
+        setAccountsSubmitted(data.stats?.accountsSubmitted ?? 0);
+        resetSessionInvalidation();
+      } else if (!userRef.current) {
+        setUser(null);
+        setPermissions(defaultPermissions);
+        setAccountsSubmitted(0);
+      }
     } catch (e) {
       if (gen !== refreshGenRef.current) return;
       const status = (e as { status?: number })?.status;
-      if (status === 401) {
+      if (status === 401 && !userRef.current) {
         setUser(null);
         setPermissions(defaultPermissions);
         setAccountsSubmitted(0);
@@ -193,7 +199,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string, remember: boolean) => {
+    refreshGenRef.current += 1;
+    const loginGen = refreshGenRef.current;
     const data = await authApi.login(email, password, remember);
+    if (loginGen !== refreshGenRef.current) return;
     setUser(data.user);
     if (data.permissions) setPermissions(data.permissions);
     if (data.stats?.accountsSubmitted != null) {
@@ -204,12 +213,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearViewDedupSessionKeys();
     resetSessionInvalidation();
     setAuthSuccessTick((t) => t + 1);
-    void authApi.fetchMe().then((me) => {
-      if (!me.user) return;
-      setUser(me.user);
-      setPermissions(me.permissions ?? defaultPermissions);
-      setAccountsSubmitted(me.stats?.accountsSubmitted ?? 0);
-    }).catch(() => {});
+    try {
+      const me = await authApi.fetchMe();
+      if (loginGen !== refreshGenRef.current) return;
+      if (me.user) {
+        setUser(me.user);
+        setPermissions(me.permissions ?? defaultPermissions);
+        setAccountsSubmitted(me.stats?.accountsSubmitted ?? 0);
+      }
+    } catch {
+      /* keep login response user */
+    }
   }, [handleUnlocks]);
 
   const register = useCallback(async (input: {

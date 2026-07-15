@@ -31,7 +31,9 @@ export type ChatEmotesResponse = {
 export async function fetchChatEmotes(): Promise<ChatEmotesResponse> {
   const res = await fetch(API, { credentials: 'include' });
   if (res.status === 401) {
-    invalidateSession();
+    const { fetchMe } = await import('./auth');
+    const me = await fetchMe().catch(() => ({ user: null }));
+    if (!me.user) invalidateSession();
     throw new ChatEmotesAuthError();
   }
   if (!res.ok) throw new Error('Emotes unavailable');

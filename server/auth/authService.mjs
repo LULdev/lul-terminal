@@ -212,34 +212,6 @@ export async function loginUser({ email, password, remember }) {
 
   const token = newSessionToken();
   const maxAgeSec = remember ? SESSION_REMEMBER_SEC : SESSION_SHORT_SEC;
-  await withSessionsWrite(async () => {
-    const sessionsDb = await loadSessionsDb();
-    const now = Date.now();
-    const expired = sessionsDb.sessions.filter((s) => s.expiresAt <= now);
-    if (expired.length) {
-      const { leaveAllGameQueues } = await import('../gamesService.mjs');
-      for (const s of expired) {
-        const cleanup = await leaveAllGameQueues(s.userId).catch((e) => {
-          console.warn('[auth] login expired-session arcade cleanup failed', s.userId, e);
-          return { ok: false, errors: [] };
-        });
-        await refundOrphanEscrowsAfterCleanup(s.userId, cleanup);
-      }
-    }
-    sessionsDb.sessions = sessionsDb.sessions.filter((s) => s.expiresAt > now);
-    sessionsDb.sessions.push({
-      token,
-      userId: user.id,
-      remember: Boolean(remember),
-      expiresAt: Date.now() + maxAgeSec * 1000,
-      createdAt: Date.now(),
-      analyticsProofRemint: true,
-    });
-    sessionsDb.sessions = sessionsDb.sessions.filter(
-      (s) => s.userId !== user.id || s.token === token,
-    );
-    await saveSessionsDb(sessionsDb);
-  });
 
   const loginResult = await runCoinTransaction(async () => {
     const freshDb = await loadUsersDb();
@@ -269,6 +241,35 @@ export async function loginUser({ email, password, remember }) {
       newUnlocks,
       ...buildUnlockPayload(newUnlocks),
     };
+  });
+
+  await withSessionsWrite(async () => {
+    const sessionsDb = await loadSessionsDb();
+    const now = Date.now();
+    const expired = sessionsDb.sessions.filter((s) => s.expiresAt <= now);
+    if (expired.length) {
+      const { leaveAllGameQueues } = await import('../gamesService.mjs');
+      for (const s of expired) {
+        const cleanup = await leaveAllGameQueues(s.userId).catch((e) => {
+          console.warn('[auth] login expired-session arcade cleanup failed', s.userId, e);
+          return { ok: false, errors: [] };
+        });
+        await refundOrphanEscrowsAfterCleanup(s.userId, cleanup);
+      }
+    }
+    sessionsDb.sessions = sessionsDb.sessions.filter((s) => s.expiresAt > now);
+    sessionsDb.sessions.push({
+      token,
+      userId: user.id,
+      remember: Boolean(remember),
+      expiresAt: Date.now() + maxAgeSec * 1000,
+      createdAt: Date.now(),
+      analyticsProofRemint: true,
+    });
+    sessionsDb.sessions = sessionsDb.sessions.filter(
+      (s) => s.userId !== user.id || s.token === token,
+    );
+    await saveSessionsDb(sessionsDb);
   });
 
   const { touchUserLastSeen } = await import('../chatStats.mjs');

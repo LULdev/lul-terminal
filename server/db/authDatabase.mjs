@@ -124,15 +124,29 @@ export function readUsersDbShape() {
 export function writeUsersDbShape(dbShape) {
   const db = getAuthDatabase();
   const updatedAt = new Date().toISOString();
-  const insert = db.prepare(`
+  const upsert = db.prepare(`
     INSERT INTO users (id, username, email, role, password_hash, active, payload, updated_at)
     VALUES (@id, @username, @email, @role, @password_hash, @active, @payload, @updated_at)
+    ON CONFLICT(id) DO UPDATE SET
+      username = excluded.username,
+      email = excluded.email,
+      role = excluded.role,
+      password_hash = excluded.password_hash,
+      active = excluded.active,
+      payload = excluded.payload,
+      updated_at = excluded.updated_at
   `);
   const writeAll = db.transaction((users) => {
-    db.prepare('DELETE FROM users').run();
+    const ids = users.map((u) => u.id);
+    if (ids.length === 0) {
+      db.prepare('DELETE FROM users').run();
+    } else {
+      const placeholders = ids.map(() => '?').join(',');
+      db.prepare(`DELETE FROM users WHERE id NOT IN (${placeholders})`).run(...ids);
+    }
     for (const user of users) {
       const row = userToStorageRow(user);
-      insert.run({ ...row, updated_at: updatedAt });
+      upsert.run({ ...row, updated_at: updatedAt });
     }
     db.prepare(`
       INSERT INTO meta (key, value) VALUES ('users_updated_at', @value)
