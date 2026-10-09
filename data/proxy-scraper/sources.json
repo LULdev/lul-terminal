@@ -1640,6 +1640,13 @@
       "url": "https://raw.githubusercontent.com/iplocate/free-proxy-list/main/all-proxies.txt",
       "type": "http",
       "repo": "custom"
+    },
+    {
+      "id": "extra-rcloak-proxies-raw-all",
+      "name": "rcloak.com · api · proxies raw (all)",
+      "url": "https://rcloak.com/api/proxies/raw?protocol=all",
+      "type": "all",
+      "repo": "custom"
     }
   ]
 }
